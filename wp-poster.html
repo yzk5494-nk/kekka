@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WordPress 投稿ツール</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    header {
+      background: #1e2a3a;
+      color: #fff;
+      padding: 14px 24px;
+      font-size: 18px;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header span.badge {
+      background: #f5c518;
+      color: #111;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .main {
+      max-width: 780px;
+      margin: 32px auto;
+      padding: 0 16px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fafafa;
+      transition: border-color 0.15s;
+      resize: vertical;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #f5c518;
+      background: #fff;
+    }
+    textarea { min-height: 80px; line-height: 1.6; }
+
+    /* セクション */
+    .section-list { display: flex; flex-direction: column; gap: 16px; }
+    .section-card {
+      background: #f8f9fb;
+      border: 1px solid #e4e6ea;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .section-num {
+      font-size: 13px;
+      font-weight: bold;
+      color: #1e2a3a;
+      background: #f5c518;
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+    .btn-remove {
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #999;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-remove:hover { border-color: #e55; color: #e55; }
+    .section-fields { display: flex; flex-direction: column; gap: 10px; }
+    .image-area {
+      border: 2px dashed #ddd;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .image-area:hover { border-color: #f5c518; background: #fffdf0; }
+    .image-area.has-image { border-color: #4caf50; border-style: solid; background: #f0fff4; }
+    .image-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .image-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 4px;
+      display: none;
+      margin: 8px auto 0;
+    }
+    .image-label {
+      font-size: 13px;
+      color: #888;
+      pointer-events: none;
+    }
+    .image-area.has-image .image-label { color: #4caf50; }
+
+    /* ボタン */
+    .btn-add-section {
+      background: #1e2a3a;
+      color: #f5c518;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-add-section:hover { background: #253447; }
+    .btn-submit {
+      background: #f5c518;
+      color: #111;
+      border: none;
+      border-radius: 10px;
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      position: sticky;
+      bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-submit:hover { background: #f0b800; transform: translateY(-1px); }
+    .btn-submit:disabled { background: #ccc; color: #666; cursor: not-allowed; transform: none; }
+
+    /* ステータス */
+    #status {
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      display: none;
+    }
+    #status.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    #status.error { background: #fde8e8; color: #c62828; border: 1px solid #ef9a9a; }
+    #status.loading { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+    #status a { color: inherit; font-weight: bold; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+
+    /* 定型文 */
+    .template-select-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .template-select-row select { flex: 1; margin-bottom: 0; }
+    .btn-sm {
+      background: #1e2a3a;
+      color: #f5c518;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-sm:hover { background: #253447; }
+    .btn-sm.danger { background: #fff; color: #e55; border: 1px solid #e55; }
+    .btn-sm.danger:hover { background: #fde8e8; }
+    .btn-sm.apply { background: #f5c518; color: #111; }
+    .btn-sm.apply:hover { background: #f0b800; }
+    .template-vars {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f8f9fb;
+      border: 1px solid #e4e6ea;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .template-vars-title {
+      font-size: 12px;
+      color: #888;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .var-row { display: flex; align-items: center; gap: 10px; }
+    .var-row label { min-width: 90px; margin-bottom: 0; color: #1e2a3a; font-weight: bold; }
+    .var-row input { flex: 1; margin-bottom: 0; }
+    .template-result {
+      width: 100%;
+      min-height: 80px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      line-height: 1.6;
+      resize: vertical;
+    }
+    .apply-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .apply-row select { flex: 1; margin-bottom: 0; }
+    .template-edit-area {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+      background: #f8f9fb;
+      border: 1px solid #e4e6ea;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .template-edit-area.open { display: flex; }
+    .template-hint {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  WordPress 投稿ツール
+  <span class="badge">下書き保存</span>
+</header>
+
+<div class="main">
+
+  <!-- ステータス -->
+  <div id="status"></div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <div class="card-title">基本情報</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label>タイトル <span style="color:#e55">*</span></label>
+        <input type="text" id="title" placeholder="例：3月26日(木)│コンコルド掛川│優秀台ピックアップ！">
+      </div>
+      <div class="field-row">
+        <div>
+          <label>カテゴリー</label>
+          <select id="category">
+            <option value="">読み込み中...</option>
+          </select>
+        </div>
+        <div>
+          <label>スラッグ（URL）※任意</label>
+          <input type="text" id="slug" placeholder="自動生成">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 定型文テンプレート -->
+  <div class="card">
+    <div class="card-title">定型文テンプレート</div>
+
+    <div class="template-select-row">
+      <select id="templateSelect" onchange="onTemplateChange()">
+        <option value="">テンプレートを選択...</option>
+      </select>
+      <button class="btn-sm" onclick="openNewTemplate()">＋ 新規</button>
+      <button class="btn-sm danger" onclick="deleteTemplate()">削除</button>
+    </div>
+
+    <!-- 変数入力欄 -->
+    <div class="template-vars" id="templateVars" style="display:none">
+      <div class="template-vars-title">入力欄（{変数名} の箇所を埋める）</div>
+      <div id="varFields"></div>
+    </div>
+
+    <!-- プレビュー -->
+    <div id="templatePreviewWrap" style="display:none">
+      <label>生成プレビュー</label>
+      <textarea class="template-result" id="templatePreview" readonly></textarea>
+      <div class="apply-row">
+        <select id="applyTarget">
+          <option value="intro">導入コメントに適用</option>
+          <option value="summary">まとめコメントに適用</option>
+        </select>
+        <button class="btn-sm apply" onclick="applyTemplate()">適用する</button>
+      </div>
+    </div>
+
+    <!-- テンプレート編集エリア -->
+    <div class="template-edit-area" id="templateEditArea">
+      <div>
+        <label>テンプレート名</label>
+        <input type="text" id="editName" placeholder="例：導入コメント用">
+      </div>
+      <div>
+        <label>テンプレート本文</label>
+        <textarea id="editBody" placeholder="例：本日は{店舗名}の優秀台をご紹介します！{機種名}が好調でした。" style="min-height:100px"></textarea>
+        <div class="template-hint">※ {変数名} の形式で入力欄が自動生成されます</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm apply" onclick="saveTemplate()">保存</button>
+        <button class="btn-sm danger" onclick="closeEditArea()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 導入コメント -->
+  <div class="card">
+    <div class="card-title">導入コメント</div>
+    <textarea id="intro" placeholder="本日の優秀台をご紹介します！&#10;&#10;例）〇〇が好調で、複数台が高差枚数を記録しました。"></textarea>
+  </div>
+
+  <!-- セクション -->
+  <div class="card">
+    <div class="card-title">セクション（見出し・コメント・画像）</div>
+    <div class="section-list" id="sectionList"></div>
+    <div style="margin-top:14px;">
+      <button class="btn-add-section" onclick="addSection()">＋ セクションを追加</button>
+    </div>
+  </div>
+
+  <!-- まとめ -->
+  <div class="card">
+    <div class="card-title">まとめコメント</div>
+    <textarea id="summary" placeholder="本日も多数の優秀台が確認できました！&#10;次回もお楽しみに！"></textarea>
+  </div>
+
+  <!-- 投稿ボタン -->
+  <button class="btn-submit" id="submitBtn" onclick="submitPost()">下書き保存する</button>
+
+</div>
+
+<script>
+let sectionCount = 0;
+const sectionData = {}; // { id: { imageFile, imageBase64, imageName } }
+
+// カテゴリー読み込み
+async function loadCategories() {
+  try {
+    const res = await fetch('/api/categories');
+    const cats = await res.json();
+    const sel = document.getElementById('category');
+    sel.innerHTML = '<option value="">カテゴリーなし</option>';
+    // 階層を考慮してソート（parent=0 が親）
+    const parents = cats.filter(c => c.parent === 0).sort((a,b) => a.name.localeCompare(b.name, 'ja'));
+    const children = cats.filter(c => c.parent !== 0);
+    parents.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+      children.filter(c => c.parent === p.id).sort((a,b) => a.name.localeCompare(b.name,'ja')).forEach(c => {
+        const copt = document.createElement('option');
+        copt.value = c.id;
+        copt.textContent = '　└ ' + c.name;
+        sel.appendChild(copt);
+      });
+    });
+  } catch(e) {
+    document.getElementById('category').innerHTML = '<option value="">取得失敗</option>';
+  }
+}
+
+// セクション追加
+function addSection() {
+  const id = ++sectionCount;
+  sectionData[id] = { imageBase64: null, imageName: null };
+  const list = document.getElementById('sectionList');
+  const div = document.createElement('div');
+  div.className = 'section-card';
+  div.id = `section-${id}`;
+  div.innerHTML = `
+    <div class="section-header">
+      <span class="section-num">セクション ${id}</span>
+      <button class="btn-remove" onclick="removeSection(${id})">削除</button>
+    </div>
+    <div class="section-fields">
+      <div>
+        <label>見出し（H2）</label>
+        <input type="text" id="heading-${id}" placeholder="例：優秀台ピックアップ">
+      </div>
+      <div>
+        <label>コメント</label>
+        <textarea id="comment-${id}" placeholder="このセクションのコメントを入力"></textarea>
+      </div>
+      <div>
+        <label>画像（PNG）</label>
+        <div class="image-area" id="imgArea-${id}">
+          <input type="file" accept="image/png,image/*" onchange="handleImage(${id}, this)">
+          <div class="image-label" id="imgLabel-${id}">クリックまたはドロップで画像を選択</div>
+          <img class="image-preview" id="imgPreview-${id}">
+        </div>
+      </div>
+    </div>
+  `;
+  list.appendChild(div);
+}
+
+// セクション削除
+function removeSection(id) {
+  const el = document.getElementById(`section-${id}`);
+  if (el) el.remove();
+  delete sectionData[id];
+}
+
+// 画像選択
+function handleImage(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const base64 = e.target.result.split(',')[1];
+    sectionData[id].imageBase64 = base64;
+    sectionData[id].imageName = file.name;
+    const area = document.getElementById(`imgArea-${id}`);
+    area.classList.add('has-image');
+    document.getElementById(`imgLabel-${id}`).textContent = '✓ ' + file.name;
+    const preview = document.getElementById(`imgPreview-${id}`);
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+// 投稿
+async function submitPost() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) { showStatus('error', 'タイトルを入力してください'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  showStatus('loading', '投稿中...');
+
+  try {
+    // セクション収集
+    const sections = [];
+    for (let id = 1; id <= sectionCount; id++) {
+      if (!document.getElementById(`section-${id}`)) continue;
+      sections.push({
+        id,
+        heading: document.getElementById(`heading-${id}`).value.trim(),
+        comment: document.getElementById(`comment-${id}`).value.trim(),
+        imageBase64: sectionData[id]?.imageBase64 || null,
+        imageName: sectionData[id]?.imageName || null,
+      });
+    }
+
+    // 画像アップロード
+    let featuredMediaId = null;
+    for (const sec of sections) {
+      if (!sec.imageBase64) continue;
+      showStatus('loading', `画像をアップロード中... (${sec.id}/${sections.length})`);
+      const r = await fetch('/api/upload-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: sec.imageName, data: sec.imageBase64 }),
+      });
+      const media = await r.json();
+      if (!r.ok) throw new Error('画像アップロード失敗: ' + (media.message || r.status));
+      sec.mediaUrl = media.source_url;
+      sec.mediaId = media.id;
+      if (featuredMediaId === null) featuredMediaId = media.id;
+    }
+
+    // 本文HTML組み立て
+    let content = '';
+    const intro = document.getElementById('intro').value.trim();
+    if (intro) content += `<p>${escHtml(intro).replace(/\n/g, '<br>')}</p>\n\n`;
+
+    for (const sec of sections) {
+      if (sec.heading) content += `<h2>${escHtml(sec.heading)}</h2>\n`;
+      if (sec.comment) content += `<p>${escHtml(sec.comment).replace(/\n/g, '<br>')}</p>\n`;
+      if (sec.mediaUrl) content += `<figure class="wp-block-image size-large"><img src="${sec.mediaUrl}" alt="${escHtml(sec.heading || '')}"/></figure>\n`;
+      content += '\n';
+    }
+
+    const summary = document.getElementById('summary').value.trim();
+    if (summary) content += `<h2>まとめ</h2>\n<p>${escHtml(summary).replace(/\n/g, '<br>')}</p>\n`;
+
+    // 投稿データ
+    const postData = {
+      title,
+      content,
+      status: 'draft',
+    };
+    const catVal = document.getElementById('category').value;
+    if (catVal) postData.categories = [parseInt(catVal, 10)];
+    const slugVal = document.getElementById('slug').value.trim();
+    if (slugVal) postData.slug = slugVal;
+    if (featuredMediaId) postData.featured_media = featuredMediaId;
+
+    showStatus('loading', '記事を作成中...');
+    const r = await fetch('/api/create-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postData),
+    });
+    const post = await r.json();
+    if (!r.ok) throw new Error('記事作成失敗: ' + (post.message || r.status));
+
+    const editUrl = post.link.replace(/\/$/, '') + '/../wp-admin/post.php?post=' + post.id + '&action=edit';
+    showStatus('success', `✓ 下書き保存しました！ <a href="${post.link}" target="_blank">記事を確認</a>`);
+
+  } catch(e) {
+    showStatus('error', '❌ エラー: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = type;
+  el.style.display = 'block';
+  el.innerHTML = msg;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== 定型文テンプレート =====
+const TEMPLATE_KEY = 'wp_templates';
+let editingTemplateId = null;
+
+const DEFAULT_TEMPLATES = [
+  {
+    id: 'default1',
+    name: '導入コメント（基本）',
+    body: '本日は{店舗名}の優秀台をご紹介します！\n\n{機種名}が好調で、{台数}台が高差枚数を記録しました。\nぜひ参考にしてみてください！',
+  },
+  {
+    id: 'default2',
+    name: 'まとめコメント（基本）',
+    body: '本日も{店舗名}で多数の優秀台が確認できました！\n{コメント}\n次回もお楽しみに！',
+  },
+];
+
+function loadTemplates() {
+  const saved = localStorage.getItem(TEMPLATE_KEY);
+  return saved ? JSON.parse(saved) : [...DEFAULT_TEMPLATES];
+}
+
+function saveTemplates(templates) {
+  localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates));
+}
+
+function renderTemplateSelect() {
+  const templates = loadTemplates();
+  const sel = document.getElementById('templateSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">テンプレートを選択...</option>';
+  templates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
+}
+
+function onTemplateChange() {
+  const id = document.getElementById('templateSelect').value;
+  const varsWrap = document.getElementById('templateVars');
+  const previewWrap = document.getElementById('templatePreviewWrap');
+  if (!id) {
+    varsWrap.style.display = 'none';
+    previewWrap.style.display = 'none';
+    return;
+  }
+  const templates = loadTemplates();
+  const tmpl = templates.find(t => t.id === id);
+  if (!tmpl) return;
+
+  // {変数名} を抽出
+  const vars = [...new Set([...tmpl.body.matchAll(/\{([^}]+)\}/g)].map(m => m[1]))];
+
+  const fieldsEl = document.getElementById('varFields');
+  fieldsEl.innerHTML = '';
+  vars.forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'var-row';
+    row.innerHTML = `<label>{${v}}</label><input type="text" id="var_${CSS.escape(v)}" placeholder="${v}を入力" oninput="updatePreview()">`;
+    fieldsEl.appendChild(row);
+  });
+
+  varsWrap.style.display = vars.length ? 'flex' : 'none';
+  previewWrap.style.display = 'block';
+  updatePreview();
+}
+
+function updatePreview() {
+  const id = document.getElementById('templateSelect').value;
+  if (!id) return;
+  const templates = loadTemplates();
+  const tmpl = templates.find(t => t.id === id);
+  if (!tmpl) return;
+
+  let result = tmpl.body;
+  const vars = [...new Set([...tmpl.body.matchAll(/\{([^}]+)\}/g)].map(m => m[1]))];
+  vars.forEach(v => {
+    const el = document.getElementById('var_' + CSS.escape(v));
+    const val = el ? el.value : '';
+    result = result.replaceAll(`{${v}}`, val || `{${v}}`);
+  });
+  document.getElementById('templatePreview').value = result;
+}
+
+function applyTemplate() {
+  const preview = document.getElementById('templatePreview').value;
+  const target = document.getElementById('applyTarget').value;
+  document.getElementById(target).value = preview;
+  document.getElementById(target).scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function openNewTemplate() {
+  editingTemplateId = null;
+  document.getElementById('editName').value = '';
+  document.getElementById('editBody').value = '';
+  document.getElementById('templateEditArea').classList.add('open');
+  document.getElementById('editName').focus();
+}
+
+function openEditTemplate() {
+  const id = document.getElementById('templateSelect').value;
+  if (!id) return;
+  const templates = loadTemplates();
+  const tmpl = templates.find(t => t.id === id);
+  if (!tmpl) return;
+  editingTemplateId = id;
+  document.getElementById('editName').value = tmpl.name;
+  document.getElementById('editBody').value = tmpl.body;
+  document.getElementById('templateEditArea').classList.add('open');
+}
+
+function closeEditArea() {
+  document.getElementById('templateEditArea').classList.remove('open');
+  editingTemplateId = null;
+}
+
+function saveTemplate() {
+  const name = document.getElementById('editName').value.trim();
+  const body = document.getElementById('editBody').value.trim();
+  if (!name || !body) { alert('名前と本文を入力してください'); return; }
+
+  const templates = loadTemplates();
+  if (editingTemplateId) {
+    const idx = templates.findIndex(t => t.id === editingTemplateId);
+    if (idx >= 0) { templates[idx].name = name; templates[idx].body = body; }
+  } else {
+    templates.push({ id: 'tmpl_' + Date.now(), name, body });
+  }
+  saveTemplates(templates);
+  renderTemplateSelect();
+  closeEditArea();
+  if (editingTemplateId) onTemplateChange();
+}
+
+function deleteTemplate() {
+  const id = document.getElementById('templateSelect').value;
+  if (!id) { alert('削除するテンプレートを選択してください'); return; }
+  if (!confirm('このテンプレートを削除しますか？')) return;
+  const templates = loadTemplates().filter(t => t.id !== id);
+  saveTemplates(templates);
+  renderTemplateSelect();
+  document.getElementById('templateVars').style.display = 'none';
+  document.getElementById('templatePreviewWrap').style.display = 'none';
+}
+
+// 初期化
+loadCategories();
+addSection(); // 最初のセクションを1つ追加
+renderTemplateSelect();
+</script>
+</body>
+</html>

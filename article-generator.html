@@ -1,0 +1,4150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>記事ジェネレーター</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      background: #f0f2f5; color: #111;
+      height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      background: #1e2a3a; color: white;
+      padding: 10px 18px; font-size: 15px; font-weight: bold;
+      flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    }
+    header .sub { font-size: 11px; font-weight: normal; color: #aaa; }
+    .page-nav { display: flex; gap: 0; margin-left: 20px; }
+    .page-nav-btn {
+      padding: 6px 16px; background: transparent; border: none; border-bottom: 2px solid transparent;
+      color: #aaa; font-size: 13px; cursor: pointer; font-family: inherit; transition: color 0.15s;
+    }
+    .page-nav-btn:hover { color: #fff; }
+    .page-nav-btn.active { color: #fff; border-bottom-color: #d4a827; }
+    .page-section { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .page-section.hidden { display: none !important; }
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ===== 店舗管理ページ ===== */
+    .store-page { flex: 1; overflow-y: auto; background: #f0f2f5; padding: 24px 16px; }
+    .store-page-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; max-width: 900px; margin-left: auto; margin-right: auto; }
+    .store-page-topbar h2 { font-size: 16px; color: #333; }
+    .store-grid-wrap { max-width: 900px; margin: 0 auto; }
+    .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .store-card {
+      background: white; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1); transition: box-shadow 0.15s;
+    }
+    .store-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.15); }
+    .store-card-img { width: 100%; height: 130px; object-fit: cover; display: block; background: #e8e8e8; }
+    .store-card-img-ph { width: 100%; height: 130px; background: #e8e8e8; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #bbb; }
+    .store-card-body { padding: 12px 14px; }
+    .store-card-name { font-size: 15px; font-weight: bold; color: #222; margin-bottom: 4px; }
+    .store-card-loc { font-size: 11px; color: #888; margin-bottom: 8px; }
+    .store-card-url { font-size: 10px; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 10px; }
+    .store-card-btns { display: flex; gap: 6px; }
+    .store-btn-edit {
+      flex: 1; padding: 6px; background: #f0f0f0; border: none; border-radius: 5px;
+      font-size: 12px; cursor: pointer; font-family: inherit;
+    }
+    .store-btn-edit:hover { background: #e0e0e0; }
+    .store-btn-del {
+      padding: 6px 10px; background: #fee; border: none; border-radius: 5px;
+      font-size: 12px; color: #c00; cursor: pointer; font-family: inherit;
+    }
+    .store-btn-del:hover { background: #fcc; }
+    .store-empty { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
+    .store-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 2000;
+      align-items: center; justify-content: center;
+    }
+    .store-modal-overlay.show { display: flex; }
+    .store-modal {
+      background: white; border-radius: 12px; width: 500px; max-height: 90vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .store-modal-header {
+      background: #1e2a3a; color: white; padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .store-modal-header h3 { font-size: 14px; margin: 0; }
+    .store-modal-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; }
+    .store-modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .store-modal-footer { padding: 14px 20px; border-top: 1px solid #eee; display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+    .store-form-group { display: flex; flex-direction: column; gap: 4px; }
+    .store-form-group label { font-size: 11px; color: #222; font-weight: bold; }
+    .store-form-group input { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+    .store-form-group input:focus { border-color: #d4a827; }
+    .store-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .store-img-preview-wrap {
+      width: 100%; height: 120px; border: 2px dashed #ddd; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; overflow: hidden; position: relative;
+    }
+    .store-img-preview-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .store-img-preview-wrap:hover { border-color: #d4a827; }
+    .btn-add-store {
+      padding: 8px 18px; background: #d4a827; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: bold; color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .btn-add-store:hover { background: #c09820; }
+    .btn-save-store {
+      padding: 9px 20px; background: #d4a827; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: bold; color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .btn-save-store:hover { background: #c09820; }
+    .btn-cancel-store {
+      padding: 9px 16px; background: #f0f0f0; border: none; border-radius: 6px;
+      font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+
+    /* ===== 左パネル（ブロック一覧） ===== */
+    .left-panel {
+      width: 700px; min-width: 260px; max-width: 700px;
+      flex-shrink: 0; background: white;
+      overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .resize-handle {
+      width: 5px; flex-shrink: 0; background: #e0e0e0;
+      cursor: col-resize; transition: background 0.15s;
+      position: relative; z-index: 10;
+    }
+    .resize-handle:hover, .resize-handle.dragging { background: #d4a827; }
+
+    /* 基本設定ヘッダー */
+    .basic-header {
+      background: #1e2a3a; color: white;
+      padding: 10px 14px; font-size: 12px; font-weight: bold;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; cursor: pointer; user-select: none;
+    }
+    .basic-header .toggle { font-size: 11px; color: #aaa; }
+    .basic-settings {
+      padding: 12px 14px; display: flex; flex-direction: column;
+      gap: 8px; border-bottom: 2px solid #e0e0e0; flex-shrink: 0;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .form-group { display: flex; flex-direction: column; gap: 2px; }
+    .form-group label { font-size: 10px; color: #333; font-weight: bold; }
+    .form-group input, .form-group textarea {
+      padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 12px; font-family: inherit; outline: none;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: #d4a827; }
+    .form-group textarea { resize: vertical; min-height: 52px; }
+
+    .apply-btn {
+      width: 100%; padding: 8px; background: #e8f0fe; border: 1px solid #4a90d9;
+      border-radius: 5px; font-size: 12px; color: #1a5fb4; font-weight: bold;
+      cursor: pointer; font-family: inherit;
+    }
+    .apply-btn:hover { background: #d0e4fc; }
+
+    /* ===== ブロックリスト ===== */
+    .blocks-label {
+      background: #f7f7f7; border-bottom: 1px solid #e0e0e0;
+      padding: 7px 14px; font-size: 10px; color: #999;
+      font-weight: bold; letter-spacing: 0.08em; flex-shrink: 0;
+    }
+    .block-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+
+    /* 個別ブロック */
+    .block-item {
+      border: 1px solid #e8e8e8; border-radius: 7px; overflow: hidden;
+    }
+    .block-item-header {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 10px; background: #f9f9f9;
+      border-bottom: 1px solid #eee; font-size: 11px;
+      color: #222; font-weight: bold;
+    }
+    .block-type-tag {
+      font-size: 9px; padding: 2px 6px; border-radius: 3px;
+      font-weight: bold; letter-spacing: 0.05em;
+    }
+    .tag-balloon { background: #e8f4fd; color: #1a7abf; }
+    .tag-image   { background: #e8f8e8; color: #2a7a2a; }
+    .tag-cap     { background: #fff3e0; color: #d4820a; }
+    .tag-fixed   { background: #f0f0f0; color: #999; }
+    .tag-para    { background: #f5e8fd; color: #7a2abf; }
+
+    .block-item-body { padding: 8px 10px; }
+
+    /* 吹き出しテキストエリア */
+    .balloon-textarea {
+      width: 100%; padding: 6px 9px;
+      border: 1px solid #ddd; border-radius: 5px;
+      font-size: 12px; font-family: inherit; outline: none;
+      resize: vertical; min-height: 58px; line-height: 1.6;
+      color: #333;
+    }
+    .balloon-textarea:focus { border-color: #d4a827; }
+
+    /* 画像ブロック */
+    .img-block-body { display: flex; flex-direction: column; gap: 5px; }
+    .img-block-body input {
+      width: 100%; padding: 5px 8px; border: 1px solid #ddd;
+      border-radius: 4px; font-size: 11px; font-family: inherit; outline: none;
+    }
+    .img-block-body input:focus { border-color: #d4a827; }
+    .img-block-body label { font-size: 10px; color: #999; }
+    .img-fixed-note {
+      font-size: 11px; color: #aaa; padding: 4px 2px;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    /* 機種台数ブロック */
+    .machine-table-header {
+      display: grid; grid-template-columns: 1fr 52px 24px;
+      gap: 4px; font-size: 10px; color: #999; font-weight: bold;
+      padding: 0 2px; margin-bottom: 3px;
+    }
+    .machine-row {
+      display: grid; grid-template-columns: 1fr 52px 20px 20px 24px;
+      gap: 4px; margin-bottom: 4px; align-items: center;
+    }
+    .machine-row input {
+      padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 12px; font-family: inherit; outline: none;
+    }
+    .machine-row input:focus { border-color: #d4a827; }
+    .sort-btn {
+      width: 20px; height: 22px; border: 1px solid #ddd; background: #f5f5f5;
+      color: #555; border-radius: 4px; cursor: pointer; font-size: 11px;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .sort-btn:hover { background: #e8e8e8; }
+    .del-btn {
+      width: 22px; height: 22px; border: none; background: #fee;
+      color: #c00; border-radius: 4px; cursor: pointer; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .del-btn:hover { background: #fcc; }
+    .add-row-btn {
+      width: 100%; padding: 5px; border: 1px dashed #ccc;
+      background: none; border-radius: 4px; font-size: 11px;
+      color: #999; cursor: pointer; font-family: inherit; margin-top: 2px;
+    }
+    .add-row-btn:hover { border-color: #d4a827; color: #b8931a; }
+
+    /* ボタンエリア */
+    .action-bar {
+      padding: 10px 14px; border-top: 2px solid #e0e0e0;
+      display: flex; flex-direction: column; gap: 7px; flex-shrink: 0;
+    }
+    .gen-btn {
+      width: 100%; padding: 11px; background: #d4a827; border: none;
+      border-radius: 7px; font-size: 14px; font-weight: bold;
+      color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .gen-btn:hover { background: #c09820; }
+
+    /* ===== 右パネル ===== */
+    .right-panel {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      background: #1e1e1e;
+    }
+    .right-toolbar {
+      background: #252525; padding: 6px 12px; display: flex;
+      align-items: center; gap: 6px; border-bottom: 1px solid #333; flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 5px 16px; background: none; border: none; color: #888;
+      font-size: 13px; cursor: pointer; font-family: inherit;
+      border-radius: 5px; border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active { color: #d4a827; border-bottom-color: #d4a827; }
+    .toolbar-copy-btn {
+      padding: 5px 14px; background: #d4a827; color: #0a0800; border: none;
+      border-radius: 5px; font-size: 12px; font-weight: bold;
+      cursor: pointer; font-family: inherit;
+    }
+    .toolbar-copy-btn:hover { background: #c09820; }
+    .toolbar-copy-btn.copied { background: #27ae60; color: white; }
+
+    .tab-content { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
+    .tab-content.active { display: flex; }
+
+    /* コード */
+    #code-output {
+      flex: 1; padding: 16px 20px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 12px; line-height: 1.6; color: #d4d4d4;
+      white-space: pre-wrap; word-break: break-all; background: #1e1e1e;
+    }
+
+    /* ===== プレビュー（SWELLテーマ模倣） ===== */
+    #tab-preview { background: #f0f0f0; }
+    #preview-output {
+      max-width: 720px; margin: 0 auto;
+      padding: 24px 16px 48px; width: 100%;
+    }
+    .prev-body {
+      background: #fff;
+      font-family: 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+      font-size: 15px; color: #333; line-height: 1.8; padding: 24px;
+      border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+    .prev-img { width: 100%; display: block; margin: 16px 0; border-radius: 4px; }
+    .prev-img-placeholder {
+      width: 100%; background: #f5f5f5; border: 2px dashed #ddd;
+      border-radius: 4px; display: flex; align-items: center;
+      justify-content: center; color: #bbb; font-size: 13px;
+      padding: 28px 0; margin: 16px 0;
+    }
+    /* クリック可能な画像エリア */
+    .prev-img-wrap {
+      position: relative; margin: 16px 0; cursor: pointer;
+    }
+    .prev-img-wrap img {
+      width: 100%; display: block; border-radius: 4px;
+    }
+    .prev-img-wrap .img-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; transition: background 0.2s;
+    }
+    .prev-img-wrap:hover .img-overlay { background: rgba(0,0,0,0.45); }
+    .prev-img-wrap .img-overlay span {
+      color: white; font-size: 14px; font-weight: bold;
+      opacity: 0; transition: opacity 0.2s; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .prev-img-wrap:hover .img-overlay span { opacity: 1; }
+    .prev-img-placeholder-click {
+      width: 100%; background: #f5f5f5; border: 2px dashed #ccc;
+      border-radius: 4px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #999;
+      font-size: 13px; padding: 32px 0; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s; gap: 6px;
+    }
+    .prev-img-placeholder-click:hover {
+      border-color: #d4a827; background: #fffbe6; color: #b8931a;
+    }
+    .prev-img-placeholder-click .icon { font-size: 28px; }
+    .prev-img-placeholder-click .hint { font-size: 11px; color: #bbb; }
+    .prev-balloon {
+      display: flex; align-items: flex-start; gap: 10px; margin: 12px 0;
+    }
+    .prev-balloon-icon {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: #f0e8d0; border: 2px solid #daa520;
+      flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 24px;
+    }
+    .prev-balloon-bubble {
+      background: #fff; border: 1px solid #e0e0e0;
+      border-radius: 0 12px 12px 12px; padding: 9px 13px;
+      font-size: 14px; line-height: 1.8; color: #333;
+      position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.06); flex: 1;
+    }
+    .prev-balloon-bubble::before {
+      content: ''; position: absolute; left: -9px; top: 12px;
+      border: 5px solid transparent; border-right-color: #e0e0e0;
+    }
+    .prev-balloon-bubble::after {
+      content: ''; position: absolute; left: -7px; top: 13px;
+      border: 4px solid transparent; border-right-color: #fff;
+    }
+    .prev-balloon-name { font-size: 11px; color: #daa520; font-weight: bold; margin-bottom: 4px; }
+    .prev-cap-box { border: 1px solid #daa520; border-radius: 6px; overflow: hidden; margin: 14px 0; }
+    .prev-cap-title { background: #daa520; color: #fff; font-size: 14px; font-weight: bold; padding: 7px 14px; }
+    .prev-cap-content { padding: 11px 14px; font-size: 14px; line-height: 2.0; background: #fffdf0; }
+    .prev-paragraph { margin: 12px 0; font-size: 14px; line-height: 1.9; color: #333; }
+    .has-swl-deep-01-color { color: #e44141; }
+    .has-swl-deep-02-color { color: #3d79d5; }
+    .swl-fz.u-fz-l { font-size: 1.2em; }
+
+    /* 編集可能エリア */
+    .prev-editable {
+      outline: none;
+      border-radius: 4px;
+      transition: background 0.15s, box-shadow 0.15s;
+      min-height: 1em;
+      cursor: text;
+    }
+    .prev-editable:hover {
+      background: #fffbe6;
+      box-shadow: 0 0 0 2px #daa52055;
+    }
+    .prev-editable:focus {
+      background: #fffde8;
+      box-shadow: 0 0 0 2px #daa520;
+    }
+    /* 編集ヒントバッジ */
+    .prev-balloon-bubble { position: relative; }
+    .prev-balloon-bubble:hover::after {
+      content: '✏ 編集可能';
+      position: absolute; top: 6px; right: 8px;
+      font-size: 9px; color: #daa520; opacity: 0.7;
+      pointer-events: none;
+    }
+    /* 編集モード中のツールバー */
+    #edit-toolbar {
+      position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+      background: #1e2a3a; color: white; padding: 6px 12px;
+      border-radius: 20px; font-size: 12px; display: none;
+      gap: 6px; align-items: center; z-index: 999;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    #edit-toolbar.show { display: flex; }
+    .edit-toolbar-btn {
+      background: none; border: 1px solid #555; color: white;
+      padding: 3px 9px; border-radius: 4px; font-size: 11px;
+      cursor: pointer; font-family: inherit;
+    }
+    .edit-toolbar-btn:hover { background: #2c3e50; }
+    .edit-toolbar-btn.active { background: #d4a827; border-color: #d4a827; color: #000; }
+
+    /* トースト */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #27ae60; color: white; padding: 10px 22px; border-radius: 7px;
+      font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 9999;
+    }
+    .toast.show { opacity: 1; }
+
+    hr.divider { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+
+    /* ===== 店舗選択バー ===== */
+    .store-bar {
+      background: #1e2a3a; padding: 8px 12px;
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .store-bar select {
+      flex: 1; padding: 6px 8px; border: none; border-radius: 5px;
+      font-size: 13px; font-family: inherit; background: #fff; cursor: pointer;
+    }
+    .store-save-btn {
+      padding: 6px 11px; background: #d4a827; border: none; border-radius: 5px;
+      font-size: 12px; font-weight: bold; color: #0a0800;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .store-save-btn:hover { background: #c09820; }
+    .store-del-btn {
+      padding: 6px 9px; background: #5a2020; border: none; border-radius: 5px;
+      font-size: 13px; color: #ffaaaa; cursor: pointer; font-family: inherit;
+    }
+    .store-del-btn:hover { background: #7a3030; }
+    .store-dd-item {
+      padding: 10px 16px; font-size: 16px; cursor: pointer; color: #000;
+      font-weight: bold; transition: background 0.1s;
+    }
+    .store-dd-item:hover { background: #fff3cd; }
+    .store-img-bar {
+      background: #162030; padding: 6px 12px;
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+    .store-img-btn {
+      flex: 1; padding: 6px 8px; background: #2a3f55; border: 1px solid #3a5570;
+      border-radius: 5px; font-size: 11px; color: #aad4f5;
+      cursor: pointer; font-family: inherit; text-align: left;
+      display: flex; flex-direction: column; gap: 2px; overflow: hidden;
+    }
+    .store-img-btn:hover { background: #3a5570; }
+    .store-img-btn .img-btn-label { font-size: 10px; color: #6a9abf; }
+    .store-img-btn .img-btn-name {
+      font-size: 11px; color: #cce8ff; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .store-img-thumb {
+      width: 36px; height: 36px; object-fit: cover;
+      border-radius: 3px; flex-shrink: 0; display: none;
+    }
+
+    /* ===== データ読み込みパネル ===== */
+    .data-header {
+      background: #2a3f2a; color: white;
+      padding: 10px 14px; font-size: 12px; font-weight: bold;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; cursor: pointer; user-select: none;
+    }
+    .data-header .toggle { font-size: 11px; color: #aaa; }
+    .data-panel {
+      padding: 12px 14px; border-bottom: 2px solid #e0e0e0;
+      display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+    }
+    .data-upload-area {
+      border: 2px dashed #aed6a0; border-radius: 7px; padding: 24px 16px;
+      text-align: center; cursor: pointer; background: #f6fff4;
+      position: relative; transition: all 0.15s;
+    }
+    .data-upload-area:hover { border-color: #4a9a30; background: #edfae8; }
+    .data-upload-area.loaded { border: 2px solid #2a7a10; background: #d6f5cc; }
+    .data-upload-area input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .data-upload-label { font-size: 12px; color: #2a7a10; }
+    .data-upload-label b { color: #3a8a20; }
+    .data-table-wrap {
+      max-height: 200px; overflow-y: auto;
+      border: 1px solid #ddd; border-radius: 5px; font-size: 11px;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      background: #2a3f2a; color: white; padding: 5px 6px;
+      text-align: right; position: sticky; top: 0; font-size: 10px;
+      white-space: nowrap;
+    }
+    .data-table th:nth-child(2) { text-align: left; }
+    .data-table td { padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 11px; text-align: right; white-space: nowrap; }
+    .data-table td:nth-child(2) { text-align: left; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+    .data-table tr:nth-child(even) td { background: #f9f9f9; }
+    .data-table .diff-plus { color: #c00; font-weight: bold; }
+    .data-table .diff-minus { color: #226; font-weight: bold; }
+    .data-count-row { display: flex; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
+    .data-count-row label { color: #222; white-space: nowrap; }
+    .data-count-row input[type=number] {
+      width: 52px; padding: 4px 6px; border: 1px solid #ddd;
+      border-radius: 4px; font-size: 12px; font-family: inherit;
+    }
+    /* 列設定UI */
+    .col-config { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .col-config-item { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+    .col-config-item label { color: #222; white-space: nowrap; flex: 1; }
+    .col-config-item input[type=number] {
+      width: 44px; padding: 3px 5px; border: 1px solid #ddd;
+      border-radius: 4px; font-size: 12px; font-family: inherit; text-align: center;
+    }
+    .col-sep-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    .col-sep-row label { color: #222; }
+    .col-sep-row select {
+      padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 11px; font-family: inherit;
+    }
+    .img-gen-row { display: flex; flex-direction: column; gap: 5px; }
+    .img-gen-row input {
+      padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 12px; font-family: inherit; outline: none;
+    }
+    .img-gen-row input:focus { border-color: #d4a827; }
+    .img-gen-btn {
+      width: 100%; padding: 8px; background: #2a3f2a; border: none;
+      border-radius: 5px; font-size: 13px; font-weight: bold;
+      color: white; cursor: pointer; font-family: inherit;
+    }
+    .img-gen-btn:hover { background: #3a5f3a; }
+    .img-preview-area {
+      border: 1px solid #ddd; border-radius: 5px; overflow: hidden;
+      background: #f5f5f5; display: none;
+    }
+    .img-preview-area canvas { width: 90%; display: block; margin: 0 auto; }
+    .img-upload-wp-btn {
+      width: 100%; padding: 8px; background: #1e2a3a; border: none;
+      border-radius: 5px; font-size: 12px; font-weight: bold;
+      color: white; cursor: pointer; font-family: inherit;
+    }
+    .img-upload-wp-btn:hover { background: #2c3e50; }
+    .img-upload-wp-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ===== 機種画像モーダル ===== */
+    .machine-img-list { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+    .machine-img-item {
+      border: 1px solid #eee; border-radius: 7px; background: #fafafa; overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .machine-img-item.expanded { border-color: #d4a827; }
+    .mitem-main {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .mitem-main:hover { background: #f0f0f0; }
+    .machine-img-item img {
+      width: 56px; height: 42px; object-fit: cover;
+      border-radius: 4px; background: #eee; flex-shrink: 0;
+    }
+    .machine-img-item .mname { font-size: 13px; font-weight: bold; color: #333; }
+    .mitem-toggle-icon { font-size: 10px; color: #bbb; flex-shrink: 0; }
+    .mitem-edit {
+      display: none; padding: 8px 12px 10px; border-top: 1px solid #f0e8c0;
+      background: #fffdf0;
+    }
+    .machine-img-item.expanded .mitem-edit { display: block; }
+    .mitem-edit-label { font-size: 10px; color: #886600; margin-bottom: 5px; }
+    .mitem-edit-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .mitem-nn-input {
+      flex: 1; padding: 5px 8px; border: 1px solid #ddd; border-radius: 5px;
+      font-size: 12px; font-family: inherit; min-width: 100px; outline: none;
+    }
+    .mitem-nn-input:focus { border-color: #d4a827; }
+    .mitem-pick-btn {
+      padding: 5px 10px; background: #e8e8e8; border: none; border-radius: 5px;
+      font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .mitem-pick-btn:hover { background: #d4d4d4; }
+    .mitem-save-btn {
+      padding: 5px 10px; background: #4a9a30; border: none; border-radius: 5px;
+      font-size: 12px; color: white; cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .mitem-save-btn:hover { background: #3a8a20; }
+    .machine-img-del { background: #fee; border: none; color: #c00; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+    .machine-img-del:hover { background: #fcc; }
+    .mitem-section-label { font-size: 10px; color: #886600; margin: 8px 0 4px; font-weight: bold; border-top: 1px solid #f0e8c0; padding-top: 7px; }
+    .end-img-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+    .end-img-thumb {
+      position: relative; width: 64px; height: 48px; border-radius: 4px; overflow: hidden;
+      border: 1px solid #ddd; flex-shrink: 0;
+    }
+    .end-img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .end-img-thumb .del-x {
+      position: absolute; top: 1px; right: 1px; background: rgba(180,0,0,0.8); color: white;
+      border: none; border-radius: 2px; font-size: 10px; line-height: 1; padding: 1px 3px;
+      cursor: pointer;
+    }
+    .machine-img-add { display: flex; gap: 7px; align-items: center; padding: 12px 14px; border-top: 1px solid #eee; flex-shrink: 0; }
+    .machine-img-add input {
+      flex: 1; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 13px; font-family: inherit; outline: none;
+    }
+    .machine-img-add input:focus { border-color: #d4a827; }
+    .machine-img-add-btn {
+      padding: 7px 14px; background: #d4a827; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: bold; color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .machine-img-add-btn:hover { background: #c09820; }
+    .machine-img-empty { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+    .machine-chip {
+      padding: 5px 10px; border-radius: 20px; font-size: 11px; cursor: pointer;
+      border: 1px solid #ccc; background: #fff; font-family: inherit;
+      display: flex; align-items: center; gap: 4px; transition: all 0.15s;
+    }
+    .machine-chip:hover { border-color: #d4a827; background: #fffbe6; color: #b8931a; }
+    .machine-chip.registered { border-color: #4a9a30; background: #f0fff0; color: #2a7a10; }
+    .machine-chip .chip-thumb {
+      width: 20px; height: 16px; object-fit: cover; border-radius: 2px;
+    }
+
+    /* ===== メディアピッカーモーダル ===== */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 1000; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: white; border-radius: 10px;
+      width: 860px; max-width: 95vw; max-height: 85vh;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    .modal-header {
+      background: #1e2a3a; color: white; padding: 12px 18px;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .modal-header h3 { font-size: 15px; flex: 1; }
+    .modal-close {
+      background: none; border: none; color: #aaa; font-size: 20px;
+      cursor: pointer; line-height: 1; padding: 0 4px;
+    }
+    .modal-close:hover { color: white; }
+    .modal-toolbar {
+      padding: 10px 14px; border-bottom: 1px solid #eee;
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+    }
+    .modal-search {
+      flex: 1; padding: 7px 11px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 13px; font-family: inherit; outline: none;
+    }
+    .modal-search:focus { border-color: #d4a827; }
+    .modal-search-btn {
+      padding: 7px 16px; background: #d4a827; border: none;
+      border-radius: 6px; font-size: 13px; font-weight: bold;
+      color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .modal-body { flex: 1; overflow-y: auto; padding: 14px; }
+    .media-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .media-item {
+      border: 2px solid transparent; border-radius: 7px; overflow: hidden;
+      cursor: pointer; transition: border-color 0.15s; background: #f5f5f5;
+    }
+    .media-item:hover { border-color: #d4a827; }
+    .media-item.selected { border-color: #d4a827; box-shadow: 0 0 0 2px #d4a82766; }
+    .media-item img {
+      width: 100%; height: 100px; object-fit: cover; display: block;
+    }
+    .media-item-name {
+      font-size: 10px; color: #666; padding: 4px 6px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .media-item-id { font-size: 9px; color: #bbb; padding: 0 6px 4px; }
+    .modal-footer {
+      padding: 10px 14px; border-top: 1px solid #eee;
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+      background: #fafafa;
+    }
+    .modal-pager { display: flex; gap: 5px; margin-right: auto; font-size: 12px; color: #888; }
+    .modal-pager button {
+      padding: 4px 10px; border: 1px solid #ddd; border-radius: 4px;
+      background: none; cursor: pointer; font-size: 12px;
+    }
+    .modal-pager button:hover { background: #f0f0f0; }
+    .modal-pager button:disabled { opacity: 0.4; cursor: default; }
+    .modal-select-btn {
+      padding: 8px 22px; background: #d4a827; border: none;
+      border-radius: 6px; font-size: 14px; font-weight: bold;
+      color: #0a0800; cursor: pointer; font-family: inherit;
+    }
+    .modal-select-btn:disabled { opacity: 0.4; cursor: default; }
+    .media-loading { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+    /* 画像ブロックのピッカーボタン */
+    .pick-media-btn {
+      padding: 5px 10px; background: #1e2a3a; color: white; border: none;
+      border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit;
+      white-space: nowrap; margin-top: 4px;
+    }
+    .pick-media-btn:hover { background: #2c3e50; }
+    .img-preview-small {
+      width: 100%; max-height: 60px; object-fit: cover;
+      border-radius: 4px; margin-top: 4px; display: none;
+    }
+  </style>
+  <script src="/node_modules/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header>
+  記事ジェネレーター
+  <select id="series-select" onchange="onSeriesChange(this.value)"
+    style="margin-left:10px;font-size:13px;padding:3px 8px;border:1px solid #ccc;border-radius:5px;font-family:inherit;cursor:pointer;">
+    <option value="denkoisseki">戦極～電光石火～</option>
+    <option value="ifudodo">戦極～威風堂々～</option>
+    <option value="shishifunjin">戦極～獅子奮迅～</option>
+    <option value="tokyoghoul">戦極～東京喰種～</option>
+    <option value="hyakkaryoran">戦極～百花繚乱～</option>
+    <option value="ikkyunyukon">戦極～一球入魂～</option>
+  </select>
+  <div class="page-nav">
+    <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
+    <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')">🏪 店舗管理</button>
+    <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')">🎰 機種管理</button>
+  </div>
+</header>
+
+<div id="page-article" class="page-section">
+<div class="main">
+
+  <!-- 左：ブロック一覧 -->
+  <div class="left-panel" id="left-panel">
+
+    <!-- 店舗選択バー -->
+    <div class="store-bar" style="flex-wrap:wrap;gap:6px;">
+      <div style="flex:1;min-width:0;position:relative;">
+        <input id="store-search" placeholder="🏪 店舗を検索..." autocomplete="off"
+          style="width:100%;padding:10px 12px;border:none;border-radius:5px;font-size:16px;font-family:inherit;background:#fff;cursor:text;color:#000;font-weight:bold;letter-spacing:0.03em;"
+          oninput="filterStoreList(this.value)" onfocus="showStoreDropdown()" onblur="hideStoreDropdown()">
+        <div id="store-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #ccc;border-radius:0 0 6px 6px;max-height:80vh;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+        </div>
+      </div>
+      <select id="store-select" onchange="selectStore(this.value)" style="display:none;"></select>
+      <button class="store-save-btn" onclick="openMachineImgModal()" title="機種画像を登録" style="background:#2a5f2a;color:white;">🎰</button>
+      <button onclick="openPworld()" title="p-worldを開く" style="background:#1a5a1a;color:white;white-space:nowrap;padding:6px 14px;border:none;border-radius:5px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit;">🌐 p-world</button>
+      <button onclick="fetchPtown()" title="p-town(DMM)から台数取得" style="background:#00b4d8;color:white;font-weight:bold;white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;">DMM</button>
+      <button onclick="openHbHall()" title="hisshobon店舗ページを開く" style="background:#c0392b;color:white;white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;">公式</button>
+    </div>
+
+    <!-- データ読み込みパネル -->
+    <div class="data-header" onclick="toggleData()">
+      📊 Excelデータ読み込み＆ランキング画像生成
+      <span class="toggle" id="data-toggle">▲ 閉じる</span>
+    </div>
+    <div class="data-panel" id="data-panel">
+      <!-- 列設定 -->
+      <details style="margin-bottom:6px;">
+        <summary style="font-size:11px;color:#3a8a20;font-weight:bold;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
+          <span id="col-summary-arrow" style="font-size:10px;transition:transform .2s;">▶</span>
+          📋 列の設定（通常は自動検出・手動指定が必要な場合のみ）
+        </summary>
+        <div style="padding:8px 0 2px;">
+          <div class="col-sep-row" style="margin-bottom:5px;">
+            <label>区切り文字：</label>
+            <select id="col-sep">
+              <option value="tab">タブ</option>
+              <option value="comma">カンマ（,）</option>
+              <option value="space">スペース2つ以上</option>
+            </select>
+          </div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px;">※ 自動検出できない場合の手動指定（A・B・C… または 0・1・2…）</div>
+          <div class="col-config" id="col-config-grid"></div>
+          <script>
+            (function(){
+              const cols = [
+                { id: 'col-台番',  label: '台番号',  def: 'A',    optional: false },
+                { id: 'col-機種名', label: '機種名',  def: 'B',    optional: false },
+                { id: 'col-G',     label: 'G数',     def: 'C',    optional: true  },
+                { id: 'col-BIG',   label: 'BIG',     def: 'D',    optional: true  },
+                { id: 'col-REG',   label: 'REG',     def: 'E',    optional: true  },
+                { id: 'col-合算',  label: '合算',    def: 'none', optional: true  },
+                { id: 'col-差',    label: '差枚数',  def: 'G',    optional: false },
+              ];
+              const letters = Array.from({length:26}, (_,i) => String.fromCharCode(65+i));
+              const grid = document.getElementById('col-config-grid');
+              grid.innerHTML = cols.map(c => {
+                const noneOpt = c.optional ? '<option value="none">なし</option>' : '';
+                const opts = letters.map(l => `<option value="${l}">${l}</option>`).join('');
+                return `
+                <div class="col-config-item">
+                  <label>${c.label}</label>
+                  <select id="${c.id}" style="width:52px;padding:2px 4px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+                    ${noneOpt}${opts}
+                  </select>
+                </div>`;
+              }).join('');
+              cols.forEach(c => { document.getElementById(c.id).value = c.def; });
+            })();
+          </script>
+        </div>
+      </details>
+      <script>
+        document.querySelector('details').addEventListener('toggle', function() {
+          document.getElementById('col-summary-arrow').style.transform = this.open ? 'rotate(90deg)' : '';
+        });
+      </script>
+      <!-- ファイル選択 -->
+      <div style="display:flex;gap:6px;align-items:stretch;">
+        <div class="data-upload-area" style="flex:1;">
+          <input type="file" id="data-file-input" accept=".xlsx,.xls,.txt,.csv" onchange="loadDataFile(event)">
+          <div class="data-upload-label" id="data-upload-label">
+            📂 クリックしてファイルを選択<br>
+            <b>Excel（.xlsx）またはテキスト（.txt）</b>
+          </div>
+        </div>
+        <button id="reload-data-btn" onclick="reloadDataFile()" disabled
+          style="padding:8px 12px;background:#3a8a20;color:white;border:none;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;opacity:0.4;">
+          🔄 再読み込み
+        </button>
+      </div>
+      <div style="margin-top:6px;">
+        <label style="font-size:12px;color:#444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+          <input type="checkbox" id="juggler-only-filter" checked>
+          ジャグラーのみ読み込む
+        </label>
+        <div style="margin-top:4px;">
+          <label style="font-size:11px;color:#777;display:block;margin-bottom:2px;">除外する機種名（部分一致・カンマ区切り）</label>
+          <input type="text" id="juggler-exclude-list" placeholder="例：マイジャグラーⅤ, ファンキージャグラー2"
+            style="width:100%;font-size:11px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-family:inherit;box-sizing:border-box"
+            oninput="saveJugglerExcludeList()">
+        </div>
+      </div>
+      <div id="data-debug" style="display:none; background:#1e2a3a; color:#aef; border-radius:5px; padding:8px 10px; font-size:10px; font-family:monospace; overflow-x:auto; white-space:pre; line-height:1.6;"></div>
+      <div class="data-count-row">
+        <label>表示件数：</label>
+        <input type="number" id="rank-count" value="30" min="1" max="200" style="width:52px" onchange="if(allMachineData.length) renderDataTable(allMachineData)">
+        <label>位まで</label>
+        <div style="display:flex;gap:4px;margin-left:8px;">
+          <button onclick="setRankCount(10)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">10位</button>
+          <button onclick="setRankCount(20)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">20位</button>
+          <button onclick="setRankCount(30)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">30位</button>
+        </div>
+        <span id="data-total-label" style="color:#aaa;font-size:11px;margin-left:auto"></span>
+      </div>
+      <div id="data-table-wrap" class="data-table-wrap" style="display:none; max-height:240px;">
+        <table class="data-table" id="data-table">
+          <thead id="data-table-head"><tr><th>台番</th><th>機種名</th><th>G数</th><th>BIG</th><th>REG</th><th>合算</th><th>差枚数</th></tr></thead>
+          <tbody id="data-tbody"></tbody>
+        </table>
+      </div>
+      <div class="img-gen-row">
+        <details style="margin-bottom:4px;">
+          <summary style="font-size:11px;color:#3a8a20;font-weight:bold;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
+            <span style="font-size:10px;">▶</span> 詳細設定（タイトル・バナー・RANKセル画像）
+          </summary>
+          <div style="padding:6px 0 2px;display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:11px;color:#777">タイトル文字</label>
+            <input id="img-title" value="ジャグ系機種／差枚ランキング">
+            <label style="font-size:11px;color:#777">サブタイトル（店舗名・日付など）</label>
+            <input id="img-subtitle" placeholder="例：KOHAKU天白 4/5(土)">
+            <label style="font-size:11px;color:#777">バナー画像（任意）</label>
+            <div class="data-upload-area" style="padding:10px;" id="banner-upload-area">
+              <input type="file" id="banner-file-input" accept="image/*" onchange="loadBannerFile(event)">
+              <div class="data-upload-label" id="banner-label">🖼 バナー画像をクリックして選択</div>
+            </div>
+            <label style="font-size:11px;color:#777">RANKセル画像（rank1〜順に登録・なければ自動描画）</label>
+            <div id="rank-img-slots" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
+            <button onclick="addRankImgSlot()" style="margin-top:4px;padding:4px 10px;font-size:11px;background:#f0f0f0;border:none;border-radius:4px;cursor:pointer;font-family:inherit;">＋ 追加</button>
+          </div>
+        </details>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="img-gen-btn" onclick="generateRankingImage()" style="flex:2;padding:14px 8px;font-size:14px;">🖼 ランキング画像を生成</button>
+        <button class="img-gen-btn" onclick="invertDiff()" style="flex:1;background:#3a4f2a;padding:14px 8px;font-size:13px;" id="invert-btn">± 符号反転</button>
+      </div>
+      <div id="img-upload-wp-btn" style="display:none;"></div>
+    </div>
+
+    <div class="basic-header" onclick="toggleBasic()">
+      ⚙ 基本設定（店舗・担当者・ランキング結果）
+      <span class="toggle" id="basic-toggle">▼ 開く</span>
+    </div>
+    <div class="basic-settings" id="basic-settings" style="display:none;">
+      <div class="form-row">
+        <div class="form-group"><label>都道府県</label><input id="f-pref" value="愛知県"></div>
+        <div class="form-group"><label>市区名（市なし）</label><input id="f-city" value="名古屋"></div>
+      </div>
+      <div class="form-group"><label>店舗名</label><input id="f-hall" value="KOHAKU天白" oninput="applyPrevTop1(this.value)"></div>
+      <div class="form-group"><label>担当者名</label><input id="f-reporter" value="新人編集のマモル"></div>
+      <div class="form-group"><label>前回最多機種</label><input id="f-prev-machine" value="ネオアイム"><button type="button" id="btn-first-time" onclick="toggleFirstTime()" style="margin-left:8px;padding:2px 10px;font-size:0.85em;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white;color:#555;">初開催</button></div>
+      <div class="form-group">
+        <label>p-world URL</label>
+        <input id="f-pworld-url" placeholder="https://www.p-world.co.jp/...">
+      </div>
+      <div class="form-group">
+        <label>p-town(DMM) URL</label>
+        <input id="f-ptown-url" placeholder="https://p-town.dmm.com/shops/...">
+      </div>
+      <hr class="divider">
+      <div class="form-row">
+        <div class="form-group"><label>TOP1 機種名</label><input id="f-top1-name" value="ネオアイム"></div>
+        <div class="form-group"><label>TOP1 台番</label><input id="f-top1-num" value="533"></div>
+      </div>
+      <div class="form-group"><label>TOP1 差枚数</label><input id="f-top1-diff" value="+6,150枚"></div>
+      <div class="form-row">
+        <div class="form-group"><label>TOP2 機種名</label><input id="f-top2-name" value="マイジャグV"></div>
+        <div class="form-group"><label>TOP2 台番</label><input id="f-top2-num" value="388"></div>
+      </div>
+      <div class="form-group"><label>TOP2 差枚数</label><input id="f-top2-diff" value="+4,200枚"></div>
+      <div class="form-row">
+        <div class="form-group"><label>TOP3 機種名</label><input id="f-top3-name" value="マイジャグV"></div>
+        <div class="form-group"><label>TOP3 台番</label><input id="f-top3-num" value="385"></div>
+      </div>
+      <div class="form-group"><label>TOP3 差枚数</label><input id="f-top3-diff" value="+3,650枚"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="apply-btn" onclick="applyTemplate()">↩ テンプレートを吹き出しに反映</button>
+        <button class="apply-btn" id="ai-gen-btn" onclick="generateWithAI()" style="background:#6a3fa0; color:white; border-color:#6a3fa0;">🤖 AI文章生成</button>
+      </div>
+    </div>
+
+    <div style="padding:8px 10px 4px; flex-shrink:0;">
+      <button class="apply-btn" id="ai-gen-btn" onclick="generateWithAI()" style="width:100%;padding:14px 8px;background:#6a3fa0;color:white;border-color:#6a3fa0;font-size:13px;">🤖 AI文章生成</button>
+    </div>
+
+    <!-- ジャグ系設置台数 -->
+    <div class="basic-header" style="cursor:default;background:#c0527a;">
+      🎰 <span id="cap-label-header">ジャグ系設置台数</span>
+    </div>
+    <div style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;">
+      <div class="machine-table-header">
+        <span>機種名</span><span style="text-align:center">台数</span><span></span>
+      </div>
+      <div id="machine-rows"></div>
+      <button class="add-row-btn" onclick="addMachineRow()">＋ 機種を追加</button>
+    </div>
+
+    <!-- 生成ボタン -->
+    <div class="action-bar">
+      <button class="gen-btn" onclick="generate()" style="display:none;">▶ コード＆プレビューを生成</button>
+    </div>
+
+    <!-- ランキング画像プレビュー -->
+    <div class="img-preview-area" id="img-preview-area" style="flex-shrink:0;">
+      <canvas id="rank-canvas"></canvas>
+    </div>
+
+  </div>
+
+  <!-- リサイズハンドル -->
+  <div class="resize-handle" id="resize-handle"></div>
+
+  <!-- 右：タブパネル -->
+  <div class="right-panel">
+    <div class="right-toolbar">
+      <button class="tab-btn active" id="tab-preview-btn" onclick="switchTab('preview')">👁 プレビュー</button>
+      <button class="tab-btn" id="tab-code-btn" onclick="switchTab('code')">📄 コード</button>
+      <div style="flex:1"></div>
+      <button class="toolbar-copy-btn" id="toolbar-copy-btn" onclick="copyCode()">コードをコピー</button>
+      <button class="toolbar-copy-btn" onclick="openWpPostModal()" style="background:#0073aa;color:white;border-color:#0073aa;">🚀 WPに投稿</button>
+    </div>
+    <div id="tab-preview" class="tab-content active">
+      <div id="preview-output">
+        <div style="color:#666;font-size:14px;padding:40px;text-align:center;">「コード＆プレビューを生成」を押してください</div>
+      </div>
+    </div>
+    <div id="tab-blocks" class="tab-content" style="display:none;">
+      <div class="block-list" id="block-list" style="height:100%;overflow-y:auto;">
+        <!-- JSで生成 -->
+      </div>
+    </div>
+    <div id="tab-code" class="tab-content">
+      <div id="code-output">← 左のブロックを編集して「コード＆プレビューを生成」を押してください</div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /#page-article -->
+
+<!-- ===== 店舗管理ページ ===== -->
+<div id="page-stores" class="page-section hidden">
+  <div class="store-page">
+    <div class="store-page-topbar">
+      <h2>登録店舗一覧</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="store-mgr-search" type="text" placeholder="🔍 店舗名で検索..." oninput="renderStoreGrid()"
+          style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;outline:none;width:200px;">
+        <button class="btn-add-store" style="background:#4a7fa5;color:white;" onclick="importFromWordPress()">🌐 WPからインポート</button>
+        <button class="btn-add-store" style="background:#c0392b;color:white;" onclick="importFromHisshobon()">📋 hisshobon からインポート</button>
+        <button class="btn-add-store" onclick="openStoreModal()">＋ 店舗を追加</button>
+      </div>
+    </div>
+    <div class="store-grid-wrap">
+      <div id="store-grid-mgr" style="display:flex;flex-direction:column;gap:4px;">
+        <div class="store-empty">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 機種管理ページ ===== -->
+<div id="page-machines" class="page-section hidden">
+  <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px 16px; background:#f0f2f5; overflow-y:auto;">
+    <div class="modal" style="position:static; width:100%; max-width:860px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+      <div class="modal-header">
+        <h3>🎰 機種画像 ＆ 表示名登録</h3>
+      </div>
+      <div style="padding:8px 14px; background:#fffbe6; font-size:11px; color:#886600; border-bottom:1px solid #eee; flex-shrink:0;">
+        ランキング生成時にRANK1の機種画像が自動でバナーに。表示名を設定すると機種名の表記ゆれを統一できます。
+      </div>
+      <div style="padding:8px 14px 4px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; flex-shrink:0;">
+        <span style="font-size:11px; color:#555; font-weight:bold; flex:1;">機種一覧（クリックで編集）</span>
+        <button id="btn-delete-non-target" onclick="deleteNonTargetMachines()" style="padding:3px 10px;font-size:11px;border:1px solid #e07070;border-radius:4px;cursor:pointer;font-family:inherit;background:#fff5f5;color:#c0392b;">対象外機種を削除</button>
+        <span id="machine-list-legend" style="font-size:10px; color:#aaa;">
+          <span style="color:#4a9a30;">■</span> 登録済み　<span style="color:#bbb;">■</span> 未登録
+        </span>
+      </div>
+      <div class="machine-img-list" id="machine-img-list" style="display:block; max-height:55vh; overflow-y:auto;">
+        <div class="machine-img-empty">データを読み込むか、手動で登録してください</div>
+      </div>
+      <datalist id="machine-name-datalist"></datalist>
+      <div style="padding:10px 14px; border-top:1px solid #eee; background:#fafafa; flex-shrink:0;">
+        <div style="font-size:11px; color:#555; font-weight:bold; margin-bottom:6px;">✏️ 手動で登録</div>
+        <div style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">機種名（データの表記）</div>
+            <input id="new-machine-name" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:5px; font-size:12px; font-family:inherit;"
+              placeholder="例：ＳマイジャグラーⅤＫＤ" list="machine-name-datalist">
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">表示名（変換後・省略可）</div>
+            <input id="new-machine-nickname" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:5px; font-size:12px; font-family:inherit;"
+              placeholder="例：マイジャグⅤ">
+          </div>
+          <div>
+            <label class="machine-img-add-btn" style="cursor:pointer; text-align:center; display:inline-block;">
+              📁 ローカルから選択
+              <input type="file" id="machine-page-file" accept="image/*" style="display:none" onchange="pickLocalMachineImg(event)">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 店舗管理モーダル -->
+<div class="store-modal-overlay" id="store-modal">
+  <div class="store-modal">
+    <div class="store-modal-header">
+      <h3 id="store-modal-title">店舗を追加</h3>
+      <button class="store-modal-close" onclick="closeStoreModal()">✕</button>
+    </div>
+    <div class="store-modal-body">
+      <div class="store-form-group">
+        <label>店舗名</label>
+        <input id="sm-name" placeholder="例：KOHAKU天白">
+      </div>
+      <div class="store-form-row">
+        <div class="store-form-group">
+          <label>都道府県</label>
+          <input id="sm-pref" placeholder="例：愛知県">
+        </div>
+        <div class="store-form-group">
+          <label>市区名（市なし）</label>
+          <input id="sm-city" placeholder="例：名古屋">
+        </div>
+      </div>
+      <div class="store-form-group">
+        <label>p-world URL</label>
+        <input id="sm-pworld" placeholder="https://www.p-world.co.jp/...">
+      </div>
+      <div class="store-form-group">
+        <label>p-town(DMM) URL</label>
+        <input id="sm-ptown" placeholder="https://p-town.dmm.com/shops/...">
+      </div>
+      <div class="store-form-group">
+        <label>hisshobon URL</label>
+        <input id="sm-hburl" placeholder="https://hisshobon-hall.info/category/...">
+      </div>
+      <div class="store-form-group">
+        <label>店舗外観画像</label>
+        <div class="store-img-preview-wrap" id="sm-img-wrap" onclick="document.getElementById('sm-img-file').click()">
+          <div style="color:#bbb;font-size:13px;text-align:center;" id="sm-img-ph">📷 クリックして画像を選択</div>
+        </div>
+        <input type="file" id="sm-img-file" accept="image/*" style="display:none" onchange="onStoreImgSelect(event)">
+      </div>
+    </div>
+    <div class="store-modal-footer">
+      <button class="btn-cancel-store" onclick="closeStoreModal()">キャンセル</button>
+      <button class="btn-save-store" onclick="saveStoreCard()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- WP投稿モーダル -->
+<div class="modal-overlay" id="wp-post-modal">
+  <div class="modal" style="width:480px;">
+    <div class="modal-header">
+      <h3>🚀 WordPressに投稿</h3>
+      <button class="modal-close" onclick="closeWpPostModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <div style="font-size:11px;color:#777;margin-bottom:4px;">記事タイトル</div>
+        <input id="wp-post-title" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;" placeholder="例：【マルハン〇〇店】戦極～電光石火～ 差枚ランキング">
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
+          <button onclick="setWpTitle('machine')" style="padding:4px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f5f5f5;">1/2機種：機種名に変更</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#777;margin-bottom:4px;">投稿ステータス</div>
+        <div style="display:flex;gap:10px;">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="radio" name="wp-status" value="draft" checked> 下書き
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="radio" name="wp-status" value="publish"> 即公開
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#777;margin-bottom:4px;">カテゴリー</div>
+          <div id="wp-cat-summary" style="font-size:12px;color:#555;padding:6px 8px;border:1px solid #ddd;border-radius:5px;background:#fafafa;min-height:30px;">未選択</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#777;margin-bottom:4px;">タグ</div>
+          <div id="wp-tag-summary" style="font-size:12px;color:#555;padding:6px 8px;border:1px solid #ddd;border-radius:5px;background:#fafafa;min-height:30px;">未選択</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button onclick="openCatTagModal()" style="padding:6px 12px;font-size:12px;border:1px solid #0073aa;border-radius:5px;background:#fff;color:#0073aa;cursor:pointer;font-family:inherit;white-space:nowrap;">✏️ 選択</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#888;background:#f5f5f5;padding:8px 10px;border-radius:5px;">
+        投稿先：<strong>hisshobon-hall.info</strong>
+      </div>
+      <button id="wp-post-submit-btn" onclick="submitWpPost()" style="padding:10px;background:#0073aa;color:white;border:none;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;">投稿する</button>
+      <div id="wp-post-result" style="font-size:12px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- カテゴリー・タグ選択モーダル（全画面） -->
+<div class="modal-overlay" id="cat-tag-modal" style="z-index:3000;">
+  <div style="background:#fff;width:100%;max-width:900px;height:90vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eee;flex-shrink:0;">
+      <h3 style="margin:0;font-size:15px;">カテゴリー・タグを選択</h3>
+      <button onclick="closeCatTagModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;gap:0;">
+      <!-- カテゴリー -->
+      <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #eee;">
+        <div style="padding:10px 16px;font-size:13px;font-weight:bold;color:#333;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          📁 カテゴリー
+          <span id="wp-cat-loading" style="color:#aaa;font-size:11px;font-weight:normal;">読み込み中…</span>
+          <button onclick="clearCatTagCheck('wp-cat')" style="margin-left:auto;font-size:11px;padding:2px 8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;cursor:pointer;font-family:inherit;">クリア</button>
+        </div>
+        <div style="padding:6px 16px;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+          <input type="text" placeholder="🔍 絞り込み..." oninput="filterCatTagList('wp-cat-list', this.value)" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div id="wp-cat-list" style="flex:1;overflow-y:auto;padding:10px 16px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <!-- タグ -->
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div style="padding:10px 16px;font-size:13px;font-weight:bold;color:#333;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          🏷️ タグ
+          <span id="wp-tag-loading" style="color:#aaa;font-size:11px;font-weight:normal;">読み込み中…</span>
+          <button onclick="clearCatTagCheck('wp-tag')" style="margin-left:auto;font-size:11px;padding:2px 8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;cursor:pointer;font-family:inherit;">クリア</button>
+        </div>
+        <div style="padding:6px 16px;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+          <input type="text" placeholder="🔍 絞り込み..." oninput="filterCatTagList('wp-tag-list', this.value)" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div id="wp-tag-list" style="flex:1;overflow-y:auto;padding:10px 16px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <button onclick="saveCatTagToStore()" style="padding:8px 16px;background:#2a5f2a;color:white;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">💾 この店舗設定として保存</button>
+      <button onclick="closeCatTagModal()" style="padding:10px 30px;background:#0073aa;color:white;border:none;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;">✔ 決定</button>
+    </div>
+  </div>
+</div>
+
+<!-- メディアピッカーモーダル -->
+<div class="modal-overlay" id="media-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📷 hisshobon-hall.info メディアライブラリ</h3>
+      <button class="modal-close" onclick="closeMediaModal()">✕</button>
+    </div>
+    <div class="modal-toolbar">
+      <input class="modal-search" id="media-search" placeholder="ファイル名で検索..." onkeydown="if(event.key==='Enter')searchMedia()">
+      <button class="modal-search-btn" onclick="searchMedia()">検索</button>
+    </div>
+    <div class="modal-body">
+      <div class="media-grid" id="media-grid">
+        <div class="media-loading">読み込み中...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-pager">
+        <button id="media-prev" onclick="mediaPage(-1)">◀</button>
+        <span id="media-page-info">-</span>
+        <button id="media-next" onclick="mediaPage(1)">▶</button>
+      </div>
+      <span id="media-selected-name" style="font-size:12px;color:#888;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button class="modal-select-btn" id="media-select-btn" onclick="confirmMediaSelect()" disabled>この画像を選択</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編集中ツールバー -->
+<div id="edit-toolbar">
+  <span style="color:#aaa;font-size:11px">書式：</span>
+  <button class="edit-toolbar-btn" onclick="fmt('bold')" title="太字"><b>B</b></button>
+  <button class="edit-toolbar-btn" onclick="fmt('removeFormat')">解除</button>
+  <span style="color:#555;margin:0 4px">|</span>
+  <span style="font-size:11px;color:#aaa">✏ 直接編集中</span>
+</div>
+
+<script>
+// ============================================================
+// 固定リソース
+// ============================================================
+// ============================================================
+// シリーズ設定
+// ============================================================
+const SERIES_CONFIG = {
+  denkoisseki: {
+    name: '戦極～電光石火～',
+    eventImgId:  10330,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/アイキャッチ_戦極電光石火.jpg',
+    tagKeywords: ['戦極', '電光石火'],
+    jugglerOnly: true,
+    sheetKeyword: '電光石火',
+    rankingTitle: 'ジャグ系機種／差枚ランキング',
+    headerImgUrl: '/assets/jag-header.jpg',
+    capLabel: 'ジャグ系設置台数',
+    capColor: '#daa520',
+    capBg:    '#fffdf0',
+    capHeaderColor: '#c0527a',
+    defaultMachines: [
+      { name:'ネオアイム', count:15 },
+      { name:'マイジャグV', count:10 },
+      { name:'ハピジャグVⅢ', count:5 },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  '回を重ねるに連れて好評を博している【戦極～電光石火～】🤡',
+        b4:  'この取材は【ジャグ系機種に明るい編集部員】たちによる専門的な総力調査です📸',
+        b5:  '今月も全国で名を馳せるジャグラー自慢ホールの40店舗以上が参戦‼️\n\n各地で熱戦を繰り広げていますっっ⚔️',
+        b8:  `同店のジャグラー設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nジャグラーでこの枚数、この当たり方はさぞ楽しかった事でしょう✨\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜電光石火〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+  ifudodo: {
+    name: '戦極～威風堂々～',
+    eventImgId:  null,
+    eventImgUrl: '/assets/ifudodo.jpg',
+    tagKeywords: ['戦極', '威風堂々'],
+    jugglerOnly: false,
+    allowedMachines: ['北斗の拳', '北斗転生', '化物語', 'カバネリ'],
+    hideBigReg: true,
+    sheetKeyword: '威風堂々',
+    machineEmoji: '👽',
+    rankingTitle: 'サミー系機種／差枚ランキング',
+    headerImgUrl: '/assets/samy-header.jpg',
+    capLabel: 'サミー系機種設置台数',
+    capColor: '#1a6fa8',
+    capBg:    '#f0f7ff',
+    capHeaderColor: '#1a6fa8',
+    defaultMachines: [
+      { name:'スマスロ北斗の拳', count:16 },
+      { name:'北斗転生2',       count:7  },
+      { name:'スマスロ化物語',   count:6  },
+      { name:'カバネリ海門決戦', count:5  },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  `様々な方面でご好評いただいている【戦極】⚔⚔⚔ ${new Date().getMonth() + 1}月から新たな企画が始まることになりました`,
+        b4:  'この取材は【サミー系機種に対する愛で溢れた情熱的な編集部員】たちによる総力調査となります',
+        b5:  'この新たに始まった取材に対し､全国から約20店舗が参戦表明‼️各地で熱戦を繰り広げる予定ございます',
+        b8:  `同店のサミー系設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nこの枚数、この当たり方はさぞ楽しかった事でしょう✨\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜威風堂々〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+  shishifunjin: {
+    name: '戦極～獅子奮迅～',
+    eventImgId:  null,
+    eventImgUrl: '/assets/shishifunjin.jpg',
+    tagKeywords: ['戦極', '獅子奮迅'],
+    jugglerOnly: false,
+    allowedMachines: ['ヴァルヴレイヴ', 'かぐや様', 'からくりサーカス', '炎炎ノ消防隊'],
+    sheetKeyword: '獅子奮迅',
+    machineEmoji: '🦁',
+    rankingTitle: 'SANKYO系機種／差枚ランキング',
+    headerImgUrl: '/assets/sankyo-header.jpg',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#2e8b57', capBg: '#f0fff4', capHeaderColor: '#2e8b57',
+    defaultMachines: [
+      { name:'ヴァルヴレイヴ2',         count:0 },
+      { name:'ヴァルヴレイヴ',          count:0 },
+      { name:'かぐや様は告らせたい',     count:0 },
+      { name:'からくりサーカス',        count:0 },
+      { name:'炎炎ノ消防隊2',           count:0 },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  '【戦極～獅子奮迅～】',
+        b4:  '',
+        b5:  '',
+        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜獅子奮迅〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+  tokyoghoul: {
+    name: '戦極～東京喰種～',
+    eventImgId:  null,
+    eventImgUrl: '/assets/tokyoghoul.png',
+    tagKeywords: ['戦極', '東京喰種'],
+    jugglerOnly: false,
+    allowedMachines: ['東京喰種'],
+    sheetKeyword: '東京喰種',
+    machineEmoji: '👺',
+    rankingTitle: 'スマスロ東京喰種',
+    headerImgUrl: '/assets/tokyoghoul-header.png',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#c0392b', capBg: '#fff5f5', capHeaderColor: '#c0392b',
+    defaultMachines: [
+      { name:'スマスロ東京喰種', count:0 },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  '【戦極～東京喰種～】',
+        b4:  '',
+        b5:  '',
+        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜東京喰種〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+  hyakkaryoran: {
+    name: '戦極～百花繚乱～',
+    eventImgId:  null,
+    eventImgUrl: '/assets/hyakkaryoran.png',
+    tagKeywords: ['戦極', '百花繚乱'],
+    jugglerOnly: false,
+    allowedMachines: ['キングハナハナ', 'ハナハナホウオウ', 'ドラゴンハナハナ'],
+    sheetKeyword: '百花繚乱',
+    machineEmoji: '🌺',
+    rankingTitle: 'ハナ系機種／差枚ランキング',
+    headerImgUrl: '/assets/hyakkaryoran-header.png',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#d6336c', capBg: '#fff0f5', capHeaderColor: '#d6336c',
+    defaultMachines: [
+      { name:'キングハナハナ-30',           count:18 },
+      { name:'ハナハナホウオウ～天翔～-30', count:9  },
+      { name:'ドラゴンハナハナ〜閃光〜-30', count:8  },
+      { name:'ニューキングハナハナV-30',    count:7  },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  '【戦極～百花繚乱～】',
+        b4:  '',
+        b5:  '',
+        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜百花繚乱〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+  ikkyunyukon: {
+    name: '戦極～一球入魂～',
+    eventImgId:  null,
+    eventImgUrl: '/assets/ikkyunyukon.png',
+    tagKeywords: ['戦極', '一球入魂'],
+    jugglerOnly: false,
+    allowedMachines: [],
+    sheetKeyword: '一球入魂',
+    machineEmoji: '⚾',
+    rankingTitle: '注目機種差玉ランキング',
+    headerImgUrl: '/assets/ikkyunyukon-header.png',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#8c92a0', capBg: '#f5f6f8', capHeaderColor: '#8c92a0',
+    defaultMachines: [],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+      return {
+        b3:  '【戦極～一球入魂～】',
+        b4:  '',
+        b5:  '',
+        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜一球入魂〜開催時はかなり期待できそうです！',
+      };
+    },
+  },
+};
+
+let currentSeries = 'denkoisseki';
+
+function onSeriesChange(val) {
+  allSeriesLibrary[currentSeries] = libraryImages; // 切り替え前のシリーズを保存
+  currentSeries = val;
+  if (!allSeriesLibrary[currentSeries]) allSeriesLibrary[currentSeries] = {};
+  libraryImages = allSeriesLibrary[currentSeries];
+  const cfg = SERIES_CONFIG[val];
+  FIXED.eventImgId  = cfg.eventImgId;
+  FIXED.eventImgUrl = cfg.eventImgUrl;
+
+  // ジャグラーのみフィルター
+  const jugglerEl = document.getElementById('juggler-only-filter');
+  if (jugglerEl) jugglerEl.checked = cfg.jugglerOnly;
+
+  // ランキングタイトルを更新
+  const rankTitleEl = document.getElementById('img-title');
+  if (rankTitleEl) rankTitleEl.value = cfg.rankingTitle || 'ジャグ系機種／差枚ランキング';
+
+  // image-fixed のファイル名表示を更新
+  const fixedNote = document.querySelector('.img-fixed-note');
+  if (fixedNote) fixedNote.textContent = `🔒 ${FIXED.eventImgUrl ? FIXED.eventImgUrl.split('/').pop() : '（未設定）'}`;
+
+  // 設置台数ラベル・カラーを更新
+  const capHeaderEl = document.getElementById('cap-label-header');
+  if (capHeaderEl) {
+    capHeaderEl.textContent = cfg.capLabel;
+    capHeaderEl.closest('.basic-header').style.background = cfg.capHeaderColor;
+  }
+
+  // 機種一覧をシリーズのデフォルトにリセット
+  const machineRows = document.getElementById('machine-rows');
+  if (machineRows) {
+    machineRows.innerHTML = '';
+    cfg.defaultMachines.forEach(m => addMachineRow(m.name, m.count));
+  }
+
+  // シリーズ依存テキストエリアを直接更新
+  try {
+    const texts = getTemplateTexts();
+    ['b3', 'b4', 'b5', 'b8', 'b13', 'b14'].forEach(key => {
+      const el = document.getElementById(`input-${key}`);
+      if (el) el.value = texts[key] || '';
+    });
+  } catch(e) { console.warn('getTemplateTexts error:', e); }
+
+  renderMachineImgList();
+  updateB13AiButton();
+  initPreview();
+}
+
+function updateB13AiButton() {
+  const textarea = document.getElementById('input-b13');
+  if (!textarea) return;
+  const b13Body = textarea.parentElement;
+  const existing = b13Body.querySelector('.b13-ai-btn');
+  if (currentSeries === 'ifudodo') {
+    if (!existing) {
+      const btn = document.createElement('button');
+      btn.className = 'b13-ai-btn';
+      btn.textContent = '🤖 AI生成';
+      btn.style.cssText = 'margin-top:5px;padding:3px 12px;font-size:11px;border:1px solid #1a6fa8;border-radius:4px;cursor:pointer;background:#f0f7ff;color:#1a6fa8;font-family:inherit;display:block;';
+      btn.onclick = function() { generateB13Ifudodo(this); };
+      b13Body.appendChild(btn);
+    }
+  } else {
+    if (existing) existing.remove();
+  }
+}
+
+const FIXED = {
+  eventImgId:  10330,
+  eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/アイキャッチ_戦極電光石火.jpg',
+  balloonID:   16,
+};
+
+// ============================================================
+// ブロック定義
+// ============================================================
+// type: 'balloon' | 'image' | 'image-fixed' | 'cap' | 'paragraph'
+const BLOCK_DEFS = [
+  { id:'b-store-img',   type:'image',       label:'店舗外観画像',         idKey:'store-img-id',  urlKey:'store-img-url' },
+  { id:'b-balloon-1',   type:'balloon',     label:'挨拶',                 textKey:'b1' },
+  { id:'b-balloon-2',   type:'balloon',     label:'店舗紹介',              textKey:'b2' },
+  { id:'b-event-img',   type:'image-fixed', label:'企画アイキャッチ（固定）', fixedUrl: FIXED.eventImgUrl },
+  { id:'b-balloon-3',   type:'balloon',     label:'企画説明',              textKey:'b3' },
+  { id:'b-balloon-4',   type:'balloon',     label:'取材説明',              textKey:'b4' },
+  { id:'b-balloon-5',   type:'balloon',     label:'参戦告知',              textKey:'b5' },
+  { id:'b-balloon-6',   type:'balloon',     label:'前回振り返り',           textKey:'b6' },
+  { id:'b-balloon-7',   type:'balloon',     label:'設置機種案内',           textKey:'b7' },
+  { id:'b-cap',         type:'cap',         label:'ジャグ系設置台数' },
+  { id:'b-balloon-8',   type:'balloon',     label:'合計台数',              textKey:'b8' },
+  { id:'b-balloon-9',   type:'balloon',     label:'機種構成',              textKey:'b9' },
+  { id:'b-balloon-10',  type:'balloon',     label:'ランキング案内',         textKey:'b10' },
+  { id:'b-rank-img',    type:'image',       label:'ランキング画像',         idKey:'rank-img-id',   urlKey:'rank-img-url' },
+  { id:'b-balloon-11',  type:'balloon',     label:'TOP1結果',              textKey:'b11' },
+  { id:'b-balloon-12',  type:'balloon',     label:'TOP2・3結果',           textKey:'b12' },
+  { id:'b-balloon-13',  type:'balloon',     label:'詳細コメント',           textKey:'b13' },
+  { id:'b-balloon-14',  type:'balloon',     label:'締めコメント',           textKey:'b14' },
+  { id:'b-end-img',     type:'image',       label:'締め用機種画像',         idKey:'end-img-id',    urlKey:'end-img-url' },
+  { id:'b-balloon-15',  type:'balloon',     label:'レポート終了',           textKey:'b15' },
+  { id:'b-paragraph',   type:'paragraph',   label:'締め文',                textKey:'para' },
+];
+
+function cityWithSuffix(c) { return !c || /[市区郡町村]$/.test(c) ? c : c + '市'; }
+
+// ============================================================
+// テンプレートテキスト取得
+// ============================================================
+function getTemplateTexts() {
+  const pref     = v('f-pref');
+  const city     = cityWithSuffix(v('f-city'));
+  const hall     = v('f-hall');
+  const reporter = v('f-reporter');
+  const prev     = v('f-prev-machine');
+  const t1n = v('f-top1-name'), t1num = v('f-top1-num'), t1d = v('f-top1-diff');
+  const t2n = v('f-top2-name'), t2num = v('f-top2-num'), t2d = v('f-top2-diff');
+  const t3n = v('f-top3-name'), t3num = v('f-top3-num'), t3d = v('f-top3-diff');
+  const machines = getMachines();
+  const total    = machines.reduce((s,m) => s+m.count, 0);
+  const main     = machines[0]?.name || '';
+  const secondCount = machines[1]?.count;
+  const second   = secondCount !== undefined
+    ? machines.filter((m, i) => i > 0 && m.count === secondCount).map(m => m.name).join('＆')
+    : '';
+  const cnt      = machines.length;
+
+  const n1 = parseInt((t1d||'').replace(/[^0-9]/g,''))||0;
+  const adj1 = n1>=3500?'驚異的な':n1>=2500?'素晴らしい':n1>=2000?'立派な':'堅実な';
+  const n2 = parseInt((t2d||'').replace(/[^0-9]/g,''))||0;
+  const adj2 = n2>=3500?'驚異的な':n2>=2500?'素晴らしい':n2>=2000?'立派な':'堅実な';
+
+  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 });
+
+  return {
+    b1:  `皆さんこんにちわっ😊必勝本編集部・新人編集のマモルです❗️`,
+    b2:  `今回は${pref}・${city}にある【${hall}】へとやってきましたーっ💨`,
+    b3:  seriesTexts.b3,
+    b4:  seriesTexts.b4,
+    b5:  seriesTexts.b5,
+    b6:  `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
+    b7:  `それではまず、設置機種を確認していきましょう📷`,
+    b8:  seriesTexts.b8,
+    b9:  `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
+    b10: `それでは、差枚ランキングをご覧ください✋`,
+    b11: `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`,
+    b12: `また、2位には【${t2n}・${t2num}番台】の${t2d}、そして3位${t3n===t2n?'にも':'には'}【${t3n}・${t3num}番台】の${t3d}がランクインですっ❗️`,
+    b13: seriesTexts.b13,
+    b14: seriesTexts.b14,
+    b15: `今回のレポートはここまで✋次回取材もお見逃しなく～`,
+    para:`★${pref}${city}【${hall}】次回取材にもぜひご期待ください★\n※なお、本記事中のデータは全てパチ＆スロ必勝本の独自調査によるものです。`,
+  };
+}
+
+// ============================================================
+// テンプレートを反映
+// ============================================================
+async function generateWithAI() {
+  const btn = document.getElementById('ai-gen-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中…';
+
+  // まずテンプレートで全体を埋める（固定部分）
+  applyTemplate();
+
+  const pref     = v('f-pref');
+  const city     = v('f-city');
+  const hall     = v('f-hall');
+  const reporter = v('f-reporter');
+  const prev     = v('f-prev-machine');
+  const t1n = v('f-top1-name'), t1num = v('f-top1-num'), t1d = v('f-top1-diff');
+  const t2n = v('f-top2-name'), t2num = v('f-top2-num'), t2d = v('f-top2-diff');
+  const t3n = v('f-top3-name'), t3num = v('f-top3-num'), t3d = v('f-top3-diff');
+  const machines = getMachines();
+  const total = machines.reduce((s,m) => s+m.count, 0);
+  const main   = machines[0]?.name || '';
+  const secondCount = machines[1]?.count;
+  const second = secondCount !== undefined
+    ? machines.filter((m, i) => i > 0 && m.count === secondCount).map(m => m.name).join('＆')
+    : '';
+  const cnt    = machines.length;
+  // 台数が0の場合は台数表記を省く（p-world取得のみで台数未入力の場合）
+  const machineList = machines.map(m => m.count > 0 ? `${m.name}×${m.count}台` : m.name).join('、');
+
+  // ランキング上位からランクイン台数・合算確率を集計
+  const rankCount = parseInt(document.getElementById('rank-count').value) || 30;
+  const rankData  = allMachineData.slice(0, rankCount);
+
+  // ランクイン台数トップ機種
+  const rankInCount = {};
+  rankData.forEach(m => { const n = displayName(m.機種名); rankInCount[n] = (rankInCount[n]||0) + 1; });
+  const rankInTop = Object.entries(rankInCount).sort((a,b)=>b[1]-a[1]).slice(0,3)
+    .map(([n,c]) => `${n}(${c}台)`).join('、');
+
+  // 合算確率トップ機種（BIG+REGがある場合のみ）
+  let gassoTop = '';
+  if (hasBigReg) {
+    const gassoMap = {};
+    rankData.forEach(m => {
+      const total = (m.BIG||0) + (m.REG||0);
+      if (!total || !m.G) return;
+      const prob = m.G / total;
+      const n = displayName(m.機種名);
+      if (!gassoMap[n] || prob < gassoMap[n]) gassoMap[n] = prob;
+    });
+    gassoTop = Object.entries(gassoMap).sort((a,b)=>a[1]-b[1]).slice(0,3)
+      .map(([n,p]) => `${n}(1/${Math.round(p)})`).join('、');
+  }
+
+  try {
+    // この店舗の過去記事を取得
+    let pastArticles = [];
+    try {
+      const memRes = await fetch(`/api/store-memory?hall=${encodeURIComponent(hall)}`);
+      if (memRes.ok) { const memData = await memRes.json(); pastArticles = memData.past || []; }
+    } catch {}
+
+    const res = await fetch('/api/generate-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
+
+    // AI生成された吹き出しをプレビューに反映
+    const keys = ['b3','b5','b6','b9','b13','b14','b15'];
+    keys.forEach(key => {
+      if (!data[key]) return;
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) el.innerHTML = data[key].replace(/\n/g, '<br>');
+    });
+
+    // 生成結果をこの店舗の記憶として保存
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
+    fetch('/api/store-memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hall, date: dateStr, texts: { b3: data.b3, b5: data.b5, b6: data.b6, b13: data.b13, b14: data.b14, b15: data.b15 }, top1: t1n }),
+    }).catch(() => {});
+
+    showToast('🤖 AI文章を生成しました！');
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 AI文章生成';
+  }
+}
+
+async function generateB13Ifudodo(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中…';
+  try {
+    const rankCount = parseInt(document.getElementById('rank-count')?.value) || 30;
+    const rankData  = allMachineData.slice(0, rankCount);
+
+    const fmt = m => m ? (m.差 >= 0 ? `+${m.差.toLocaleString()}枚` : `${m.差.toLocaleString()}枚`) : '';
+    const gStr = m => (m?.G ? Math.round(m.G).toLocaleString() + 'G' : '');
+    const [r1, r2, r3] = rankData;
+
+    const rankInCount = {};
+    rankData.forEach(m => { const n = displayName(m.機種名); rankInCount[n] = (rankInCount[n]||0) + 1; });
+    const rankInTop = Object.entries(rankInCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c]) => `${n}(${c}台)`).join('、');
+
+    const machines  = getMachines();
+    const total     = machines.reduce((s,m) => s+m.count, 0);
+    const machineList = machines.map(m => m.count > 0 ? `${m.name}×${m.count}台` : m.name).join('、');
+
+    const res = await fetch('/api/generate-text-ifudodo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        t1n: r1 ? displayName(r1.機種名) : '', t1num: r1?.台番 || '', t1d: fmt(r1), t1g: gStr(r1),
+        t2n: r2 ? displayName(r2.機種名) : '', t2num: r2?.台番 || '', t2d: fmt(r2), t2g: gStr(r2),
+        t3n: r3 ? displayName(r3.機種名) : '', t3num: r3?.台番 || '', t3d: fmt(r3),
+        machineList, total, cnt: machines.length, rankInTop,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
+    const el = document.getElementById('input-b13');
+    if (el && data.b13) { el.value = data.b13; el.dispatchEvent(new Event('input')); }
+    showToast('🤖 b13を生成しました！');
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 AI生成';
+  }
+}
+
+function applyTemplate() {
+  const texts = getTemplateTexts();
+  Object.entries(texts).forEach(([key, val]) => {
+    const el = document.getElementById('input-' + key);
+    if (el) el.value = val;
+  });
+  initPreview();
+  showToast('テンプレートを反映しました');
+}
+
+// ============================================================
+// ブロックリスト描画
+// ============================================================
+const defaultMachines = [
+  { name:'ネオアイム', count:15 },
+  { name:'マイジャグV', count:10 },
+  { name:'ハピジャグVⅢ', count:5 },
+];
+
+function buildBlockList() {
+  const container = document.getElementById('block-list');
+  const texts = getTemplateTexts();
+
+  BLOCK_DEFS.forEach((def, idx) => {
+    const item = document.createElement('div');
+    item.className = 'block-item';
+    item.id = 'block-' + def.id;
+
+    let typeTag = '';
+    let bodyHTML = '';
+
+    if (def.type === 'balloon') {
+      typeTag = '<span class="block-type-tag tag-balloon">吹き出し</span>';
+      const initVal = (texts[def.textKey] || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      bodyHTML = `<div class="block-item-body">
+        <textarea class="balloon-textarea" id="input-${def.textKey}">${initVal}</textarea>
+      </div>`;
+    } else if (def.type === 'image') {
+      typeTag = '<span class="block-type-tag tag-image">画像</span>';
+      bodyHTML = `<div class="block-item-body">
+        <div class="img-block-body">
+          <label>メディアID</label>
+          <input id="input-${def.idKey}" placeholder="例：16238">
+          <label>画像URL</label>
+          <input id="input-${def.urlKey}" placeholder="https://hisshobon-hall.info/wp-content/uploads/...">
+          <button class="pick-media-btn" onclick="openMediaModal('${def.idKey}','${def.urlKey}')">📷 メディアライブラリから選択</button>
+          <img class="img-preview-small" id="preview-small-${def.idKey}">
+        </div>
+      </div>`;
+    } else if (def.type === 'image-fixed') {
+      typeTag = '<span class="block-type-tag tag-fixed">画像（固定）</span>';
+      bodyHTML = `<div class="block-item-body">
+        <div class="img-fixed-note">🔒 ${FIXED.eventImgUrl ? FIXED.eventImgUrl.split('/').pop() : '（未設定）'}</div>
+      </div>`;
+    } else if (def.type === 'cap') {
+      typeTag = '<span class="block-type-tag tag-cap">台数ボックス</span>';
+      bodyHTML = `<div class="block-item-body">
+        <div style="font-size:11px;color:#888;padding:4px 0;">← 左パネルの「🎰 ジャグ系設置台数」で編集</div>
+      </div>`;
+    } else if (def.type === 'paragraph') {
+      typeTag = '<span class="block-type-tag tag-para">段落</span>';
+      const initVal = (texts[def.textKey] || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      bodyHTML = `<div class="block-item-body">
+        <textarea class="balloon-textarea" id="input-${def.textKey}" style="min-height:72px">${initVal}</textarea>
+      </div>`;
+    }
+
+    item.innerHTML = `
+      <div class="block-item-header">
+        <span style="color:#bbb;font-size:10px;min-width:18px">${idx+1}</span>
+        ${typeTag}
+        <span>${def.label}</span>
+      </div>
+      ${bodyHTML}
+    `;
+    container.appendChild(item);
+  });
+
+  // 機種行を追加
+  SERIES_CONFIG[currentSeries].defaultMachines.forEach(m => addMachineRow(m.name, m.count));
+}
+
+// ============================================================
+// 機種行
+// ============================================================
+function openPworld() {
+  const url = document.getElementById('f-pworld-url').value.trim();
+  if (!url) { showToast('p-world URLが設定されていません'); return; }
+  window.open(url, '_blank');
+}
+
+function openHbHall() {
+  const name = document.getElementById('f-hall').value;
+  const url = storeData[name]?.hbUrl;
+  if (!url) { showToast('hisshobon URLが設定されていません'); return; }
+  window.open(url, '_blank');
+}
+
+async function fetchPtown() {
+  const pageUrl = document.getElementById('f-ptown-url').value.trim();
+  if (!pageUrl) { showToast('p-town URLが設定されていません。店舗管理で登録してください。'); return; }
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳';
+  showToast('⏳ p-town(DMM)から取得中…');
+  try {
+    const res = await fetch('/api/scrape-ptown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || '取得失敗')); return; }
+    if (!data.machines || !data.machines.length) { showToast('機種データが見つかりませんでした'); return; }
+    document.getElementById('machine-rows').innerHTML = '';
+    data.machines.slice().sort((a, b) => b.count - a.count).forEach(m => addMachineRow(displayName(m.name), m.count));
+    initPreview();
+    showToast(`✅ ${data.machines.length}機種の台数を取得しました`);
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'DMM';
+  }
+}
+
+async function fetchPworldFromStore() {
+  const pageUrl = document.getElementById('f-pworld-url').value.trim();
+  if (!pageUrl) { showToast('p-world URLが設定されていません'); return; }
+  const btn = document.getElementById('pworld-fetch-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 取得中…'; }
+  const filterStr = (document.getElementById('f-pworld-filter')?.value || '').trim();
+  const keywords = filterStr ? filterStr.split(/[\s　]+/).filter(Boolean) : [];
+  showToast('⏳ p-worldから台数を取得中…');
+  try {
+    const res = await fetch('/api/scrape-pworld', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageUrl, keywords }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || '取得失敗')); return; }
+    if (!data.machines || !data.machines.length) { showToast('台数データが見つかりませんでした'); return; }
+    document.getElementById('machine-rows').innerHTML = '';
+    data.machines.forEach(m => addMachineRow(displayName(m.name), m.count));
+    showToast(`✅ ${data.machines.length}機種の台数を取得しました`);
+    initPreview();
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🌐 台数取得'; }
+  }
+}
+
+async function scrapePworld() {
+  const pageUrl = document.getElementById('pworld-url').value.trim();
+  if (!pageUrl) { showToast('p-worldのURLを入力してください'); return; }
+  const btn = document.getElementById('pworld-btn');
+  btn.disabled = true; btn.textContent = '⏳ 取得中…';
+  try {
+    const res = await fetch('/api/scrape-pworld', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || '取得失敗')); return; }
+    if (!data.machines || !data.machines.length) { showToast('台数データが見つかりませんでした'); return; }
+    document.getElementById('machine-rows').innerHTML = '';
+    data.machines.forEach(m => addMachineRow(m.name, m.count));
+    showToast(`✅ ${data.machines.length}機種の台数を取得しました`);
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🌐 台数取得';
+  }
+}
+
+function addMachineRow(name='', count='') {
+  const container = document.getElementById('machine-rows');
+  const row = document.createElement('div');
+  row.className = 'machine-row';
+  row.innerHTML = `
+    <input type="text" placeholder="機種名" value="${ea(name)}" class="machine-name">
+    <input type="number" placeholder="台数" value="${ea(String(count))}" class="machine-count" min="1" style="text-align:center">
+    <button class="sort-btn" onclick="moveMachineRow(this,-1)">↑</button>
+    <button class="sort-btn" onclick="moveMachineRow(this,1)">↓</button>
+    <button class="del-btn" onclick="this.closest('.machine-row').remove()">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function moveMachineRow(btn, dir) {
+  const row = btn.closest('.machine-row');
+  const container = row.parentNode;
+  if (dir === -1) {
+    const prev = row.previousElementSibling;
+    if (prev) container.insertBefore(row, prev);
+  } else {
+    const next = row.nextElementSibling;
+    if (next) container.insertBefore(next, row);
+  }
+  initPreview();
+}
+
+function getMachines() {
+  return [...document.querySelectorAll('.machine-row')].map(row => ({
+    name: row.querySelector('.machine-name').value.trim(),
+    count: parseInt(row.querySelector('.machine-count').value) || 0,
+  })).filter(m => m.name);
+}
+
+// ============================================================
+// 生成
+// ============================================================
+function generate() {
+  const pref = v('f-pref'), city = v('f-city'), hall = v('f-hall');
+  const machines = getMachines();
+  const total = machines.reduce((s,m) => s+m.count, 0);
+
+  // プレビューの編集内容 or テキストエリアから取得（プレビュー優先）
+  function bHtml(key) {
+    const prevEl = document.querySelector(`[data-key="${key}"]`);
+    if (prevEl) return prevEl.innerHTML.trim();
+    const ta = document.getElementById('input-' + key);
+    return ta ? ta.value.replace(/\n/g, '<br>') : '';
+  }
+
+  const storeImgId  = v('input-store-img-id') || 'STORE_IMG_ID';
+  const storeImgUrl = v('input-store-img-url') || 'https://example.com/store.jpg';
+  const rankImgId   = v('input-rank-img-id')   || 'RANKING_IMG_ID';
+  const rankImgUrl  = v('input-rank-img-url')  || 'https://example.com/ranking.jpg';
+  const endImgId    = v('input-end-img-id')    || 'END_IMG_ID';
+  const endImgUrl   = v('input-end-img-url')   || 'https://example.com/machine.jpg';
+
+  // 機種リスト（cap-block）
+  const _mEmoji = SERIES_CONFIG[currentSeries].machineEmoji || '🤡';
+  const machineListWP = machines.map(m => `${_mEmoji}${m.name}👉${m.count}台`).join('<br>');
+
+  // 締め文 WP用（プレビュー編集内容をSWELLクラスに変換）
+  const paraWP = bHtml('para')
+    .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')
+    .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"');
+
+  const bid = FIXED.balloonID;
+  const code = [
+    wpImage(storeImgId, storeImgUrl),
+    balloon(bid, bHtml('b1')),
+    balloon(bid, bHtml('b2')
+      .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
+    wpImage(FIXED.eventImgId, FIXED.eventImgUrl),
+    balloon(bid, bHtml('b3')
+      .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')),
+    balloon(bid, bHtml('b4')
+      .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
+    wpImage(FIXED.listImgId, FIXED.listImgUrl),
+    balloon(bid, bHtml('b5')),
+    balloon(bid, bHtml('b6')),
+    balloon(bid, bHtml('b7')),
+    capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
+    balloon(bid, bHtml('b8')),
+    balloon(bid, bHtml('b9')),
+    balloon(bid, bHtml('b10')),
+    wpImage(rankImgId, rankImgUrl),
+    balloon(bid, bHtml('b11')),
+    balloon(bid, bHtml('b12')),
+    balloon(bid, bHtml('b13')),
+    balloon(bid, bHtml('b14')),
+    wpImage(endImgId, endImgUrl),
+    balloon(bid, bHtml('b15')),
+    wpParagraph(paraWP),
+    `<!-- wp:paragraph -->\n<p></p>\n<!-- /wp:paragraph -->`,
+  ].join('\n\n');
+
+  document.getElementById('code-output').textContent = code;
+  showToast('コードを生成しました！');
+}
+
+// 初回プレビュー描画（テンプレートテキストを使用）
+function initPreview() {
+  const pref = v('f-pref'), city = cityWithSuffix(v('f-city')), hall = v('f-hall');
+  const machines = getMachines();
+  const total = machines.reduce((s,m) => s+m.count, 0);
+  const storeImgUrl = v('input-store-img-url') || '';
+  const rankImgUrl  = v('input-rank-img-url')  || generatedRankDataUrl || '';
+  const endImgUrl   = v('input-end-img-url')   || '';
+  const texts = getTemplateTexts();
+  function bText(key) { return texts[key] || ''; }
+  renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, bText });
+}
+
+// ============================================================
+// プレビュー描画
+// ============================================================
+function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, bText }) {
+  const machListPrev = machines.map(m =>
+    `${SERIES_CONFIG[currentSeries].machineEmoji || '🤡'}<strong>${m.name}</strong>👉${m.count}台`
+  ).join('<br>');
+
+  function bHtmlPrev(key) {
+    return (bText(key) || '').replace(/\n/g, '<br>');
+  }
+
+  function imgPrev(url, label, idKey, urlKey) {
+    const dataAttrs = idKey ? `data-idkey="${idKey}" data-urlkey="${urlKey}"` : '';
+    const clickable = !!idKey;
+    if (url && !url.includes('example.com')) {
+      if (clickable) {
+        return `<div class="prev-img-wrap" ${dataAttrs} onclick="openMediaModalFromPreview(this)">
+          <img src="${url}" onerror="this.src=''">
+          <div class="img-overlay"><span>📷 クリックして変更</span></div>
+        </div>`;
+      }
+      return `<img src="${url}" class="prev-img">`;
+    }
+    if (clickable) {
+      return `<div class="prev-img-placeholder-click" ${dataAttrs} onclick="openMediaModalFromPreview(this)">
+        <div class="icon">📷</div>
+        <div>${label}</div>
+        <div class="hint">クリックして画像を選択</div>
+      </div>`;
+    }
+    return `<div class="prev-img-placeholder">📷 ${label}</div>`;
+  }
+
+  // contenteditable な吹き出し
+  function bl(html, key) {
+    return `<div class="prev-balloon">
+      <div class="prev-balloon-icon">🙂</div>
+      <div class="prev-balloon-bubble">
+        <div class="prev-balloon-name">マモル</div>
+        <div class="prev-editable"
+             contenteditable="true"
+             data-key="${key}"
+             onfocus="showEditToolbar()"
+             onblur="hideEditToolbar()">${html}</div>
+      </div>
+    </div>`;
+  }
+
+  const html = `<div class="prev-body">
+    ${imgPrev(storeImgUrl, '店舗外観画像', 'store-img-id', 'store-img-url')}
+    ${bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
+    ${bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
+    ${imgPrev(FIXED.eventImgUrl, '企画アイキャッチ（固定）')}
+    ${bl(bHtmlPrev('b3'), 'b3')}
+    ${bl(bHtmlPrev('b4'), 'b4')}
+    ${bl(bHtmlPrev('b5'), 'b5')}
+    ${bl(bHtmlPrev('b6'), 'b6')}
+    ${bl(bHtmlPrev('b7'), 'b7')}
+    <div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
+      <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
+      <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
+    </div>
+    ${bl(bHtmlPrev('b8'), 'b8')}
+    ${bl(bHtmlPrev('b9'), 'b9')}
+    ${bl(bHtmlPrev('b10'), 'b10')}
+    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}
+    ${bl(bHtmlPrev('b11'), 'b11')}
+    ${bl(bHtmlPrev('b12'), 'b12')}
+    ${bl(bHtmlPrev('b13'), 'b13')}
+    ${bl(bHtmlPrev('b14'), 'b14')}
+    ${imgPrev(endImgUrl, '締め用機種画像', 'end-img-id', 'end-img-url')}
+    ${bl(bHtmlPrev('b15'), 'b15')}
+    <div class="prev-paragraph prev-editable" contenteditable="true" data-key="para"
+         onfocus="showEditToolbar()" onblur="hideEditToolbar()">
+      <strong><span class="swl-fz u-fz-l"><span class="has-swl-deep-01-color">★${pref}<strong>${city}</strong>【${hall}】次回取材にもぜひご期待ください★</span></span></strong><br>
+      ※なお、本記事中のデータは全てパチ＆スロ必勝本の独自調査によるものです。
+    </div>
+  </div>`;
+
+  document.getElementById('preview-output').innerHTML = html;
+}
+
+// プレビューの編集内容を取得
+function getPreviewContent(key) {
+  const el = document.querySelector(`[data-key="${key}"]`);
+  return el ? el.innerHTML.trim() : '';
+}
+
+function showEditToolbar() {
+  document.getElementById('edit-toolbar').classList.add('show');
+}
+function hideEditToolbar() {
+  setTimeout(() => {
+    if (!document.querySelector('.prev-editable:focus')) {
+      document.getElementById('edit-toolbar').classList.remove('show');
+    }
+  }, 200);
+}
+function fmt(cmd) {
+  document.execCommand(cmd, false, null);
+}
+
+// ============================================================
+// WPブロック テンプレート
+// ============================================================
+function wpImage(id, url) {
+  return `<!-- wp:image {"id":${id},"sizeSlug":"full","linkDestination":"none"} -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="" class="wp-image-${id}"/></figure>\n<!-- /wp:image -->`;
+}
+function balloon(balloonID, content) {
+  return `<!-- wp:loos/balloon {"balloonID":"${balloonID}"} -->\n<p>${content}</p>\n<!-- /wp:loos/balloon -->`;
+}
+function capBlock(title, content) {
+  return `<!-- wp:loos/cap-block -->\n<div class="swell-block-capbox cap_box"><div class="cap_box_ttl"><span>${title}</span></div><div class="cap_box_content"><!-- wp:paragraph -->\n<p>${content}</p>\n<!-- /wp:paragraph --></div></div>\n<!-- /wp:loos/cap-block -->`;
+}
+function wpParagraph(content) {
+  return `<!-- wp:paragraph -->\n<p>${content}</p>\n<!-- /wp:paragraph -->`;
+}
+
+// ============================================================
+// タブ切り替え
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.classList.remove('active'); el.style.display = 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById('tab-' + name);
+  target.style.display = 'flex'; target.classList.add('active');
+  document.getElementById('tab-' + name + '-btn').classList.add('active');
+}
+
+// ============================================================
+// WP投稿
+// ============================================================
+function openWpPostModal() {
+  generate();
+  const code = document.getElementById('code-output').textContent;
+  if (!code || code.startsWith('←')) { showToast('先にデータを読み込んでください'); return; }
+  // タイトル自動入力
+  const hall = v('f-hall'), pref = v('f-pref'), city = v('f-city');
+  const titleEl = document.getElementById('wp-post-title');
+  if (hall && !titleEl.value) {
+    const date = detectedFileDate || (() => {
+      const now = new Date();
+      return { mm: String(now.getMonth() + 1).padStart(2, '0'), dd: String(now.getDate()).padStart(2, '0') };
+    })();
+    const prefShort = pref.replace(/[都道府県]$/, '');
+    titleEl.value = `${date.mm}/${date.dd}｜${SERIES_CONFIG[currentSeries].name}｜${hall}｜${prefShort}`;
+  }
+  document.getElementById('wp-post-result').style.display = 'none';
+  document.getElementById('wp-post-modal').classList.add('show');
+  loadHbCatsAndTags();
+}
+
+function closeWpPostModal() {
+  document.getElementById('wp-post-modal').classList.remove('show');
+}
+
+function setWpTitle(type) {
+  const hall = v('f-hall');
+  const prefix = hall ? `【${hall}】` : '';
+  const t1n = v('f-top1-name');
+  const t2n = v('f-top2-name');
+  const titleEl = document.getElementById('wp-post-title');
+  if (type === 'senkyoku') {
+    titleEl.value = `${prefix}${SERIES_CONFIG[currentSeries].name} 差枚ランキング`;
+  } else if (type === 'machine') {
+    const names = [t1n, t2n].filter(Boolean).join('・');
+    titleEl.value = `${prefix}1/2機種：${names} 差枚ランキング`;
+  }
+}
+
+function updateCatTagSummary() {
+  const cats = [...document.querySelectorAll('input[name="wp-cat"]:checked')].map(el => el.closest('label').textContent.trim());
+  const tags = [...document.querySelectorAll('input[name="wp-tag"]:checked')].map(el => el.closest('label').textContent.trim());
+  document.getElementById('wp-cat-summary').textContent = cats.length ? cats.join('、') : '未選択';
+  document.getElementById('wp-tag-summary').textContent = tags.length ? tags.join('、') : '未選択';
+}
+
+function openCatTagModal() {
+  document.getElementById('cat-tag-modal').classList.add('show');
+  loadHbCatsAndTags().then(() => { applyStoreCatTag(); updateCatTagSummary(); });
+}
+
+function applyStoreCatTag() {
+  const name = v('f-hall');
+  const s = storeData[name];
+  if (!s) return;
+  if (s.wpCategories?.length) {
+    document.querySelectorAll('input[name="wp-cat"]').forEach(el => {
+      el.checked = s.wpCategories.includes(Number(el.value));
+    });
+  }
+  if (s.wpTags?.length) {
+    document.querySelectorAll('input[name="wp-tag"]').forEach(el => {
+      el.checked = s.wpTags.includes(Number(el.value));
+    });
+  }
+}
+
+async function saveCatTagToStore() {
+  const name = v('f-hall');
+  if (!name) { showToast('先に店舗を選択してください'); return; }
+  const cats = [...document.querySelectorAll('input[name="wp-cat"]:checked')].map(el => Number(el.value));
+  const tags = [...document.querySelectorAll('input[name="wp-tag"]:checked')].map(el => Number(el.value));
+  storeData[name] = { ...(storeData[name] || { name }), wpCategories: cats, wpTags: tags };
+  await saveStores();
+  showToast(`「${name}」のカテゴリー・タグを保存しました`);
+}
+
+function closeCatTagModal() {
+  document.getElementById('cat-tag-modal').classList.remove('show');
+  updateCatTagSummary();
+}
+
+function clearCatTagCheck(name) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(el => el.checked = false);
+}
+
+function filterCatTagList(listId, query) {
+  const q = query.trim().toLowerCase();
+  document.getElementById(listId).querySelectorAll('label').forEach(lbl => {
+    const match = !q || (lbl.dataset.name || '').includes(q);
+    lbl.style.display = match ? 'flex' : 'none';
+  });
+}
+
+async function loadHbCatsAndTags() {
+  const catList = document.getElementById('wp-cat-list');
+  const tagList = document.getElementById('wp-tag-list');
+  const catLoading = document.getElementById('wp-cat-loading');
+  const tagLoading = document.getElementById('wp-tag-loading');
+
+  if (!catList.dataset.loaded) {
+    catLoading.style.display = '';
+    try {
+      const r = await fetch('/api/hb-categories');
+      const cats = await r.json();
+      catList.innerHTML = '';
+      (Array.isArray(cats) ? cats : []).sort((a,b) => a.name.localeCompare(b.name, 'ja')).forEach(c => {
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;padding:6px 4px;border-bottom:1px solid #f5f5f5;';
+        lbl.dataset.name = c.name.toLowerCase();
+        lbl.innerHTML = `<input type="checkbox" name="wp-cat" value="${c.id}" style="width:16px;height:16px;cursor:pointer;"> ${c.name}`;
+        catList.appendChild(lbl);
+      });
+      catList.dataset.loaded = '1';
+    } catch(e) { catList.textContent = '取得失敗'; }
+    catLoading.style.display = 'none';
+  }
+
+  if (!tagList.dataset.loaded) {
+    tagLoading.style.display = '';
+    try {
+      const r = await fetch('/api/hb-tags');
+      const tags = await r.json();
+      tagList.innerHTML = '';
+      (Array.isArray(tags) ? tags : []).sort((a,b) => a.name.localeCompare(b.name, 'ja')).forEach(t => {
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;padding:6px 4px;border-bottom:1px solid #f5f5f5;';
+        lbl.dataset.name = t.name.toLowerCase();
+        lbl.innerHTML = `<input type="checkbox" name="wp-tag" value="${t.id}" style="width:16px;height:16px;cursor:pointer;"> ${t.name}`;
+        tagList.appendChild(lbl);
+      });
+      tagList.dataset.loaded = '1';
+      // シリーズのキーワードを含むタグを自動チェック
+      const kwds = SERIES_CONFIG[currentSeries]?.tagKeywords || ['戦極'];
+      tagList.querySelectorAll('input[name="wp-tag"]').forEach(el => {
+        const label = el.closest('label').textContent;
+        if (kwds.some(kw => label.includes(kw))) el.checked = true;
+      });
+    } catch(e) { tagList.textContent = '取得失敗'; }
+    tagLoading.style.display = 'none';
+  }
+}
+
+async function submitWpPost() {
+  const title  = document.getElementById('wp-post-title').value.trim();
+  if (!title) { showToast('タイトルを入力してください'); return; }
+  const status = document.querySelector('input[name="wp-status"]:checked').value;
+  let content = document.getElementById('code-output').textContent;
+
+  // モーダル未開封でチェックボックスが未生成の場合はstoreDataから読む
+  const catListLoaded = document.getElementById('wp-cat-list')?.dataset.loaded;
+  const tagListLoaded = document.getElementById('wp-tag-list')?.dataset.loaded;
+  const hallName = v('f-hall');
+  const categories = catListLoaded
+    ? [...document.querySelectorAll('input[name="wp-cat"]:checked')].map(el => Number(el.value))
+    : (storeData[hallName]?.wpCategories || []);
+  const tags = tagListLoaded
+    ? [...document.querySelectorAll('input[name="wp-tag"]:checked')].map(el => Number(el.value))
+    : (storeData[hallName]?.wpTags || []);
+
+  const btn = document.getElementById('wp-post-submit-btn');
+  btn.disabled = true;
+
+  // ランキング画像が未アップロードなら自動でアップロード
+  let rankId  = v('input-rank-img-id');
+  let rankUrl = v('input-rank-img-url');
+  const needsUpload = !rankId || rankId === 'RANKING_IMG_ID';
+  const canvas = document.getElementById('rank-canvas');
+  if (needsUpload && canvas && canvas.width > 0) {
+    btn.textContent = '⏳ 画像アップロード中…';
+    try {
+      const blob = await new Promise((resolve, reject) =>
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas取得失敗')), 'image/png')
+      );
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const hall = v('f-hall') || 'ranking';
+      const sub  = document.getElementById('img-subtitle').value.trim();
+      const filename = `ranking_${hall}_${sub}.png`.replace(/[^\w.\-]/g, '_');
+      const upRes = await fetch('/api/upload-hb-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, data: base64 }),
+      });
+      const upData = await upRes.json();
+      if (upData.id && upData.source_url) {
+        rankId  = String(upData.id);
+        rankUrl = upData.source_url;
+        document.getElementById('input-rank-img-id').value  = rankId;
+        document.getElementById('input-rank-img-url').value = rankUrl;
+      }
+    } catch(e) {
+      showToast('⚠️ 画像アップロード失敗: ' + e.message);
+    }
+  }
+
+  // コード内のプレースホルダーを差し替え
+  if (rankId && rankId !== 'RANKING_IMG_ID') {
+    content = content.replace(/RANKING_IMG_ID/g, rankId);
+  }
+  if (rankUrl && rankUrl !== 'https://example.com/ranking.jpg') {
+    content = content.replace(/https:\/\/example\.com\/ranking\.jpg/g, rankUrl);
+  }
+
+  btn.textContent = '⏳ 投稿中…';
+
+  try {
+    const res = await fetch('/api/create-hb-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content, status, categories, tags, featured_media: FIXED.eventImgId }),
+    });
+    const data = await res.json();
+    const resultEl = document.getElementById('wp-post-result');
+    resultEl.style.display = 'block';
+    if (res.ok && data.link) {
+      resultEl.innerHTML = `✅ 投稿しました！<br><a href="${data.link}" target="_blank" style="color:#0073aa;">${data.link}</a>`;
+      showToast('✅ WordPressに投稿しました！');
+    } else {
+      resultEl.innerHTML = `❌ エラー: ${data.message || data.error || '投稿に失敗しました'}`;
+      showToast('❌ 投稿に失敗しました');
+    }
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '投稿する';
+  }
+}
+
+// ============================================================
+// コピー
+// ============================================================
+function copyCode() {
+  const code = document.getElementById('code-output').textContent;
+  if (!code || code.startsWith('←')) return;
+  navigator.clipboard.writeText(code).then(() => {
+    showToast('コードをコピーしました！');
+    const btn = document.getElementById('toolbar-copy-btn');
+    btn.textContent = 'コピー完了！'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コードをコピー'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = code; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('コードをコピーしました！');
+  });
+}
+
+// ============================================================
+// 基本設定の開閉
+// ============================================================
+function toggleBasic() {
+  const el = document.getElementById('basic-settings');
+  const toggle = document.getElementById('basic-toggle');
+  if (el.style.display === 'none') {
+    el.style.display = ''; toggle.textContent = '▲ 閉じる';
+  } else {
+    el.style.display = 'none'; toggle.textContent = '▼ 開く';
+  }
+}
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+// ============================================================
+// データ読み込み・ランキング画像生成
+// ============================================================
+const HANKAKU_MAP = {'ｦ':'ヲ','ｧ':'ァ','ｨ':'ィ','ｩ':'ゥ','ｪ':'ェ','ｫ':'ォ','ｬ':'ャ','ｭ':'ュ','ｮ':'ョ','ｯ':'ッ','ｰ':'ー','ｱ':'ア','ｲ':'イ','ｳ':'ウ','ｴ':'エ','ｵ':'オ','ｶ':'カ','ｷ':'キ','ｸ':'ク','ｹ':'ケ','ｺ':'コ','ｻ':'サ','ｼ':'シ','ｽ':'ス','ｾ':'セ','ｿ':'ソ','ﾀ':'タ','ﾁ':'チ','ﾂ':'ツ','ﾃ':'テ','ﾄ':'ト','ﾅ':'ナ','ﾆ':'ニ','ﾇ':'ヌ','ﾈ':'ネ','ﾉ':'ノ','ﾊ':'ハ','ﾋ':'ヒ','ﾌ':'フ','ﾍ':'ヘ','ﾎ':'ホ','ﾏ':'マ','ﾐ':'ミ','ﾑ':'ム','ﾒ':'メ','ﾓ':'モ','ﾔ':'ヤ','ﾕ':'ユ','ﾖ':'ヨ','ﾗ':'ラ','ﾘ':'リ','ﾙ':'ル','ﾚ':'レ','ﾛ':'ロ','ﾜ':'ワ','ﾝ':'ン','ﾞ':'゛','ﾟ':'゜'};
+const DAKUTEN = {'ウ':'ヴ','カ':'ガ','キ':'ギ','ク':'グ','ケ':'ゲ','コ':'ゴ','サ':'ザ','シ':'ジ','ス':'ズ','セ':'ゼ','ソ':'ゾ','タ':'ダ','チ':'ヂ','ツ':'ヅ','テ':'デ','ト':'ド','ハ':'バ','ヒ':'ビ','フ':'ブ','ヘ':'ベ','ホ':'ボ'};
+const HANDAKUTEN = {'ハ':'パ','ヒ':'ピ','フ':'プ','ヘ':'ペ','ホ':'ポ'};
+
+function toFullKana(str) {
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i], next = str[i+1], full = HANKAKU_MAP[c];
+    if (full) {
+      if (next === 'ﾞ' && DAKUTEN[full]) { result += DAKUTEN[full]; i++; }
+      else if (next === 'ﾟ' && HANDAKUTEN[full]) { result += HANDAKUTEN[full]; i++; }
+      else result += full;
+    } else result += c;
+  }
+  return result;
+}
+
+function cleanName(name) {
+  // 全角英数字→半角
+  let s = String(name).replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  // ローマ数字→英字
+  s = s.replace(/Ⅰ/g,'I').replace(/Ⅱ/g,'II').replace(/Ⅲ/g,'III').replace(/Ⅳ/g,'IV')
+       .replace(/Ⅴ/g,'V').replace(/Ⅵ/g,'VI').replace(/Ⅶ/g,'VII').replace(/Ⅷ/g,'VIII')
+       .replace(/Ⅸ/g,'IX').replace(/Ⅹ/g,'X');
+  s = toFullKana(s);
+  // 先頭のS/L/B（半角）を除去
+  s = s.replace(/^[SLB]+\s*/i, '');
+  // 末尾のハイフン+英字コード（-KK等）を除去
+  s = s.replace(/[-－]\s*[A-Z]{1,4}[0-9]*$/, '');
+  // 末尾のK+1-2文字コード（KD,KA等）を除去
+  s = s.replace(/\s*K[A-Z]{1,2}$/, '');
+  // 末尾の /英数字 を除去
+  s = s.replace(/\/[A-Z0-9]+$/, '');
+  // 末尾の余分なハイフンを除去
+  s = s.replace(/[-－]+$/, '');
+  return s.trim();
+}
+
+let allMachineData = [];
+let hasBigReg = true;
+let hasG = true;
+let bannerDataUrl = null;
+let lastLoadedFile = null;
+let detectedFileDate = null; // { mm, dd } ファイル名から検出した日付
+
+// ── RANKセル画像 ─────────────────────────────────────────────
+// rankImgUrls[1] = '/rank-images/rank1.png' など（サーバー保存済みURL）
+const rankImgUrls = {};
+// ローカル生成済みランキング画像のdataURL（WP未アップロードでも保持）
+let generatedRankDataUrl = null;
+
+async function initRankImgSlots() {
+  // サーバーに保存済みのrank1〜rank10を確認してスロット生成
+  const container = document.getElementById('rank-img-slots');
+  container.innerHTML = '';
+  for (let r = 1; r <= 10; r++) {
+    const exists = await fetch(`/rank-images/rank${r}.png`, { method: 'HEAD' }).then(res => res.ok).catch(() => false)
+                || await fetch(`/rank-images/rank${r}.jpg`, { method: 'HEAD' }).then(res => res.ok).catch(() => false);
+    if (exists || r <= 3) { // 1〜3は常に表示、それ以外は保存済みのみ
+      addRankImgSlot(r, exists);
+    }
+  }
+}
+
+function addRankImgSlot(rank, hasImage) {
+  const container = document.getElementById('rank-img-slots');
+  // 既存スロット数から次の番号を決定
+  const nextRank = rank || container.children.length + 1;
+  if (document.getElementById(`rank-slot-${nextRank}`)) return;
+
+  const slot = document.createElement('div');
+  slot.id = `rank-slot-${nextRank}`;
+  slot.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;';
+  slot.innerHTML = `
+    <div style="font-size:10px;color:#666;font-weight:bold;">RANK${nextRank}</div>
+    <div style="width:50px;height:50px;border:2px dashed #ddd;border-radius:4px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#ccc;"
+         onclick="document.getElementById('rank-file-${nextRank}').click()" id="rank-preview-${nextRank}">
+      ${hasImage ? `<img src="/rank-images/rank${nextRank}.png" onerror="this.src='/rank-images/rank${nextRank}.jpg'" style="width:100%;height:100%;object-fit:cover;">` : '＋'}
+    </div>
+    <input type="file" id="rank-file-${nextRank}" accept="image/*" style="display:none" onchange="uploadRankImg(event,${nextRank})">
+  `;
+  container.appendChild(slot);
+}
+
+async function uploadRankImg(event, rank) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64 = e.target.result.split(',')[1];
+    const res = await fetch('/api/save-rank-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rank, data: base64, ext })
+    });
+    const data = await res.json();
+    rankImgUrls[rank] = data.url;
+    const preview = document.getElementById(`rank-preview-${rank}`);
+    preview.innerHTML = `<img src="${data.url}?t=${Date.now()}" style="width:100%;height:100%;object-fit:cover;">`;
+    showToast(`RANK${rank}の画像を保存しました`);
+  };
+  reader.readAsDataURL(file);
+}
+
+function setRankCount(n) {
+  document.getElementById('rank-count').value = n;
+  if (allMachineData.length) renderDataTable(allMachineData);
+}
+
+function loadBannerFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    bannerDataUrl = e.target.result;
+    document.getElementById('banner-label').textContent = '✅ ' + file.name;
+    showToast('バナー画像を設定しました');
+  };
+  reader.readAsDataURL(file);
+}
+
+// 列指定をインデックスに変換（"A"→0, "B"→1, "AA"→26, "3"→3 など）
+function colToIndex(val) {
+  const s = String(val || '').trim().toUpperCase();
+  if (/^\d+$/.test(s)) return parseInt(s);
+  let n = 0;
+  for (const ch of s) {
+    const c = ch.charCodeAt(0) - 64;
+    if (c < 1 || c > 26) return 0;
+    n = n * 26 + c;
+  }
+  return n - 1;
+}
+
+// ヘッダー行からキーワードで列番号を自動検出
+const COL_KEYWORDS = {
+  台番:  ['台番', '台番号', '号機'],
+  機種名: ['機種名', '機種', '名称'],
+  G:    ['g数', 'スタート', 'ゲーム数', 'start', 'games', '回転数'],
+  BIG:  ['big', 'ビッグ', 'bb', '特賞回数', 'bb回数'],
+  REG:  ['reg', 'レギュラー', 'rb', 'rb回数', 'rb回数'],
+  合算:  ['合算', '総合', 'ボーナス確率'],
+  差:   ['差枚数', '差枚', '差'],
+};
+function detectColumns(headerRow) {
+  const result = {};
+  const cells = Array.from({length: headerRow.length}, (_, i) => String(headerRow[i] ?? '').normalize('NFKC').toLowerCase().trim());
+  for (const [key, keywords] of Object.entries(COL_KEYWORDS)) {
+    const idx = cells.findIndex(c => keywords.some(kw => c.includes(kw.normalize('NFKC').toLowerCase())));
+    const manualVal = document.getElementById('col-' + key)?.value ?? '';
+    result[key] = idx >= 0 ? idx : (manualVal === 'none' ? -1 : colToIndex(manualVal));
+  }
+  return result;
+}
+// 複数行からヒット数が最多の行を自動選択してdetectColumnsを呼ぶ
+function detectColumnsFromRows(rows) {
+  let best = null, bestScore = -1;
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    const cells = Array.from({length: rows[i].length}, (_, j) => String(rows[i][j] ?? '').normalize('NFKC').toLowerCase().trim());
+    let score = 0;
+    for (const keywords of Object.values(COL_KEYWORDS)) {
+      if (cells.some(c => keywords.some(kw => c.includes(kw.normalize('NFKC').toLowerCase())))) score++;
+    }
+      if (score > bestScore) { bestScore = score; best = i; }
+  }
+  if (best === null) {
+    const iCol = id => { const v = document.getElementById('col-' + id)?.value ?? ''; return v === 'none' ? -1 : colToIndex(v); };
+    return { 台番: iCol('台番'), 機種名: iCol('機種名'), G: iCol('G'), BIG: iCol('BIG'), REG: iCol('REG'), 合算: iCol('合算'), 差: iCol('差') };
+  }
+  return detectColumns(rows[best].map(c => String(c ?? '')));
+}
+
+function reloadDataFile() {
+  if (!lastLoadedFile) return;
+  processDataFile(lastLoadedFile);
+}
+
+function detectDateFromFilename(filename) {
+  // パターン1: YYYYMMDD（例: 20260501_ラ・カータ上里）
+  const m1 = filename.match(/20\d{2}(\d{2})(\d{2})/);
+  if (m1) return { mm: m1[1], dd: m1[2] };
+  // パターン2: M.D または MM.DD（例: 5.2結果データ、金時蒲田東口5.2）
+  const m2 = filename.match(/(\d{1,2})\.(\d{1,2})/);
+  if (m2) {
+    const mm = String(m2[1]).padStart(2, '0');
+    const dd = String(m2[2]).padStart(2, '0');
+    // 年っぽい数値（2000以上）や明らかに日付でない値を除外
+    if (Number(m2[1]) >= 1 && Number(m2[1]) <= 12 && Number(m2[2]) >= 1 && Number(m2[2]) <= 31) {
+      return { mm, dd };
+    }
+  }
+  return null;
+}
+
+// ===== ジャグラー除外リスト（部分一致でExcel読み込み時に除外） =====
+const JUGGLER_EXCLUDE_KEY = 'jugglerExcludeList';
+
+function getJugglerExcludeList() {
+  const raw = document.getElementById('juggler-exclude-list')?.value || '';
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function saveJugglerExcludeList() {
+  const el = document.getElementById('juggler-exclude-list');
+  if (el) localStorage.setItem(JUGGLER_EXCLUDE_KEY, el.value);
+}
+
+(function restoreJugglerExcludeList() {
+  const saved = localStorage.getItem(JUGGLER_EXCLUDE_KEY);
+  const el = document.getElementById('juggler-exclude-list');
+  if (saved && el) el.value = saved;
+})();
+
+function loadDataFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  lastLoadedFile = file;
+  const btn = document.getElementById('reload-data-btn');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  processDataFile(file);
+}
+
+function roundUp50(v) { return v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50; }
+
+function processDataFile(file) {
+  detectedFileDate = detectDateFromFilename(file.name);
+  const reader = new FileReader();
+  const isText = file.name.endsWith('.txt') || file.name.endsWith('.csv');
+
+  reader.onload = (e) => {
+    let machines = [];
+    if (isText) {
+      const sep    = document.getElementById('col-sep').value;
+      const num = s => Number((s || '').replace(/,/g, ''));
+      const splitLine = s => {
+        if (sep === 'tab')   return s.split('\t').map(x => x.trim());
+        if (sep === 'comma') return s.split(',').map(x => x.trim());
+        return s.split(/\s{2,}/).map(x => x.trim());
+      };
+      const lines = e.target.result.split('\n').filter(l => l.trim());
+      // 1〜3行目のうちキーワードが最も多くヒットした行をヘッダーとして自動選択
+      const C = detectColumnsFromRows(lines.slice(0, 20).map(l => splitLine(l)));
+      hasBigReg = C.BIG >= 0 && C.REG >= 0;
+      hasG = C.G >= 0;
+      let debugShown = false;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const row = splitLine(trimmed);
+        const 台番 = num(row[C.台番]);
+        if (!台番 || isNaN(台番) || 台番 <= 0) continue;
+        // 最初のデータ行の列構造を表示
+        if (!debugShown) {
+          const dbg = document.getElementById('data-debug');
+          dbg.style.display = 'block';
+          dbg.textContent = '【列の解析結果（1行目）】\n' + row.map((v, i) => `[${i}] ${v}`).join('\n');
+          debugShown = true;
+        }
+        machines.push({
+          台番,
+          機種名: cleanName(row[C.機種名] || ''),
+          G:      num(row[C.G]),
+          BIG:    num(row[C.BIG]),
+          REG:    num(row[C.REG]),
+          合算Den: C.合算 >= 0 ? num(row[C.合算]) : 0,
+          差:      roundUp50(num(row[C.差])),
+        });
+      }
+    } else {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const validSheets = wb.SheetNames.filter(n => !n.includes('記入例'));
+      const _sheetKw = SERIES_CONFIG[currentSeries]?.sheetKeyword || '';
+      const sheetName = (_sheetKw && validSheets.find(n => n.includes(_sheetKw)))
+        || validSheets.reduce((best, n) => {
+          const len = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 }).length;
+          const bestLen = XLSX.utils.sheet_to_json(wb.Sheets[best], { header: 1 }).length;
+          return len > bestLen ? n : best;
+        }, validSheets[0] || wb.SheetNames[0]);
+      console.log('使用シート:', sheetName);
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      // 1〜3行目のうちキーワードが最も多くヒットした行をヘッダーとして自動選択
+      const C = detectColumnsFromRows(rows.slice(0, 20));
+      hasBigReg = C.BIG >= 0 && C.REG >= 0;
+      hasG = C.G >= 0;
+      // ヘッダー行をスキップ（台番列が数値でない行）
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const 台番 = Number(row[C.台番]);
+        if (!台番 || isNaN(台番) || 台番 <= 0) continue;
+        machines.push({
+          台番,
+          機種名: cleanName(String(row[C.機種名] || '')),
+          G:      Number(row[C.G])   || 0,
+          BIG:    C.BIG >= 0 ? Number(row[C.BIG]) || 0 : null,
+          REG:    C.REG >= 0 ? Number(row[C.REG]) || 0 : null,
+          合算Den: C.合算 >= 0 ? Number(row[C.合算]) || 0 : 0,
+          差:      roundUp50(Number(row[C.差]) || 0),
+        });
+      }
+    }
+
+    if (document.getElementById('juggler-only-filter')?.checked) {
+      machines = machines.filter(m => m.機種名.normalize('NFKC').includes('ジャグラー'));
+    }
+
+    const excludeList = getJugglerExcludeList();
+    if (excludeList.length) {
+      machines = machines.filter(m => !excludeList.some(ex => m.機種名.normalize('NFKC') === ex.normalize('NFKC')));
+    }
+
+    const allowedMachines = SERIES_CONFIG[currentSeries]?.allowedMachines;
+    if (allowedMachines && allowedMachines.length) {
+      machines = machines.filter(m => allowedMachines.some(a => m.機種名.normalize('NFKC').includes(a.normalize('NFKC'))));
+    }
+
+    machines.sort((a, b) => b.差 - a.差);
+    allMachineData = machines;
+    renderDataTable(machines);
+    document.getElementById('data-total-label').textContent = `全${machines.length}台`;
+
+    // 機種ごとの台数を集計してジャグ系設置台数に自動反映
+    const countMap = {};
+    machines.forEach(m => {
+      const name = displayName(m.機種名);
+      countMap[name] = (countMap[name] || 0) + 1;
+    });
+    const sorted = Object.entries(countMap).sort((a, b) => b[1] - a[1]);
+    document.getElementById('machine-rows').innerHTML = '';
+    sorted.forEach(([name, count]) => addMachineRow(name, count));
+    initPreview();
+
+    showToast(`${machines.length}台のデータを読み込みました`);
+    renderMachineFromData();
+
+    const uploadArea = document.querySelector('.data-upload-area');
+    const uploadLabel = document.getElementById('data-upload-label');
+    if (uploadArea) uploadArea.classList.add('loaded');
+    if (uploadLabel) uploadLabel.innerHTML = `✅ <b>${file.name}</b><br><span style="color:#2a7a10">${machines.length}台 読み込み済み</span>`;
+  };
+
+  if (isText) reader.readAsText(file, 'Shift-JIS');
+  else reader.readAsArrayBuffer(file);
+}
+
+// 機種名→表示名変換（nicknameが登録されていれば優先）
+function displayName(name) {
+  if (libraryImages[name]?.nickname) return libraryImages[name].nickname;
+  const cleaned = cleanName(name);
+  if (libraryImages[cleaned]?.nickname) return libraryImages[cleaned].nickname;
+  // ライブラリキーをcleanNameで正規化して逆引き
+  for (const [key, val] of Object.entries(libraryImages)) {
+    if (val.nickname && cleanName(key) === cleaned) return val.nickname;
+  }
+  // 末尾の「スペース+2-3英字サフィックス」を除いて再試行（例: "V III EA" → "V III"）
+  const stripped = cleaned.replace(/\s+[A-Z]{2,3}$/, '');
+  if (stripped !== cleaned) {
+    if (libraryImages[stripped]?.nickname) return libraryImages[stripped].nickname;
+    for (const [key, val] of Object.entries(libraryImages)) {
+      if (val.nickname && cleanName(key) === stripped) return val.nickname;
+    }
+  }
+  return name;
+}
+
+function formatGasso(m) {
+  if (m.合算Den) return '1/' + Math.round(m.合算Den);
+  const total = m.BIG + m.REG;
+  if (!total || !m.G) return '-';
+  return '1/' + Math.round(m.G / total);
+}
+
+function renderDataTable(machines) {
+  const count = parseInt(document.getElementById('rank-count').value) || 30;
+  const tbody = document.getElementById('data-tbody');
+  tbody.innerHTML = '';
+  // ヘッダー更新
+  document.getElementById('data-table-head').innerHTML = `<tr><th>台番</th><th>機種名</th>${hasG ? '<th>G数</th>' : ''}${hasBigReg ? `<th>BIG</th><th>REG</th>${hasG ? '<th>合算</th>' : ''}` : ''}<th>差枚数</th></tr>`;
+  machines.slice(0, count).forEach((m) => {
+    const diff = m.差;
+    const diffStr = diff >= 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
+    const cls = diff >= 0 ? 'diff-plus' : 'diff-minus';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${m.台番}</td><td title="${m.機種名}">${displayName(m.機種名)}</td>${hasG ? `<td>${Math.round(m.G||0).toLocaleString()}</td>` : ''}${hasBigReg ? `<td>${m.BIG??0}</td><td>${m.REG??0}</td>${hasG ? `<td>${formatGasso(m)}</td>` : ''}` : ''}<td class="${cls}">${diffStr}枚</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('data-table-wrap').style.display = 'block';
+}
+
+
+async function generateRankingImage() {
+  if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
+  hasG = document.getElementById('col-G')?.value !== 'none';
+  if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
+  const title    = SERIES_CONFIG[currentSeries].rankingTitle || document.getElementById('img-title').value || 'ジャグ系機種／差枚ランキング';
+  const subtitle = document.getElementById('img-subtitle').value || '';
+  const count    = parseInt(document.getElementById('rank-count').value) || 30;
+  const machines = allMachineData.slice(0, count);
+
+  const SCALE     = 2;
+  const W         = 730;
+  const OUTER_PAD = 10; // テーブル内容と外枠の間の余白
+  const TOTAL_W   = W + OUTER_PAD * 2;
+  const SUB_H     = subtitle ? 28 : 0;
+  const rank1Name    = machines[0]?.機種名;
+  const autoBannerUrl = rank1Name && libraryImages[rank1Name]?.url;
+  const effectiveBanner = bannerDataUrl || autoBannerUrl || null;
+  const BANNER_H = effectiveBanner ? 320 : 0;
+  const THEAD_H  = 34;
+  const ROW_H    = 40;
+
+  // ヘッダー画像を事前ロード
+  const jagHeaderImg = await new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = SERIES_CONFIG[currentSeries].headerImgUrl || '/assets/jag-header.jpg';
+  });
+  const TITLE_H = jagHeaderImg ? Math.round(W * jagHeaderImg.naturalHeight / jagHeaderImg.naturalWidth) : 52;
+
+  // RANKセル画像を事前ロード（rank1〜機種数分、png/jpg両対応）
+  const rankCellImgs = {};
+  await Promise.all(machines.map((_, i) => {
+    const r = i + 1;
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { rankCellImgs[r] = img; resolve(); };
+      img.onerror = () => {
+        // jpgも試す
+        const img2 = new Image();
+        img2.onload = () => { rankCellImgs[r] = img2; resolve(); };
+        img2.onerror = () => resolve();
+        img2.src = `/rank-images/rank${r}.jpg?t=${Date.now()}`;
+      };
+      img.src = `/rank-images/rank${r}.png?t=${Date.now()}`;
+    });
+  }));
+
+  const H        = TITLE_H + SUB_H + BANNER_H + THEAD_H + machines.length * ROW_H + 4;
+
+  const CANVAS_H = H + OUTER_PAD * 2; // テーブル上下にパディング追加
+  const canvas = document.getElementById('rank-canvas');
+  canvas.width  = TOTAL_W * SCALE;
+  canvas.height = CANVAS_H * SCALE;
+  canvas.style.width  = '';
+  canvas.style.height = '';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
+
+  const font = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  const BROWN = '#5C2A0A'; // ダークチョコレート（ヘッダー・RANK列）
+
+  // 茶色グラデーション生成（y1〜y2の範囲）
+  function brownGrad(y1, y2) {
+    const g = ctx.createLinearGradient(0, y1, 0, y2);
+    g.addColorStop(0,   '#9B5A2A'); // 明るい茶
+    g.addColorStop(0.5, '#6B2E0A'); // 中間
+    g.addColorStop(1,   '#3A1005'); // 暗い茶
+    return g;
+  }
+
+  // 列定義（BIG/REGあり/なし × G数あり/なし の4パターン）
+  const C = hasBigReg && hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 65  },
+    名:   { x: 143, w: 197 },
+    G:    { x: 340, w: 81  },
+    BIG:  { x: 421, w: 70  },
+    REG:  { x: 491, w: 70  },
+    合:   { x: 561, w: 70  },
+    差:   { x: 631, w: 99  },
+  } : hasBigReg && !hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 65  },
+    名:   { x: 143, w: 348 },
+    BIG:  { x: 491, w: 70  },
+    REG:  { x: 561, w: 70  },
+    差:   { x: 631, w: 99  },
+  } : !hasBigReg && hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 80  },
+    名:   { x: 158, w: 362 },
+    G:    { x: 520, w: 96  },
+    差:   { x: 616, w: 114 },
+  } : {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 80  },
+    名:   { x: 158, w: 458 },
+    差:   { x: 616, w: 114 },
+  };
+  const cx = key => C[key].x + C[key].w / 2;
+  const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
+             : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
+             : !hasBigReg && hasG ? [78, 158, 520, 616]
+             :                      [78, 158, 616];
+
+  function fitText(text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    while (text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+    return text + '…';
+  }
+
+  // ─── タイトル画像 or テキスト（全幅） ───
+  if (jagHeaderImg) {
+    ctx.drawImage(jagHeaderImg, 0, 0, TOTAL_W, TITLE_H);
+  } else {
+    ctx.fillStyle = BROWN;
+    ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold 16px ${font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, TOTAL_W / 2, TITLE_H / 2);
+  }
+
+  // ─── バナー画像（translateの外・タイトル直下に描画） ───
+  let bannerEndY = TITLE_H;
+  if (effectiveBanner) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { ctx.drawImage(img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
+      img.onerror = () => resolve();
+      img.src = effectiveBanner;
+    });
+    bannerEndY = TITLE_H + BANNER_H;
+    if (autoBannerUrl && !bannerDataUrl) {
+      showToast(`RANK1「${rank1Name}」の画像をバナーに自動設定しました`);
+    }
+  }
+
+  // テーブル領域の白背景（バナー下〜キャンバス底まで）
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, bannerEndY, TOTAL_W, CANVAS_H - bannerEndY);
+
+  // テーブル内容をOUTER_PADだけ内側にオフセット
+  ctx.save();
+  ctx.translate(OUTER_PAD, OUTER_PAD);
+
+  // テーブルはバナー下から開始（translate内座標）
+  let y = bannerEndY;
+  const tableStartY = bannerEndY; // 枠の開始位置（canvas座標）
+
+  const CP = 2; // セル間の白いすき間（cell padding）
+
+  // ─── テーブルヘッダー（列ごとに個別セルを描画） ───
+  // 行全体を白で塗りつぶし（すき間の地色）
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, y, W, THEAD_H);
+  // 各列のBROWNセルをCP内側に描画
+  ctx.font = `bold 13px ${font}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差','差枚数']]
+   : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差','差枚数']]
+   : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差','差枚数']]
+   :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差','差枚数']]
+  ).forEach(([k, label]) => {
+    ctx.fillStyle = brownGrad(y + CP, y + THEAD_H - CP);
+    ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, cx(k), y + THEAD_H / 2);
+  });
+  y += THEAD_H;
+
+  // ─── データ行 ───
+  machines.forEach((m, i) => {
+    const ry = y + i * ROW_H;
+
+    // 行全体を薄グレーで塗りつぶし
+    ctx.fillStyle = '#f7f4f0';
+    ctx.fillRect(0, ry, W, ROW_H);
+
+    // RANK列セル（画像があれば描画、なければBROWN・フル高さ）
+    const rankImg = rankCellImgs[i + 1];
+    if (rankImg) {
+      const rip = 5; // RANK画像のセル内余白
+      ctx.drawImage(rankImg, C.rank.x + rip, ry + rip, C.rank.w - rip * 2, ROW_H - rip * 2);
+    } else {
+      ctx.fillStyle = brownGrad(ry, ry + ROW_H);
+      ctx.fillRect(C.rank.x, ry, C.rank.w, ROW_H);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = `bold 9px ${font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('RANK', cx('rank'), ry + ROW_H / 2 - 9);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold 18px ${font}`;
+      ctx.fillText(String(i + 1), cx('rank'), ry + ROW_H / 2 + 7);
+    }
+
+    // 横区切り線
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(C.台番.x, ry + ROW_H); ctx.lineTo(W, ry + ROW_H); ctx.stroke();
+
+    // 縦区切り線
+    SEPS.forEach(sx => { ctx.beginPath(); ctx.moveTo(sx, ry); ctx.lineTo(sx, ry + ROW_H); ctx.stroke(); });
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 台番
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 16px ${font}`;
+    ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
+
+    // 機種名〜合算（台番と同じフォント）
+    const dName = displayName(m.機種名);
+    ctx.fillText(fitText(dName, C['名'].w - 8), cx('名'), ry + ROW_H / 2);
+
+    // G数
+    if (hasG) ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
+
+    // BIG / REG
+    if (hasBigReg) {
+      ctx.fillText(String(m.BIG ?? 0), cx('BIG'), ry + ROW_H / 2);
+      ctx.fillText(String(m.REG ?? 0), cx('REG'), ry + ROW_H / 2);
+    }
+
+    // 合算
+    if (hasBigReg && hasG) ctx.fillText(formatGasso(m), cx('合'), ry + ROW_H / 2);
+
+    // 差枚数
+    const diff = m.差;
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 16px ${font}`;
+    ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + '枚', cx('差'), ry + ROW_H / 2);
+  });
+
+  ctx.restore(); // translateを解除
+
+  // 外枠2重線（RANKヘッダー上〜キャンバス底まで・黒）
+  const borderTop = tableStartY; // tableStartYは翻訳前の座標なのでOUTER_PAD分のギャップが自動的に確保される
+  ctx.strokeStyle = '#000000';
+  ctx.setLineDash([]);
+  // 外側の線
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, borderTop + 1, TOTAL_W - 2, CANVAS_H - borderTop - 2);
+  // 内側の線（3px内側）
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(5, borderTop + 5, TOTAL_W - 10, CANVAS_H - borderTop - 10);
+
+  document.getElementById('img-preview-area').style.display = 'block';
+  document.getElementById('img-upload-wp-btn').disabled = false;
+
+  // 今回のTOP1機種名を店舗名キーで保存（次回起動時に「前回最多機種」へ自動反映）
+  const hallName = v('f-hall');
+  if (hallName && machines[0]) {
+    prevTop1Data[hallName] = displayName(machines[0].機種名);
+    saveLibrary();
+  }
+
+  // プレビューのランキング画像に即反映（ローカル表示）
+  const dataUrl = canvas.toDataURL('image/png');
+  generatedRankDataUrl = dataUrl;
+  const rankEl = document.querySelector('[data-idkey="rank-img-id"]');
+  if (rankEl) {
+    const img = rankEl.querySelector('img');
+    if (img) {
+      // すでに画像wrap → srcだけ更新
+      img.src = dataUrl;
+    } else {
+      // プレースホルダー → 画像wrapに置き換え
+      rankEl.outerHTML = `<div class="prev-img-wrap" data-idkey="rank-img-id" data-urlkey="rank-img-url" onclick="openMediaModalFromPreview(this)">
+        <img src="${dataUrl}">
+        <div class="img-overlay"><span>📷 クリックして変更</span></div>
+      </div>`;
+    }
+  }
+
+  // TOP3自動入力
+  function fmtDiff(d) { return (d >= 0 ? '+' : '') + d.toLocaleString() + '枚'; }
+  if (machines[0]) { document.getElementById('f-top1-name').value = displayName(machines[0].機種名); document.getElementById('f-top1-num').value = machines[0].台番; document.getElementById('f-top1-diff').value = fmtDiff(machines[0].差); }
+  if (machines[1]) { document.getElementById('f-top2-name').value = displayName(machines[1].機種名); document.getElementById('f-top2-num').value = machines[1].台番; document.getElementById('f-top2-diff').value = fmtDiff(machines[1].差); }
+  if (machines[2]) { document.getElementById('f-top3-name').value = displayName(machines[2].機種名); document.getElementById('f-top3-num').value = machines[2].台番; document.getElementById('f-top3-diff').value = fmtDiff(machines[2].差); }
+
+  // 締め用機種画像をRANK1機種の登録画像で自動設定（締め用複数あればランダム、なければバナー用を使用）
+  const rank1Info = rank1Name && libraryImages[rank1Name];
+  const endImgs = rank1Info?.endImages?.length ? rank1Info.endImages : (rank1Info?.url ? [rank1Info.url] : []);
+  const rank1Img = endImgs.length ? endImgs[Math.floor(Math.random() * endImgs.length)] : null;
+  if (rank1Img) {
+    const urlEl = document.getElementById('input-end-img-url');
+    const idEl  = document.getElementById('input-end-img-id');
+    const lbl   = document.getElementById('end-img-name');
+    if (urlEl) urlEl.value = rank1Img;
+    if (idEl)  idEl.value  = '';
+    if (lbl) { const n = displayName(rank1Name); lbl.textContent = n.length > 18 ? n.slice(0,18)+'…' : n; }
+    // プレビューのend-img要素を更新
+    const endEl = document.querySelector('[data-idkey="end-img-id"]');
+    if (endEl) {
+      const img = endEl.querySelector('img');
+      if (img) { img.src = rank1Img; }
+      else { endEl.outerHTML = `<div class="prev-img-wrap" data-idkey="end-img-id" data-urlkey="end-img-url" onclick="openMediaModalFromPreview(this)"><img src="${rank1Img}"><div class="prev-img-label">締め用機種画像</div></div>`; }
+    }
+    showToast(`ランキング画像を生成。締め用に「${displayName(rank1Name)}」の画像を自動設定しました`);
+  } else {
+    showToast('ランキング画像を生成しました！');
+  }
+}
+
+async function uploadRankingToWP() {
+  const canvas = document.getElementById('rank-canvas');
+  const btn = document.getElementById('img-upload-wp-btn');
+  btn.disabled = true;
+  btn.textContent = 'アップロード中...';
+
+  try {
+    // canvas → Blob
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('画像の取得に失敗しました（先に生成してください）')), 'image/png');
+    });
+
+    // Blob → base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const hall = v('f-hall') || 'ranking';
+    const sub  = document.getElementById('img-subtitle').value.trim();
+    const filename = `ranking_${hall}_${sub}.png`.replace(/[^\w.\-]/g, '_');
+
+    const res = await fetch('/api/upload-hb-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, data: base64 }),
+    });
+    const data = await res.json();
+
+    if (data.id && data.source_url) {
+      document.getElementById('input-rank-img-id').value  = data.id;
+      document.getElementById('input-rank-img-url').value = data.source_url;
+      // プレビュー更新
+      const wrap = document.querySelector('[data-idkey="rank-img-id"]');
+      if (wrap) {
+        const img = wrap.querySelector('img');
+        if (img) img.src = data.source_url;
+      }
+      showToast('hisshobon-hall.info にアップロードしました！');
+    } else {
+      const msg = data.message || data.code || JSON.stringify(data).slice(0, 120);
+      showToast('失敗: ' + msg);
+      console.error('[upload error]', data);
+    }
+  } catch (err) {
+    showToast('エラー: ' + err.message);
+    console.error('[upload exception]', err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '☁ WPにアップロードしてランキング画像に設定';
+}
+
+let diffInverted = false;
+function invertDiff() {
+  if (!allMachineData.length) { showToast('先にデータを読み込んでください'); return; }
+  diffInverted = !diffInverted;
+  allMachineData.forEach(m => { m.差 = -m.差; });
+  allMachineData.sort((a, b) => b.差 - a.差);
+  renderDataTable(allMachineData);
+  document.getElementById('invert-btn').textContent = diffInverted ? '± 符号を元に戻す' : '± 差枚数の符号を反転';
+  showToast(diffInverted ? '差枚数の符号を反転しました' : '符号を元に戻しました');
+}
+
+function toggleData() {
+  const el = document.getElementById('data-panel');
+  const toggle = document.getElementById('data-toggle');
+  if (el.style.display === 'none') { el.style.display = ''; toggle.textContent = '▲ 閉じる'; }
+  else { el.style.display = 'none'; toggle.textContent = '▼ 開く'; }
+}
+
+function v(id) { return (document.getElementById(id)?.value || '').trim(); }
+function ea(s) { return String(s).replace(/"/g,'&quot;'); }
+
+// ============================================================
+// メディアピッカー
+// ============================================================
+let mediaState = {
+  targetIdKey: null, targetUrlKey: null,
+  page: 1, totalPages: 1,
+  selectedId: null, selectedUrl: null, selectedName: null,
+  search: '',
+};
+
+// プレビューの画像クリックから開く
+function openMediaModalFromPreview(el) {
+  const idKey  = el.dataset.idkey;
+  const urlKey = el.dataset.urlkey;
+  mediaState.targetEl = el;
+  openMediaModal(idKey, urlKey);
+}
+
+function openMediaModal(idKey, urlKey) {
+  mediaState.targetIdKey  = idKey;
+  mediaState.targetUrlKey = urlKey;
+  mediaState.page = 1;
+  mediaState.selectedId = mediaState.selectedUrl = mediaState.selectedName = null;
+  document.getElementById('media-search').value = '';
+  document.getElementById('media-selected-name').textContent = '';
+  document.getElementById('media-select-btn').disabled = true;
+  document.getElementById('media-modal').classList.add('show');
+  loadMedia();
+}
+
+function closeMediaModal() {
+  document.getElementById('media-modal').classList.remove('show');
+}
+
+function searchMedia() {
+  mediaState.search = document.getElementById('media-search').value.trim();
+  mediaState.page = 1;
+  loadMedia();
+}
+
+function mediaPage(dir) {
+  const next = mediaState.page + dir;
+  if (next < 1 || next > mediaState.totalPages) return;
+  mediaState.page = next;
+  loadMedia();
+}
+
+async function loadMedia() {
+  const grid = document.getElementById('media-grid');
+  grid.innerHTML = '<div class="media-loading">読み込み中...</div>';
+  document.getElementById('media-prev').disabled = true;
+  document.getElementById('media-next').disabled = true;
+
+  const params = new URLSearchParams({
+    page: mediaState.page, per_page: 30, search: mediaState.search
+  });
+
+  try {
+    const res = await fetch(`http://localhost:3000/api/hisshobon-media?${params}`);
+    if (!res.ok) throw new Error('サーバーエラー: ' + res.status);
+    const data = await res.json();
+
+    mediaState.totalPages = parseInt(data.totalPages) || 1;
+    document.getElementById('media-page-info').textContent =
+      `${mediaState.page} / ${mediaState.totalPages}ページ（全${data.total}件）`;
+    document.getElementById('media-prev').disabled = mediaState.page <= 1;
+    document.getElementById('media-next').disabled = mediaState.page >= mediaState.totalPages;
+
+    if (!data.items || data.items.length === 0) {
+      grid.innerHTML = '<div class="media-loading">画像が見つかりません</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    data.items.forEach(item => {
+      const thumb = item.media_details?.sizes?.thumbnail?.source_url
+                 || item.media_details?.sizes?.medium?.source_url
+                 || item.source_url;
+      const name = item.slug || item.title?.rendered || '';
+      const div = document.createElement('div');
+      div.className = 'media-item';
+      div.dataset.id  = item.id;
+      div.dataset.url = item.source_url;
+      div.dataset.name = name;
+      div.innerHTML = `
+        <img src="${thumb}" loading="lazy" onerror="this.style.background='#eee'">
+        <div class="media-item-name" title="${name}">${name}</div>
+        <div class="media-item-id">ID: ${item.id}</div>
+      `;
+      div.addEventListener('click', () => selectMediaItem(div, item.id, item.source_url, name));
+      grid.appendChild(div);
+    });
+  } catch (e) {
+    grid.innerHTML = `<div class="media-loading" style="color:#e44">
+      接続失敗。起動.bat でサーバーを起動してください。<br><small>${e.message}</small>
+    </div>`;
+  }
+}
+
+function selectMediaItem(el, id, url, name) {
+  document.querySelectorAll('.media-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  mediaState.selectedId   = id;
+  mediaState.selectedUrl  = url;
+  mediaState.selectedName = name;
+  document.getElementById('media-selected-name').textContent = name;
+  document.getElementById('media-select-btn').disabled = false;
+}
+
+function confirmMediaSelect() {
+  if (!mediaState.selectedId) return;
+  const { targetIdKey, targetUrlKey, selectedId, selectedUrl, selectedName, targetEl } = mediaState;
+
+  // 左パネルの入力を更新
+  const idEl  = document.getElementById('input-' + targetIdKey);
+  const urlEl = document.getElementById('input-' + targetUrlKey);
+  if (idEl)  idEl.value  = selectedId;
+  if (urlEl) urlEl.value = selectedUrl;
+
+  // 機種画像登録の場合
+  if (targetIdKey === '__machine_img__' && pendingMachineName) {
+    libraryImages[pendingMachineName] = {
+      id: selectedId, url: selectedUrl,
+      ...(pendingMachineNickname ? { nickname: pendingMachineNickname } : {}),
+    };
+    saveMachineImages().then(() => {
+      renderMachineImgList();
+      renderMachineFromData();
+      switchPage('machines');
+      const label = pendingMachineNickname ? `${pendingMachineName}→${pendingMachineNickname}` : pendingMachineName;
+      showToast(`「${label}」を登録しました`);
+      pendingMachineName = pendingMachineNickname = null;
+    });
+    closeMediaModal();
+    return;
+  }
+
+  // 店舗バーのボタンラベルを更新
+  const shortName = selectedName.length > 18 ? selectedName.slice(0, 18) + '…' : selectedName;
+  if (targetIdKey === 'store-img-id') {
+    document.getElementById('store-img-name').textContent = shortName;
+  } else if (targetIdKey === 'end-img-id') {
+    document.getElementById('end-img-name').textContent = shortName;
+  }
+
+  // プレビューの画像エリアを直接更新
+  if (targetEl) {
+    targetEl.outerHTML = `<div class="prev-img-wrap" data-idkey="${targetIdKey}" data-urlkey="${targetUrlKey}" onclick="openMediaModalFromPreview(this)">
+      <img src="${selectedUrl}">
+      <div class="img-overlay"><span>📷 クリックして変更</span></div>
+    </div>`;
+  }
+
+  closeMediaModal();
+  showToast(`「${selectedName}」を選択しました`);
+}
+
+// ============================================================
+// 機種画像管理
+// ============================================================
+let allSeriesLibrary = {}; // { denkoisseki: {...}, ifudodo: {...} }
+let libraryImages = {}; // 現在シリーズのライブラリ（allSeriesLibrary[currentSeries] の参照）
+let pendingMachineName = null; // 画像選択待ちの機種名
+let prevTop1Data = {}; // { 店舗名: 前回TOP1機種名 }
+
+let isFirstTime = false;
+function toggleFirstTime() {
+  isFirstTime = !isFirstTime;
+  const btn = document.getElementById('btn-first-time');
+  btn.style.background = isFirstTime ? '#e67e22' : 'white';
+  btn.style.color = isFirstTime ? 'white' : '#555';
+  btn.style.borderColor = isFirstTime ? '#e67e22' : '#ccc';
+  const field = document.getElementById('f-prev-machine');
+  if (isFirstTime) field.value = '初開催';
+  else if (field.value === '初開催') field.value = '';
+}
+
+async function applyPrevTop1(hallName) {
+  const field = document.getElementById('f-prev-machine');
+  // まずローカルキャッシュを確認
+  const local = prevTop1Data[hallName];
+  if (local) { field.value = local; return; }
+  // なければstore-memoryから取得
+  try {
+    const res = await fetch(`/api/store-memory?hall=${encodeURIComponent(hallName)}`);
+    if (res.ok) {
+      const d = await res.json();
+      if (d.prevTop1) {
+        field.value = d.prevTop1;
+        prevTop1Data[hallName] = d.prevTop1;
+        return;
+      }
+    }
+  } catch {}
+  // 履歴なし → 初開催ボタンで設定した値をクリア
+  if (field.value === '初開催') field.value = '';
+}
+
+function openMachineImgModal() {
+  switchPage('machines');
+  document.getElementById('new-machine-name').value = '';
+  document.getElementById('new-machine-nickname').value = '';
+}
+
+function closeMachineImgModal() {
+  switchPage('article');
+  pendingMachineName = null;
+  pendingMachineNickname = null;
+}
+
+let pendingMachineNickname = null;
+
+// datalistを更新するだけ（一覧はrenderMachineImgListで統合済み）
+function renderMachineFromData() {
+  const datalist = document.getElementById('machine-name-datalist');
+  if (!datalist) return;
+  const names = [...new Set(allMachineData.map(m => m.機種名))];
+  datalist.innerHTML = names.map(n => `<option value="${ea(n)}">`).join('');
+  // 一覧も再描画
+  renderMachineImgList();
+}
+
+function chipPickMachine(name) {
+  document.getElementById('new-machine-name').value = name;
+  const reg = libraryImages[name];
+  document.getElementById('new-machine-nickname').value = reg?.nickname || '';
+  document.getElementById('machine-page-file').click();
+}
+
+let _machineListNames = [];
+
+function renderMachineImgList() {
+  const list = document.getElementById('machine-img-list');
+
+  // Excelの機種（重複なし・シリーズに応じて絞り込み）
+  const _scfg = SERIES_CONFIG[currentSeries];
+  const _allowed = _scfg?.allowedMachines;
+  const excelNames = allMachineData.length
+    ? [...new Set(allMachineData.map(m => m.機種名).filter(n => {
+        if (_scfg?.jugglerOnly) return n.includes('ジャグラー');
+        if (_allowed?.length) return _allowed.some(a => n.normalize('NFKC').includes(a.normalize('NFKC')));
+        return true;
+      }))]
+    : [];
+  // Excel以外の登録済み機種
+  const otherRegNames = Object.keys(libraryImages).filter(n => !excelNames.includes(n));
+
+  // 全機種：Excel機種を上 → それ以外の登録済みを下
+  const allNames = [...excelNames, ...otherRegNames];
+  _machineListNames = allNames;
+
+  if (!allNames.length) {
+    list.innerHTML = '<div class="machine-img-empty">データを読み込むか、手動で登録してください</div>';
+    return;
+  }
+
+  list.innerHTML = allNames.map((name, idx) => {
+    const info = libraryImages[name];
+    const isReg = !!info;
+    const hasImg = !!(info?.url);
+    const imgEl = hasImg
+      ? `<img id="mimg-${idx}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;background:#eee;flex-shrink:0;">`
+      : `<div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>`;
+    const hasNick = !!(info?.nickname);
+    const badge = hasNick
+      ? `<span style="font-size:10px;background:#e8f5e2;color:#4a9a30;border-radius:3px;padding:1px 5px;margin-left:5px;">登録済</span>`
+      : `<span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未登録</span>`;
+    const nameLabel = name + (info?.nickname ? ` → <span style="color:#d4a827">${ea(info.nickname)}</span>` : '');
+    return `
+    <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
+      <div class="mitem-main" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;" onclick="toggleMachineEdit(${idx})">
+        ${imgEl}
+        <div style="flex:1;overflow:hidden;min-width:0;">
+          <div style="font-size:13px;font-weight:bold;color:#333;">${nameLabel}${badge}</div>
+        </div>
+        <span style="font-size:10px;color:#bbb;flex-shrink:0;">▼</span>
+      </div>
+      <div class="mitem-edit" id="medit-${idx}">
+        <div class="mitem-edit-label">表示名（変換後の名前・省略可）</div>
+        <div class="mitem-edit-row">
+          <input class="mitem-nn-input" id="mnn-${idx}" value="${ea(info?.nickname || '')}" placeholder="例：マイジャグⅤ">
+          <label class="mitem-pick-btn">🖼 バナー用画像を${isReg && info?.url ? '変更' : '登録'}
+            <input type="file" accept="image/*" style="display:none" onchange="pickInlineMachineImg(event,${idx})">
+          </label>
+          <button class="mitem-save-btn" onclick="saveInlineMachineEdit(${idx})">✔ 保存</button>
+          ${isReg ? `<button class="machine-img-del" onclick="deleteMachineImg(_machineListNames[${idx}])">削除</button>` : ''}
+        </div>
+        <div class="mitem-section-label">🎰 締め用画像（複数登録→ランダム選択）</div>
+        <div class="end-img-strip" id="end-strip-${idx}">${renderEndStrip(info?.endImages || [], idx)}</div>
+        <label class="mitem-pick-btn" style="display:inline-block;">＋ 締め用画像を追加
+          <input type="file" accept="image/*" style="display:none" onchange="addEndImg(event,${idx})">
+        </label>
+      </div>
+    </div>`;
+  }).join('');
+
+  // base64画像はinnerHTMLに埋め込まず、後からsrcをセット
+  allNames.forEach((name, idx) => {
+    const url = libraryImages[name]?.url;
+    if (url) {
+      const img = document.getElementById('mimg-' + idx);
+      if (img) img.src = url;
+    }
+  });
+}
+
+// 締め用サムネ列のHTML生成
+function renderEndStrip(endImages, idx) {
+  if (!endImages || !endImages.length) return '<span style="font-size:11px;color:#bbb;">未登録</span>';
+  return endImages.map((url, i) => `
+    <div class="end-img-thumb">
+      <img src="${url}" onerror="this.style.background='#ddd'">
+      <button class="del-x" onclick="event.stopPropagation();deleteEndImg(${idx},${i})">✕</button>
+    </div>`).join('');
+}
+
+// 締め用画像を追加
+async function addEndImg(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const name = _machineListNames[idx];
+  if (!name) return;
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  if (!libraryImages[name]) libraryImages[name] = { id: null };
+  if (!libraryImages[name].endImages) libraryImages[name].endImages = [];
+  libraryImages[name].endImages.push(dataUrl);
+  await saveMachineImages();
+  // ストリップだけ更新（アイテムは閉じない）
+  const strip = document.getElementById(`end-strip-${idx}`);
+  if (strip) strip.innerHTML = renderEndStrip(libraryImages[name].endImages, idx);
+  showToast(`「${name}」に締め用画像を追加しました（計${libraryImages[name].endImages.length}枚）`);
+  event.target.value = '';
+}
+
+// 締め用画像を削除
+async function deleteEndImg(idx, imgIdx) {
+  const name = _machineListNames[idx];
+  if (!name || !libraryImages[name]?.endImages) return;
+  libraryImages[name].endImages.splice(imgIdx, 1);
+  await saveMachineImages();
+  // ストリップだけ更新（アイテムは閉じない）
+  const strip = document.getElementById(`end-strip-${idx}`);
+  if (strip) strip.innerHTML = renderEndStrip(libraryImages[name].endImages, idx);
+  showToast('締め用画像を削除しました');
+}
+
+function toggleMachineEdit(idx) {
+  const item = document.getElementById(`mitem-${idx}`);
+  if (!item) return;
+  item.classList.toggle('expanded');
+  const icon = item.querySelector('.mitem-toggle-icon');
+  if (icon) icon.textContent = item.classList.contains('expanded') ? '▲' : '▼';
+  if (item.classList.contains('expanded')) {
+    const input = document.getElementById(`mnn-${idx}`);
+    if (input) input.focus();
+  }
+}
+
+async function saveInlineMachineEdit(idx) {
+  const name = _machineListNames[idx];
+  if (!name) return;
+  const nickname = document.getElementById(`mnn-${idx}`).value.trim() || null;
+  const existing = libraryImages[name] || {};
+  libraryImages[name] = { ...existing };
+  if (nickname) libraryImages[name].nickname = nickname;
+  else delete libraryImages[name].nickname;
+  await saveMachineImages();
+  renderMachineImgList();
+  renderMachineFromData();
+  showToast(`「${name}」を更新しました`);
+}
+
+async function pickInlineMachineImg(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const name = _machineListNames[idx];
+  if (!name) return;
+  const nickname = document.getElementById(`mnn-${idx}`)?.value.trim() || null;
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const existing = libraryImages[name] || {};
+  libraryImages[name] = { ...existing, url: dataUrl };
+  if (nickname) libraryImages[name].nickname = nickname;
+  else delete libraryImages[name].nickname;
+  await saveMachineImages();
+  renderMachineImgList();
+  renderMachineFromData();
+  showToast(`「${name}」の画像を更新しました`);
+  event.target.value = '';
+}
+
+async function pickLocalMachineImg(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const name = document.getElementById('new-machine-name').value.trim();
+  if (!name) { showToast('先に機種名を入力してください'); event.target.value = ''; return; }
+  const nickname = document.getElementById('new-machine-nickname').value.trim() || null;
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  libraryImages[name] = { id: null, url: dataUrl, ...(nickname ? { nickname } : {}) };
+  await saveMachineImages();
+  renderMachineImgList();
+  renderMachineFromData();
+  showToast(`「${nickname || name}」を登録しました`);
+  document.getElementById('new-machine-name').value = '';
+  document.getElementById('new-machine-nickname').value = '';
+  event.target.value = '';
+}
+
+async function deleteMachineImg(name) {
+  if (!confirm(`「${name}」の画像登録を削除しますか？`)) return;
+  delete libraryImages[name];
+  await saveMachineImages();
+  renderMachineImgList();
+  renderMachineFromData();
+  showToast(`「${name}」を削除しました`);
+}
+
+async function saveMachineImages() {
+  await saveLibrary();
+}
+
+async function deleteNonTargetMachines() {
+  const cfg = SERIES_CONFIG[currentSeries];
+  let targets;
+  if (cfg?.jugglerOnly) {
+    targets = Object.keys(libraryImages).filter(k => !k.includes('ジャグラー'));
+  } else if (cfg?.allowedMachines?.length) {
+    targets = Object.keys(libraryImages).filter(k =>
+      !cfg.allowedMachines.some(a => k.normalize('NFKC').includes(a.normalize('NFKC')))
+    );
+  } else {
+    showToast('対象外機種はありません'); return;
+  }
+  if (targets.length === 0) { showToast('対象外機種はありません'); return; }
+  if (!confirm(`対象外の${targets.length}機種を削除しますか？\n${targets.join('\n')}`)) return;
+  targets.forEach(k => delete libraryImages[k]);
+  await saveLibrary();
+  renderMachineImgList();
+  showToast(`${targets.length}機種を削除しました`);
+}
+
+async function saveLibrary() {
+  try {
+    allSeriesLibrary[currentSeries] = libraryImages;
+    await fetch('/api/article-library', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: allSeriesLibrary, stores: storeData, prevTop1: prevTop1Data }),
+    });
+  } catch (e) {
+    showToast('保存エラー: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ============================================================
+// 店舗管理
+// ============================================================
+let storeData = {};
+
+async function loadStores() {
+  try {
+    const res = await fetch('/api/article-library');
+    const data = await res.json();
+    storeData = data.stores || {};
+    prevTop1Data = data.prevTop1 || {};
+    const rawImages = data.images || {};
+    // 旧フォーマット（フラット）→ denkoisseki へ移行
+    if (!rawImages.denkoisseki && !rawImages.ifudodo) {
+      allSeriesLibrary = { denkoisseki: rawImages, ifudodo: {} };
+    } else {
+      allSeriesLibrary = rawImages;
+    }
+    if (!allSeriesLibrary.denkoisseki) allSeriesLibrary.denkoisseki = {};
+    if (!allSeriesLibrary.ifudodo)     allSeriesLibrary.ifudodo     = {};
+    libraryImages = allSeriesLibrary[currentSeries] || {};
+    allSeriesLibrary[currentSeries] = libraryImages;
+    renderStoreSelect();
+    renderMachineImgList();
+  } catch (e) {
+    console.warn('店舗データ読み込み失敗:', e);
+  }
+}
+
+function renderStoreSelect() {
+  // hidden select（既存コードとの互換用）
+  const sel = document.getElementById('store-select');
+  sel.innerHTML = '<option value=""></option>';
+  Object.keys(storeData).sort().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  renderStoreDropdown('');
+}
+
+let _ddPrefFilter = '';
+
+function selectPrefFilter(pref) {
+  _ddPrefFilter = (_ddPrefFilter === pref) ? '' : pref;
+  renderStoreDropdown(document.getElementById('store-search').value);
+}
+
+function renderStoreDropdown(query) {
+  const dd = document.getElementById('store-dropdown');
+  const q = query.trim().toLowerCase();
+
+  const prefOrder = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+  // 実在する都道府県一覧（ボタン用）
+  const existingPrefs = new Set(Object.values(storeData).map(s => s.pref).filter(Boolean));
+  const prefBtns = prefOrder.filter(p => existingPrefs.has(p));
+
+  // 都道府県でグループ化（テキスト検索＋都道府県フィルター）
+  const groups = {};
+  Object.values(storeData).forEach(s => {
+    const name = s.name || s._key || '';
+    const pref = s.pref || 'その他';
+    if (_ddPrefFilter && pref !== _ddPrefFilter) return;
+    if (q && !name.toLowerCase().includes(q) && !pref.toLowerCase().includes(q) && !(s.city||'').toLowerCase().includes(q)) return;
+    if (!groups[pref]) groups[pref] = [];
+    groups[pref].push(name);
+  });
+
+  const prefs = Object.keys(groups).sort((a, b) => {
+    const ai = prefOrder.indexOf(a), bi = prefOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1; if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  // 都道府県ボタンエリア（sticky）
+  const btnArea = `<div style="position:sticky;top:0;z-index:10;background:#f5f5f5;padding:6px 8px;border-bottom:1px solid #ddd;display:flex;flex-wrap:wrap;gap:4px;">
+    ${prefBtns.map(p => `<button onmousedown="event.preventDefault();selectPrefFilter('${p}')"
+      style="padding:3px 7px;font-size:11px;font-family:inherit;border-radius:4px;cursor:pointer;border:1px solid ${_ddPrefFilter===p?'#1e2a3a':'#ccc'};background:${_ddPrefFilter===p?'#1e2a3a':'#fff'};color:${_ddPrefFilter===p?'#fff':'#333'};white-space:nowrap;"
+      >${p.replace(/[都道府県]$/,'')}</button>`).join('')}
+  </div>`;
+
+  if (prefs.length === 0) {
+    dd.innerHTML = btnArea + '<div style="padding:10px;color:#aaa;font-size:12px;text-align:center;">見つかりません</div>';
+    return;
+  }
+
+  dd.innerHTML = btnArea + prefs.map(pref => `
+    <div style="background:#1e2a3a;padding:6px 12px;font-size:13px;color:#fff;font-weight:bold;">${pref}</div>
+    ${groups[pref].sort().map(name => `
+      <div class="store-dd-item" onmousedown="pickStore('${name.replace(/'/g,"\\'")}')">
+        ${name}
+      </div>`).join('')}
+  `).join('');
+}
+
+function filterStoreList(q) { renderStoreDropdown(q); showStoreDropdown(); }
+function showStoreDropdown() { renderStoreDropdown(document.getElementById('store-search').value); document.getElementById('store-dropdown').style.display = 'block'; }
+function hideStoreDropdown() { setTimeout(() => { document.getElementById('store-dropdown').style.display = 'none'; }, 150); }
+function pickStore(name) {
+  document.getElementById('store-search').value = name;
+  document.getElementById('store-select').value = name;
+  document.getElementById('store-dropdown').style.display = 'none';
+  selectStore(name);
+}
+
+function selectStore(name) {
+  if (!name || !storeData[name]) return;
+  const searchEl = document.getElementById('store-search');
+  if (searchEl) searchEl.value = name;
+  const s = storeData[name];
+
+  // 基本設定フィールドに反映
+  document.getElementById('f-pref').value         = s.pref        || '';
+  document.getElementById('f-city').value         = s.city        || '';
+  document.getElementById('f-hall').value         = s.name        || name;
+  document.getElementById('f-reporter').value     = s.reporter    || '';
+  document.getElementById('f-prev-machine').value = s.prevMachine || '';
+  document.getElementById('f-pworld-url').value   = s.pworldUrl   || '';
+  document.getElementById('f-ptown-url').value    = s.ptownUrl    || '';
+
+  // 画像フィールドに反映
+  const setImg = (idKey, urlKey, id, url, labelId) => {
+    const idEl  = document.getElementById('input-' + idKey);
+    const urlEl = document.getElementById('input-' + urlKey);
+    const prev  = document.getElementById('preview-small-' + idKey);
+    const lbl   = document.getElementById(labelId);
+    if (idEl)  idEl.value  = id  || '';
+    if (urlEl) urlEl.value = url || '';
+    if (prev && url) { prev.src = url; prev.style.display = 'block'; }
+    if (lbl) {
+      const fname = url ? url.split('/').pop().replace(/_/g,' ') : '未設定';
+      lbl.textContent = fname.length > 18 ? fname.slice(0, 18) + '…' : fname;
+    }
+  };
+  setImg('store-img-id', 'store-img-url', s.storeImgId, s.storeImgUrl, 'store-img-name');
+  setImg('end-img-id',   'end-img-url',   s.endImgId,   s.endImgUrl,   'end-img-name');
+
+  // カテゴリー・タグのサマリーを更新（IDから名前は取得済みチェックボックスがあれば反映）
+  const catSummaryEl = document.getElementById('wp-cat-summary');
+  const tagSummaryEl = document.getElementById('wp-tag-summary');
+  if (catSummaryEl) catSummaryEl.textContent = s.wpCategories?.length ? `${s.wpCategories.length}件選択済み` : '未選択';
+  if (tagSummaryEl) tagSummaryEl.textContent = s.wpTags?.length       ? `${s.wpTags.length}件選択済み`       : '未選択';
+
+  // プレビュー再描画
+  initPreview();
+  showToast(`「${name}」を読み込みました`);
+}
+
+async function saveCurrentAsStore() {
+  const name = v('f-hall');
+  if (!name) { showToast('先に店舗名を入力してください'); return; }
+
+  const existing = storeData[name] || {};
+  storeData[name] = {
+    name,
+    pref:         v('f-pref'),
+    city:         v('f-city'),
+    reporter:     v('f-reporter'),
+    prevMachine:  v('f-prev-machine'),
+    pworldUrl:    v('f-pworld-url'),
+    ptownUrl:     v('f-ptown-url'),
+    storeImgId:   v('input-store-img-id'),
+    storeImgUrl:  v('input-store-img-url'),
+    endImgId:     v('input-end-img-id'),
+    endImgUrl:    v('input-end-img-url'),
+    machines:     getMachines(),
+    wpCategories: existing.wpCategories || [],
+    wpTags:       existing.wpTags       || [],
+  };
+
+  await saveStores();
+  renderStoreSelect();
+  document.getElementById('store-select').value = name;
+  showToast(`「${name}」を登録しました`);
+}
+
+async function deleteSelectedStore() {
+  const name = document.getElementById('store-select').value;
+  if (!name) { showToast('削除する店舗を選択してください'); return; }
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  delete storeData[name];
+  await saveStores();
+  renderStoreSelect();
+  showToast(`「${name}」を削除しました`);
+}
+
+async function saveStores() {
+  await saveLibrary();
+}
+
+// ============================================================
+// ページ切り替え
+// ============================================================
+function switchPage(name) {
+  ['article', 'stores', 'machines'].forEach(p => {
+    const sec = document.getElementById('page-' + p);
+    const btn = document.getElementById('nav-' + p);
+    if (p === name) {
+      sec.classList.remove('hidden');
+      btn.classList.add('active');
+    } else {
+      sec.classList.add('hidden');
+      btn.classList.remove('active');
+    }
+  });
+  if (name === 'stores') renderStoreGrid();
+  if (name === 'machines') {
+    try { renderMachineImgList(); } catch(e) { console.error('renderMachineImgList error:', e); }
+    try { renderMachineFromData(); } catch(e) { console.error('renderMachineFromData error:', e); }
+  }
+}
+
+// ============================================================
+// 店舗管理ページ（カードグリッド）
+// ============================================================
+let _smEditingName = null;
+let _smImgDataUrl = null;
+
+function renderStoreGrid() {
+  const grid = document.getElementById('store-grid-mgr');
+  if (!grid) return;
+  const q = (document.getElementById('store-mgr-search')?.value || '').trim().toLowerCase();
+  let entries = Object.values(storeData);
+  if (q) entries = entries.filter(s =>
+    (s.name  || '').toLowerCase().includes(q) ||
+    (s.pref  || '').toLowerCase().includes(q) ||
+    (s.city  || '').toLowerCase().includes(q)
+  );
+  if (!Object.keys(storeData).length) {
+    grid.innerHTML = '<div class="store-empty">まだ店舗が登録されていません<br>「＋ 店舗を追加」から登録してください</div>';
+    return;
+  }
+  if (!entries.length) {
+    grid.innerHTML = '<div class="store-empty">「' + q + '」に一致する店舗はありません</div>';
+    return;
+  }
+  // 都道府県でグループ化
+  const groups = {};
+  entries.forEach(s => {
+    const pref = s.pref || '未設定';
+    if (!groups[pref]) groups[pref] = [];
+    groups[pref].push(s);
+  });
+  const prefOrder = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県','未設定'];
+  const sortedPrefs = Object.keys(groups).sort((a,b) => {
+    const ai = prefOrder.indexOf(a), bi = prefOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1; if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  const makeCard = s => {
+    const imgHtml = s.storeImgUrl
+      ? `<img class="store-card-img" src="${s.storeImgUrl}" onerror="this.style.display='none'">`
+      : `<div class="store-card-img-ph">🏪</div>`;
+    const loc = [s.pref, s.city || ''].filter(Boolean).join(' ');
+    const safeName = s.name.replace(/'/g, "\\'");
+    return `<div class="store-card">
+      ${imgHtml}
+      <div class="store-card-body">
+        <div class="store-card-name">${s.name}</div>
+        <div class="store-card-loc">${loc}</div>
+        <div class="store-card-url">${s.pworldUrl || 'p-world未設定'}</div>
+        <div class="store-card-url" style="color:${s.hbUrl ? '#c0392b' : '#aaa'};">${s.hbUrl ? `<a href="${s.hbUrl}" target="_blank" style="color:#c0392b;text-decoration:none;font-weight:bold;">📋 hisshobon</a>` : 'hisshobon未設定'}</div>
+        <div class="store-card-btns">
+          <button class="store-btn-edit" onclick="openStoreModal('${safeName}')">✏ 編集</button>
+          <button class="store-btn-del" onclick="deleteStoreCard('${safeName}')">削除</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  grid.innerHTML = sortedPrefs.map((pref, i) => `
+    <div style="margin-bottom:8px;">
+      <div class="pref-hdr" data-i="${i}"
+        style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:#1e2a3a;border-radius:7px;cursor:pointer;user-select:none;">
+        <span style="font-size:13px;font-weight:bold;color:#fff;white-space:nowrap;">${pref}（${groups[pref].length}件）</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.2);"></div>
+        <span class="pref-arrow" style="color:#d4a827;font-size:12px;">▶</span>
+      </div>
+      <div class="pref-body" style="display:${q?'grid':'none'};grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:10px;">
+        ${groups[pref].map(makeCard).join('')}
+      </div>
+    </div>`).join('');
+
+  grid.querySelectorAll('.pref-hdr').forEach(hdr => {
+    hdr.addEventListener('click', function() {
+      const body = this.nextElementSibling;
+      const arrow = this.querySelector('.pref-arrow');
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'grid';
+      arrow.textContent = isOpen ? '▶' : '▼';
+    });
+  });
+}
+
+function openStoreModal(name) {
+  _smEditingName = name || null;
+  _smImgDataUrl = null;
+  const s = name ? storeData[name] : null;
+  document.getElementById('store-modal-title').textContent = name ? '店舗を編集' : '店舗を追加';
+  document.getElementById('sm-name').value    = s?.name      || '';
+  document.getElementById('sm-pref').value    = s?.pref      || '';
+  document.getElementById('sm-city').value    = s?.city      || '';
+  document.getElementById('sm-pworld').value  = s?.pworldUrl || '';
+  document.getElementById('sm-ptown').value   = s?.ptownUrl  || '';
+  document.getElementById('sm-hburl').value   = s?.hbUrl     || '';
+  const wrap = document.getElementById('sm-img-wrap');
+  if (s?.storeImgUrl) {
+    _smImgDataUrl = s.storeImgUrl;
+    wrap.innerHTML = `<img src="${s.storeImgUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`;
+  } else {
+    wrap.innerHTML = '<div style="color:#bbb;font-size:13px;text-align:center;">📷 クリックして画像を選択</div>';
+  }
+  document.getElementById('sm-img-file').value = '';
+  document.getElementById('store-modal').classList.add('show');
+}
+
+function closeStoreModal() {
+  document.getElementById('store-modal').classList.remove('show');
+  _smEditingName = null;
+  _smImgDataUrl = null;
+}
+
+function onStoreImgSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _smImgDataUrl = e.target.result;
+    const wrap = document.getElementById('sm-img-wrap');
+    wrap.innerHTML = `<img src="${_smImgDataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveStoreCard() {
+  const name = document.getElementById('sm-name').value.trim();
+  if (!name) { showToast('店舗名を入力してください'); return; }
+  const pref      = document.getElementById('sm-pref').value.trim();
+  const city      = document.getElementById('sm-city').value.trim();
+  const pworldUrl = document.getElementById('sm-pworld').value.trim();
+  const ptownUrl  = document.getElementById('sm-ptown').value.trim();
+  const hbUrl     = document.getElementById('sm-hburl').value.trim();
+  if (_smEditingName && _smEditingName !== name) {
+    delete storeData[_smEditingName];
+  }
+  const existing = storeData[name] || {};
+  storeData[name] = {
+    ...existing,
+    name, pref, city, pworldUrl, ptownUrl, hbUrl,
+    storeImgUrl: _smImgDataUrl || existing.storeImgUrl || '',
+  };
+  await saveStores();
+  renderStoreGrid();
+  renderStoreSelect();
+  closeStoreModal();
+  showToast(`「${name}」を保存しました`);
+}
+
+async function importFromWordPress() {
+  showToast('WordPressからデータを取得中...');
+  try {
+    const baseUrl = 'https://hisshobon-hall.info/wp-json/wp/v2/blog_parts';
+    let all = [];
+    let page = 1;
+    while (true) {
+      const res = await fetch(`${baseUrl}?per_page=100&page=${page}`);
+      if (!res.ok) break;
+      const data = await res.json();
+      if (!data.length) break;
+      all = all.concat(data);
+      const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1');
+      if (page >= totalPages) break;
+      page++;
+    }
+    if (!all.length) { showToast('データが見つかりませんでした'); return; }
+
+    const decodeHtml = s => s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#(\d+);/g,(_,c)=>String.fromCharCode(c)).replace(/&nbsp;/g,' ');
+    const parsePrefCity = html => {
+      // テーブルから住所セルを探す
+      const addrMatch = html.match(/住所[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i);
+      const raw = addrMatch ? decodeHtml(addrMatch[1].replace(/<[^>]+>/g,'').trim()) : '';
+      // 都道府県を抽出（都/道/府/県）
+      const prefMatch = raw.match(/^(東京都|北海道|(?:京都|大阪)府|.{2,4}[都道府県])/);
+      const pref = prefMatch ? prefMatch[1] : '';
+      // 市区町村を抽出
+      const rest = pref ? raw.slice(pref.length) : raw;
+      const cityMatch = rest.match(/^(.{1,10}?[市区町村])/);
+      const city = cityMatch ? cityMatch[1] : '';
+      return { pref, city };
+    };
+
+    let added = 0, skipped = 0;
+    for (const item of all) {
+      const name = decodeHtml(item.title?.rendered || '').trim();
+      if (!name) continue;
+      const html = item.content?.rendered || '';
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/);
+      const imgUrl = imgMatch ? imgMatch[1] : '';
+      const { pref, city } = parsePrefCity(html);
+      if (storeData[name]) {
+        const ex = storeData[name];
+        storeData[name] = { ...ex, name, pref, city, storeImgUrl: imgUrl || ex.storeImgUrl };
+        skipped++;
+      } else {
+        storeData[name] = { name, pref, city, pworldUrl: '', ptownUrl: '', storeImgUrl: imgUrl };
+        added++;
+      }
+    }
+    await saveStores();
+    renderStoreGrid();
+    renderStoreSelect();
+    showToast(`インポート完了：${added}件追加、${skipped}件スキップ（既存）`);
+  } catch(e) {
+    showToast('インポート失敗: ' + e.message);
+  }
+}
+
+async function importFromHisshobon() {
+  if (!confirm('hisshobon-hall.info からホール一覧をインポートします。既存の店舗は hbUrl・wpCategories のみ上書きします。続けますか？')) return;
+  try {
+    showToast('⏳ hisshobon からデータ取得中...');
+    const res = await fetch('/api/hb-halls');
+    if (!res.ok) throw new Error('取得失敗');
+    const halls = await res.json();
+    if (!halls.length) { showToast('ホールデータが見つかりませんでした'); return; }
+    let added = 0, updated = 0;
+    for (const h of halls) {
+      if (storeData[h.name]) {
+        storeData[h.name] = { ...storeData[h.name], hbUrl: h.link, wpCategories: [h.id] };
+        updated++;
+      } else {
+        storeData[h.name] = { name: h.name, pref: h.pref, city: '', pworldUrl: '', ptownUrl: '', hbUrl: h.link, wpCategories: [h.id], storeImgUrl: '' };
+        added++;
+      }
+    }
+    await saveStores();
+    renderStoreGrid();
+    renderStoreSelect();
+    showToast(`インポート完了：${added}件追加、${updated}件更新`);
+  } catch(e) {
+    showToast('インポート失敗: ' + e.message);
+  }
+}
+
+async function deleteStoreCard(name) {
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  delete storeData[name];
+  await saveStores();
+  renderStoreGrid();
+  renderStoreSelect();
+  showToast(`「${name}」を削除しました`);
+}
+
+// ============================================================
+// 初期化
+// ============================================================
+(function init() {
+  buildBlockList();
+  updateB13AiButton();
+  initPreview();
+  loadStores();
+  initRankImgSlots();
+
+  // 機種台数の変更を自動でプレビューに反映
+  document.getElementById('machine-rows').addEventListener('input', () => initPreview());
+
+  // ── 左パネル リサイズ ───────────────────────────────────────
+  (function() {
+    const handle = document.getElementById('resize-handle');
+    const panel  = document.getElementById('left-panel');
+    let dragging = false, startX = 0, startW = 0;
+    handle.addEventListener('mousedown', e => {
+      dragging = true;
+      startX = e.clientX;
+      startW = panel.offsetWidth;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const w = Math.min(700, Math.max(260, startW + (e.clientX - startX)));
+      panel.style.width = w + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  })();
+})();
+</script>
+</body>
+</html>

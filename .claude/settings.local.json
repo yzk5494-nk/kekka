@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:docs.twitterapi.io)",
+      "WebSearch",
+      "Bash(grep -E \"\\\\.\\(jpg|jpeg|png|gif|bmp|webp\\)$\")",
+      "Bash(grep -E \"\\\\.\\(pptx|ppt\\)$\")",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
+    ]
+  }
+}
