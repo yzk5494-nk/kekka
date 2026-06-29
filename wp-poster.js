@@ -827,7 +827,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── Claude API で文章生成 ──────────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/generate-text') {
-      const apiKey = config.claude_api_key;
+      const apiKey = process.env.CLAUDE_API_KEY || config.claude_api_key;
       if (!apiKey) return sendJson(400, { error: 'wp-config.json に claude_api_key が設定されていません' });
 
       const buf = await collectBody(req);
@@ -1032,7 +1032,7 @@ JSONのみを返してください（説明文・コードブロック不要）:
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/generate-text-ifudodo') {
-      const apiKey = config.claude_api_key;
+      const apiKey = process.env.CLAUDE_API_KEY || config.claude_api_key;
       if (!apiKey) return sendJson(400, { error: 'claude_api_key が設定されていません' });
 
       const buf = await collectBody(req);
