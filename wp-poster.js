@@ -3,7 +3,8 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const puppeteer = require('puppeteer-core');
+let puppeteer;
+try { puppeteer = require('puppeteer'); } catch { puppeteer = require('puppeteer-core'); }
 
 // 設定読み込み
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'wp-config.json'), 'utf8'));
