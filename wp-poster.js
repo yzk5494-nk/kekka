@@ -283,6 +283,12 @@ const server = http.createServer(async (req, res) => {
       return res.end(html);
     }
 
+    if (req.method === 'GET' && parsed.pathname === '/post-creator') {
+      const html = fs.readFileSync(path.join(__dirname, 'post-creator.html'), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
     // ── 静的ファイル（xlsx ライブラリ） ──────────────────────────────
     if (req.method === 'GET' && parsed.pathname === '/node_modules/xlsx/dist/xlsx.full.min.js') {
       const filePath = path.join(__dirname, 'node_modules/xlsx/dist/xlsx.full.min.js');

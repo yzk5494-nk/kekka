@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポスト文作成</title>
+  <script src="/node_modules/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Yu Gothic", "Meiryo", sans-serif; background: #f0f2f5; color: #333; height: 100vh; display: flex; flex-direction: column; }
+    header { background: #1e2a3a; color: white; padding: 14px 24px; font-size: 18px; font-weight: bold; flex-shrink: 0; }
+
+    .main { display: flex; flex: 1; overflow: hidden; gap: 0; }
+
+    /* リサイズ仕切り */
+    .col-divider { width: 5px; flex-shrink: 0; background: #e0e0e0; cursor: col-resize; transition: background 0.15s; }
+    .col-divider:hover, .col-divider.dragging { background: #f5c518; }
+
+    /* 左カラム：Excel読み込み + 台一覧 */
+    .col-left { flex: 1; min-width: 120px; display: flex; flex-direction: column; background: white; overflow: hidden; }
+    .col-left-top { padding: 12px; border-bottom: 1px solid #eee; flex-shrink: 0; }
+    .upload-area {
+      border: 2px dashed #ccc; border-radius: 8px; padding: 14px 10px;
+      text-align: center; cursor: pointer; font-size: 13px; color: #888;
+      transition: all 0.15s; background: #fafafa;
+    }
+    .upload-area:hover { border-color: #f5c518; color: #333; }
+    .upload-area.loaded { border-color: #27ae60; color: #27ae60; background: #f0fff4; }
+    .machine-list-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #eee; flex-shrink: 0; background: #fafafa; }
+    .search-input { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .machine-list-header input { flex: 1; padding: 5px 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; font-family: inherit; }
+    .machine-list { flex: 1; overflow-y: auto; }
+    .machine-item {
+      display: grid; grid-template-columns: 22px 46px 18px 1fr auto;
+      align-items: center; gap: 6px; padding: 6px 10px;
+      border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 13px;
+      transition: background 0.1s;
+    }
+    .machine-item:hover { background: #f8f9fa; }
+    .machine-item.selected { background: #fffbea; }
+    .machine-item input[type=checkbox] { accent-color: #f5c518; }
+    .m-num { font-weight: bold; color: #555; font-size: 12px; }
+    .m-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-diff { font-size: 12px; font-weight: bold; text-align: right; white-space: nowrap; }
+    .positive { color: #c0392b; }
+    .negative { color: #2471a3; }
+    .zero { color: #999; }
+
+    /* 中カラム：選択済み台 */
+    .col-mid { flex: 1; min-width: 120px; display: flex; flex-direction: column; background: white; overflow: hidden; }
+    .col-mid-header { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; font-weight: bold; color: #555; flex-shrink: 0; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+    .selected-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .selected-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 4px; font-size: 12px; background: #fffbea; }
+    .order-btns { display: flex; flex-direction: column; gap: 1px; }
+    .order-btn { border: 1px solid #ddd; background: none; cursor: pointer; font-size: 9px; padding: 1px 4px; border-radius: 3px; line-height: 1; }
+    .order-btn:hover { background: #f0f0f0; }
+    .sel-num { font-weight: bold; color: #555; min-width: 36px; }
+    .sel-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sel-diff { font-size: 11px; font-weight: bold; white-space: nowrap; }
+    .sel-remove { color: #e74c3c; cursor: pointer; font-size: 14px; padding: 0 2px; }
+    .empty-msg { text-align: center; font-size: 12px; color: #bbb; padding: 20px 10px; }
+    .clear-sel-btn { font-size: 11px; padding: 2px 8px; background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #e74c3c; }
+    .clear-sel-btn:hover { background: #fff0f0; }
+
+    /* 右2ペイン */
+    .col-template { flex: 1; min-width: 120px; display: flex; flex-direction: column; overflow: hidden; padding: 12px; background: #f0f2f5; }
+    .col-collect  { flex: 1; min-width: 120px; display: flex; flex-direction: column; overflow: hidden; padding: 12px; background: #f0f2f5; }
+    .section-label { font-size: 12px; font-weight: bold; color: #555; padding-bottom: 6px; border-bottom: 2px solid #f5c518; margin-bottom: 8px; }
+    .card { background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+    .placeholder-wrap { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    .placeholder-tag { font-size: 11px; padding: 3px 8px; background: #f0f2f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #444; }
+    .placeholder-tag:hover { background: #f5c518; border-color: #f5c518; color: #000; }
+    .preset-wrap { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+    .preset-btn { text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; background: none; cursor: pointer; font-size: 12px; font-family: inherit; color: #444; line-height: 1.5; }
+    .preset-btn:hover { background: #f5f5f5; }
+
+    .template-area { width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: "Yu Gothic", "Meiryo", sans-serif; resize: vertical; }
+    .result-area { width: 100%; flex: 1; min-height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: "Yu Gothic", "Meiryo", sans-serif; resize: none; background: #fafafa; }
+    .collect-area { width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: "Yu Gothic", "Meiryo", sans-serif; resize: vertical; }
+
+    .mode-btns { display: flex; gap: 4px; }
+    .mode-btn { padding: 3px 10px; font-size: 11px; border: 1px solid #ddd; border-radius: 4px; background: none; cursor: pointer; font-family: inherit; }
+    .mode-btn.active { background: #1e2a3a; color: white; border-color: #1e2a3a; }
+    .copy-btn { padding: 8px 16px; background: #1e2a3a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    .copy-btn:hover { background: #2c3e50; }
+    .copy-msg { font-size: 12px; color: #27ae60; display: none; }
+
+    .teikei-item { display: flex; align-items: flex-start; gap: 6px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+    .teikei-item button { font-size: 11px; padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: none; cursor: pointer; flex-shrink: 0; }
+    .teikei-item button:hover { background: #f5f5f5; }
+    .teikei-text { font-size: 12px; color: #444; flex: 1; line-height: 1.5; white-space: pre-wrap; }
+    .teikei-del { color: #e74c3c; cursor: pointer; font-size: 14px; flex-shrink: 0; padding: 0 2px; }
+  </style>
+</head>
+<body>
+<header>📝 ポスト文作成</header>
+
+<div class="main">
+  <!-- 左：Excel読み込み + 台一覧 -->
+  <div class="col-left" id="pane1">
+    <div class="col-left-top">
+      <div class="upload-area" id="uploadArea"
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="event.preventDefault();this.style.borderColor='#f5c518'"
+        ondragleave="this.style.borderColor=''"
+        ondrop="event.preventDefault();this.style.borderColor='';handleFileDrop(event.dataTransfer.files[0])">
+        📂 クリックまたはドロップ
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+      <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+        <label style="font-size:11px;color:#888">±反転</label>
+        <button id="invertBtn" onclick="toggleInvert()" style="font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:4px;background:none;cursor:pointer;font-family:inherit">OFF</button>
+        <span style="font-size:11px;color:#aaa;margin-left:auto" id="machineCount">0台</span>
+      </div>
+    </div>
+    <div class="machine-list-header" style="flex-direction:column;gap:6px;align-items:stretch">
+      <input type="text" id="searchName" class="search-input" placeholder="🔍 機種名で検索（スペース区切りで複数）" oninput="filterMachines()">
+      <div style="display:flex;gap:6px;align-items:flex-start">
+        <textarea id="searchNum" class="search-input" placeholder="🔍 台番・範囲（例: 101 200-210&#10;複数行ペースト可）" oninput="filterMachines()" style="flex:1;height:58px;resize:none;line-height:1.4"></textarea>
+        <button onclick="selectAll()" style="padding:7px 12px;border:1px solid #1e2a3a;border-radius:6px;background:#1e2a3a;color:white;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap">全選択</button>
+      </div>
+    </div>
+    <div class="machine-list" id="machineList">
+      <div class="empty-msg">Excelを読み込んでください</div>
+    </div>
+  </div>
+
+  <div class="col-divider" onmousedown="startResize(event,'pane1','pane2')"></div>
+  <!-- 中：選択済み台 -->
+  <div class="col-mid" id="pane2">
+    <!-- プリセット＋プレースホルダー（スクロール可、最大50%） -->
+    <div style="max-height:50%;overflow-y:auto;flex-shrink:0;border-bottom:2px solid #e0e0e0">
+    <!-- プリセット -->
+    <div style="padding:10px 12px;border-bottom:1px solid #eee;background:#fffbea">
+      <div style="font-size:11px;font-weight:bold;color:#888;margin-bottom:6px">プリセット</div>
+      <div class="preset-wrap" style="flex-direction:column;gap:4px">
+        <button class="preset-btn" onclick="applyPreset('📌{機種名始}({台数})\n➡{勝ち台数}/{台数}プラス📈平均{平均差枚}')">📌機種名(台数)<br>➡勝ち台数/台数プラス📈平均差枚</button>
+        <button class="preset-btn" onclick="applyPreset('📌{機種名}({台数})\n{プラス台リスト}')">📌機種名(台数)<br>💎台番+差枚　💎台番+差枚…</button>
+        <button class="preset-btn" onclick="applyPreset('📌{機種名}({台番始}-{台番終})\n➡{勝ち台数}/{台数}プラス📈平均{平均差枚}')">📌機種名(台番始-台番終)<br>➡勝ち台数/台数プラス📈平均差枚</button>
+      </div>
+    </div>
+    <!-- プレースホルダー・定型文 -->
+    <div style="padding:10px 12px;">
+      <div style="font-size:11px;font-weight:bold;color:#888;margin-bottom:4px">プレースホルダー</div>
+      <div style="font-size:10px;color:#aaa;margin-bottom:4px">■ 機種・台番</div>
+      <div class="placeholder-wrap" style="margin-bottom:6px">
+        <span class="placeholder-tag" onclick="insertPlaceholder('{機種名始}')">{機種名始}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{機種名終}')">{機種名終}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{機種名}')">{機種名}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{台番始}')">{台番始}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{台番終}')">{台番終}</span>
+      </div>
+      <div style="font-size:10px;color:#aaa;margin-bottom:4px">■ 集計</div>
+      <div class="placeholder-wrap" style="margin-bottom:6px">
+        <span class="placeholder-tag" onclick="insertPlaceholder('{台数}')">{台数}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{勝ち台数}')">{勝ち台数}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{勝率}')">{勝率}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{合計差枚}')">{合計差枚}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{平均差枚}')">{平均差枚}</span>
+      </div>
+      <div style="font-size:10px;color:#aaa;margin-bottom:4px">■ 台リスト</div>
+      <div class="placeholder-wrap" style="margin-bottom:8px">
+        <span class="placeholder-tag" onclick="insertPlaceholder('{プラス台リスト}')">{プラス台リスト}</span>
+        <span class="placeholder-tag" onclick="insertPlaceholder('{マイナス台リスト}')">{マイナス台リスト}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:11px;font-weight:bold;color:#888">定型文</div>
+        <button onclick="teikeiAdd()" style="padding:2px 8px;font-size:10px;background:#1e2a3a;color:#f5c518;border:none;border-radius:4px;cursor:pointer;font-family:inherit">＋追加</button>
+      </div>
+      <div id="teikeiList">
+        <div id="teikeiEmpty" style="font-size:11px;color:#bbb;padding:4px 0">「＋追加」で登録できます</div>
+      </div>
+    </div>
+    </div><!-- /プリセット+プレースホルダー wrapper -->
+    <div class="col-mid-header">
+      <span>選択中 <span id="selectedCount">0</span>台</span>
+      <button class="clear-sel-btn" onclick="clearSelected()">クリア</button>
+    </div>
+    <div class="selected-list" id="selectedList">
+      <div class="empty-msg">台一覧から選択してください</div>
+    </div>
+  </div>
+
+  <div class="col-divider" onmousedown="startResize(event,'pane2','pane3')"></div>
+  <!-- テンプレート + 結果 -->
+  <div class="col-template" id="pane3">
+    <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div style="flex-shrink:0">
+        <div class="section-label">テンプレート</div>
+        <textarea id="postTemplate" class="template-area" placeholder="例: {機種名始}-{機種名終}({台番始}-{台番終}番台) 台数{台数}台 平均{平均差枚}" oninput="generatePost()"></textarea>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
+          <div class="section-label" style="margin-bottom:0;border:none;padding:0">生成結果</div>
+          <div class="mode-btns">
+            <button id="modeAll" class="mode-btn active" onclick="setPostMode('all')">全体</button>
+            <button id="modeGroup" class="mode-btn" onclick="setPostMode('group')">機種別</button>
+            <button id="modeRange" class="mode-btn" onclick="setPostMode('range')">台番範囲別</button>
+          </div>
+        </div>
+        <textarea id="postResult" class="result-area" readonly placeholder="テンプレートを入力すると生成されます"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-shrink:0">
+        <button class="copy-btn" onclick="copyPostResult()">📋 コピー</button>
+        <button class="copy-btn" onclick="addToCollect()" style="background:#2c6e49">＋ まとめに追加</button>
+        <span id="postCopyMsg" class="copy-msg">✓ コピーしました</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-divider" onmousedown="startResize(event,'pane3','pane4')"></div>
+  <!-- まとめボックス -->
+  <div class="col-collect" id="pane4">
+    <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
+        <div class="section-label" style="margin-bottom:0;border:none;padding:0">まとめボックス <span id="collectCount" style="font-size:11px;color:#aaa;font-weight:normal">0件</span></div>
+      </div>
+      <textarea id="collectArea" class="collect-area" style="flex:1;resize:none;min-height:0" placeholder="「まとめに追加」ボタンで生成結果を蓄積できます"></textarea>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-shrink:0">
+        <button class="copy-btn" onclick="copyCollect()" style="flex:1">📋 コピー</button>
+        <button onclick="clearCollect()" style="flex:1;padding:8px;border:1px solid #f5c6c6;border-radius:6px;background:none;cursor:pointer;font-size:13px;font-family:inherit;color:#e74c3c">🗑 クリア</button>
+      </div>
+      <span id="collectCopyMsg" class="copy-msg" style="display:block;text-align:center;margin-top:4px;flex-shrink:0"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== ペインリサイズ =====
+function startResize(e, leftId, rightId) {
+  e.preventDefault();
+  const leftEl = document.getElementById(leftId);
+  const rightEl = document.getElementById(rightId);
+  const divider = e.currentTarget;
+  const startX = e.clientX;
+  const startLeftW = leftEl.offsetWidth;
+  const startRightW = rightEl.offsetWidth;
+  divider.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  function onMove(e) {
+    const dx = e.clientX - startX;
+    leftEl.style.flex = `0 0 ${Math.max(120, startLeftW + dx)}px`;
+    rightEl.style.flex = `0 0 ${Math.max(120, startRightW - dx)}px`;
+  }
+  function onUp() {
+    divider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ===== 半角カナ変換 =====
+const HANKAKU_MAP = {
+  'ｦ':'ヲ','ｧ':'ァ','ｨ':'ィ','ｩ':'ゥ','ｪ':'ェ','ｫ':'ォ','ｬ':'ャ','ｭ':'ュ','ｮ':'ョ',
+  'ｯ':'ッ','ｰ':'ー','ｱ':'ア','ｲ':'イ','ｳ':'ウ','ｴ':'エ','ｵ':'オ','ｶ':'カ','ｷ':'キ',
+  'ｸ':'ク','ｹ':'ケ','ｺ':'コ','ｻ':'サ','ｼ':'シ','ｽ':'ス','ｾ':'セ','ｿ':'ソ','ﾀ':'タ',
+  'ﾁ':'チ','ﾂ':'ツ','ﾃ':'テ','ﾄ':'ト','ﾅ':'ナ','ﾆ':'ニ','ﾇ':'ヌ','ﾈ':'ネ','ﾉ':'ノ',
+  'ﾊ':'ハ','ﾋ':'ヒ','ﾌ':'フ','ﾍ':'ヘ','ﾎ':'ホ','ﾏ':'マ','ﾐ':'ミ','ﾑ':'ム','ﾒ':'メ',
+  'ﾓ':'モ','ﾔ':'ヤ','ﾕ':'ユ','ﾖ':'ヨ','ﾗ':'ラ','ﾘ':'リ','ﾙ':'ル','ﾚ':'レ','ﾛ':'ロ',
+  'ﾜ':'ワ','ﾝ':'ン','ﾞ':'゛','ﾟ':'゜'
+};
+const DAKUTEN = {'ウ':'ヴ','カ':'ガ','キ':'ギ','ク':'グ','ケ':'ゲ','コ':'ゴ','サ':'ザ','シ':'ジ',
+  'ス':'ズ','セ':'ゼ','ソ':'ゾ','タ':'ダ','チ':'ヂ','ツ':'ヅ','テ':'デ','ト':'ド','ハ':'バ',
+  'ヒ':'ビ','フ':'ブ','ヘ':'ベ','ホ':'ボ'};
+const HANDAKUTEN = {'ハ':'パ','ヒ':'ピ','フ':'プ','ヘ':'ペ','ホ':'ポ'};
+function toFullKana(str) {
+  let r = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i], next = str[i+1], full = HANKAKU_MAP[c];
+    if (full) {
+      if (next === 'ﾞ' && DAKUTEN[full]) { r += DAKUTEN[full]; i++; }
+      else if (next === 'ﾟ' && HANDAKUTEN[full]) { r += HANDAKUTEN[full]; i++; }
+      else r += full;
+    } else r += c;
+  }
+  return r;
+}
+function cleanName(name) {
+  return toFullKana(name).replace(/^[LSB]+\s*/, '').replace(/\/[A-Z0-9]+$/, '').replace(/\s*[a-zA-Z]{1,4}[0-9]*$/, '').trim();
+}
+
+// ===== 状態 =====
+let allMachines = [];
+let selectedOrder = [];
+let diffMult = 1;
+const currentUnit = '枚';
+
+// ===== Excel読み込み =====
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result, { type: 'array', cellStyles: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    parseExcel(raw);
+    document.getElementById('uploadArea').textContent = `✓ ${file.name}（${allMachines.length}台）`;
+    document.getElementById('uploadArea').className = 'upload-area loaded';
+  };
+  reader.readAsArrayBuffer(file);
+}
+function handleFileDrop(file) { loadFile(file); }
+document.getElementById('fileInput').addEventListener('change', e => loadFile(e.target.files[0]));
+
+function detectCols(raw) {
+  for (let row = 0; row < Math.min(10, raw.length); row++) {
+    const cells = raw[row];
+    if (!cells) continue;
+    let 台番Col = -1, 機種名Col = -1, 差Col = -1;
+    for (let col = 0; col < cells.length; col++) {
+      const cell = String(cells[col] || '').trim();
+      if ((cell === '台番' || cell === '台番号' || cell === '台No' || cell === '台no') && 台番Col < 0) 台番Col = col;
+      if (cell.includes('機種') && 機種名Col < 0) 機種名Col = col;
+      if ((cell === '差' || cell === '差枚数' || cell === '差枚') && 差Col < 0) 差Col = col;
+    }
+    if (台番Col >= 0 && 機種名Col >= 0 && 差Col >= 0) return { dataStart: row + 1, 台番Col, 機種名Col, 差Col };
+  }
+  return { dataStart: 3, 台番Col: 3, 機種名Col: 4, 差Col: 9 };
+}
+
+function parseExcel(raw) {
+  const cols = detectCols(raw);
+  allMachines = [];
+  for (let i = cols.dataStart; i < raw.length; i++) {
+    const row = raw[i];
+    if (!row) continue;
+    const 台番 = row[cols.台番Col];
+    const 機種名 = row[cols.機種名Col];
+    const 差 = row[cols.差Col];
+    if (台番 && 機種名 && !isNaN(Number(台番))) {
+      allMachines.push({
+        台番: Number(台番),
+        機種名: String(機種名),
+        表示名: cleanName(String(機種名)),
+        差: Math.floor((Number(差) || 0) / 50) * 50,
+      });
+    }
+  }
+  allMachines.sort((a, b) => a.台番 - b.台番);
+  selectedOrder = [];
+  document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+  renderSelectedList();
+  renderMachineList(allMachines);
+}
+
+// ===== 台一覧 =====
+function renderMachineList(list) {
+  const el = document.getElementById('machineList');
+  if (!list.length) { el.innerHTML = '<div class="empty-msg">一致なし</div>'; return; }
+  el.innerHTML = list.map(m => {
+    const sel = selectedOrder.includes(m.台番);
+    const d = (m.差 * diffMult) || 0;
+    const diffStr = d > 0 ? `+${d.toLocaleString()}` : d.toLocaleString();
+    const cls = d > 0 ? 'positive' : d < 0 ? 'negative' : 'zero';
+    return `<div class="machine-item ${sel ? 'selected' : ''}" onclick="toggleMachine(${m.台番})">
+      <input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleMachine(${m.台番})">
+      <span class="m-num">${m.台番}</span>
+      <span style="font-size:11px;color:#aaa;text-align:center">${m.台番 % 10}</span>
+      <span class="m-name">${m.表示名}</span>
+      <span class="m-diff ${cls}">${diffStr}${currentUnit}</span>
+    </div>`;
+  }).join('');
+}
+
+let currentFilteredList = [];
+function parseNumTokens(raw) {
+  const terms = raw.split(/[\s,、]+/).filter(Boolean);
+  const rangeNums = new Set();
+  const textTerms = [];
+  for (const t of terms) {
+    const m = t.match(/^(\d+)[番台]?[~～\-](\d+)[番台]?$/);
+    if (m) {
+      const from = parseInt(m[1]), to = parseInt(m[2]);
+      if (!isNaN(from) && !isNaN(to) && from <= to)
+        for (let i = from; i <= to; i++) rangeNums.add(i);
+    } else {
+      textTerms.push(t.toLowerCase());
+    }
+  }
+  return { rangeNums, textTerms };
+}
+function filterMachines() {
+  const names = document.getElementById('searchName').value.split(/[\s,、]+/).filter(Boolean).map(s => s.toLowerCase());
+  const { rangeNums, textTerms } = parseNumTokens(document.getElementById('searchNum').value);
+  const hasNumFilter = rangeNums.size > 0 || textTerms.length > 0;
+  const filtered = allMachines.filter(m => {
+    if (names.length && !names.some(q => m.表示名.toLowerCase().includes(q))) return false;
+    if (hasNumFilter) {
+      if (rangeNums.size > 0 && rangeNums.has(m.台番)) return true;
+      if (textTerms.length > 0) return textTerms.some(t => String(m.台番).includes(t));
+      return false;
+    }
+    return true;
+  });
+  renderMachineList(filtered);
+}
+
+function toggleMachine(num) {
+  const idx = selectedOrder.indexOf(num);
+  if (idx >= 0) selectedOrder.splice(idx, 1);
+  else selectedOrder.push(num);
+  document.getElementById('selectedCount').textContent = selectedOrder.length;
+  renderSelectedList();
+  filterMachines();
+  generatePost();
+}
+
+function selectAll() {
+  const visibleItems = document.querySelectorAll('#machineList .machine-item');
+  const nums = [];
+  visibleItems.forEach(el => {
+    const onclick = el.getAttribute('onclick');
+    const m = onclick && onclick.match(/toggleMachine\((\d+)\)/);
+    if (m) nums.push(Number(m[1]));
+  });
+  nums.forEach(n => { if (!selectedOrder.includes(n)) selectedOrder.push(n); });
+  document.getElementById('selectedCount').textContent = selectedOrder.length;
+  renderSelectedList();
+  filterMachines();
+  generatePost();
+}
+
+function clearSelected() {
+  selectedOrder = [];
+  document.getElementById('selectedCount').textContent = 0;
+  renderSelectedList();
+  filterMachines();
+  generatePost();
+}
+
+function moveUp(num) {
+  const i = selectedOrder.indexOf(num);
+  if (i > 0) { [selectedOrder[i-1], selectedOrder[i]] = [selectedOrder[i], selectedOrder[i-1]]; renderSelectedList(); generatePost(); }
+}
+function moveDown(num) {
+  const i = selectedOrder.indexOf(num);
+  if (i < selectedOrder.length - 1) { [selectedOrder[i], selectedOrder[i+1]] = [selectedOrder[i+1], selectedOrder[i]]; renderSelectedList(); generatePost(); }
+}
+
+function renderSelectedList() {
+  const el = document.getElementById('selectedList');
+  if (!selectedOrder.length) { el.innerHTML = '<div class="empty-msg">台一覧から選択してください</div>'; return; }
+  const map = Object.fromEntries(allMachines.map(m => [m.台番, m]));
+  el.innerHTML = selectedOrder.map((num, i) => {
+    const m = map[num];
+    if (!m) return '';
+    const d = (m.差 * diffMult) || 0;
+    const diffStr = d > 0 ? `+${d.toLocaleString()}${currentUnit}` : `${d.toLocaleString()}${currentUnit}`;
+    const cls = d > 0 ? 'positive' : d < 0 ? 'negative' : 'zero';
+    return `<div class="selected-item">
+      <div class="order-btns">
+        <button class="order-btn" onclick="moveUp(${num})">▲</button>
+        <button class="order-btn" onclick="moveDown(${num})">▼</button>
+      </div>
+      <span class="sel-num">${num}</span>
+      <span class="sel-name">${m.表示名}</span>
+      <span class="sel-diff ${cls}">${diffStr}</span>
+      <span class="sel-remove" onclick="toggleMachine(${num})">✕</span>
+    </div>`;
+  }).join('');
+}
+
+// ===== 反転 =====
+function toggleInvert() {
+  diffMult = diffMult === 1 ? -1 : 1;
+  document.getElementById('invertBtn').textContent = diffMult === -1 ? 'ON' : 'OFF';
+  document.getElementById('invertBtn').style.background = diffMult === -1 ? '#1e2a3a' : 'none';
+  document.getElementById('invertBtn').style.color = diffMult === -1 ? 'white' : '';
+  filterMachines();
+  renderSelectedList();
+  generatePost();
+}
+
+// ===== ポスト生成 =====
+let postMode = 'all';
+function setPostMode(mode) {
+  postMode = mode;
+  document.getElementById('modeAll').classList.toggle('active', mode === 'all');
+  document.getElementById('modeGroup').classList.toggle('active', mode === 'group');
+  document.getElementById('modeRange').classList.toggle('active', mode === 'range');
+  generatePost();
+}
+
+function buildPostData(machines) {
+  const fmt = n => n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString();
+  const first = machines[0], last = machines[machines.length - 1];
+  const count = machines.length;
+  const wins = machines.filter(m => (m.差 * diffMult) > 0).length;
+  const winRate = Math.round(wins / count * 100);
+  const total = machines.reduce((s, m) => s + (m.差 * diffMult), 0);
+  const avg = Math.round(total / count);
+  const plusMachines = machines.filter(m => (m.差 * diffMult) > 0).sort((a, b) => (b.差 * diffMult) - (a.差 * diffMult));
+  const plusRows = [];
+  for (let i = 0; i < plusMachines.length; i += 2) {
+    const m1 = plusMachines[i], m2 = plusMachines[i+1];
+    plusRows.push(`💎${m1.台番}番${fmt(m1.差 * diffMult)}${currentUnit}` + (m2 ? `　💎${m2.台番}番${fmt(m2.差 * diffMult)}${currentUnit}` : ''));
+  }
+  const minusMachines = machines.filter(m => (m.差 * diffMult) < 0).sort((a, b) => (a.差 * diffMult) - (b.差 * diffMult));
+  const minusRows = [];
+  for (let i = 0; i < minusMachines.length; i += 2) {
+    const m1 = minusMachines[i], m2 = minusMachines[i+1];
+    minusRows.push(`🔻${m1.台番}番${fmt(m1.差 * diffMult)}${currentUnit}` + (m2 ? `　🔻${m2.台番}番${fmt(m2.差 * diffMult)}${currentUnit}` : ''));
+  }
+  return {
+    '{機種名始}': first.表示名, '{機種名終}': last.表示名, '{機種名}': first.表示名,
+    '{台番始}': String(first.台番), '{台番終}': String(last.台番),
+    '{台数}': `${count}台`, '{勝ち台数}': `${wins}台`, '{勝率}': `${winRate}%`,
+    '{合計差枚}': `${fmt(total)}${currentUnit}`, '{平均差枚}': `${fmt(avg)}${currentUnit}`,
+    '{プラス台リスト}': plusRows.join('\n'), '{マイナス台リスト}': minusRows.join('\n'),
+  };
+}
+
+function applyTemplate(template, data) {
+  let r = template;
+  for (const [k, v] of Object.entries(data)) r = r.replaceAll(k, v);
+  return r;
+}
+
+function generatePost() {
+  const map = Object.fromEntries(allMachines.map(m => [m.台番, m]));
+  const selected = selectedOrder.map(n => map[n]).filter(Boolean);
+  const template = document.getElementById('postTemplate').value;
+  const resultEl = document.getElementById('postResult');
+  if (!selected.length) { resultEl.value = ''; return; }
+  if (!template.trim()) return;
+  if (postMode === 'all') {
+    resultEl.value = applyTemplate(template, buildPostData(selected));
+  } else if (postMode === 'range') {
+    const groups = [];
+    let cur = [selected[0]];
+    for (let i = 1; i < selected.length; i++) {
+      if (selected[i].台番 === cur[cur.length-1].台番 + 1) cur.push(selected[i]);
+      else { groups.push(cur); cur = [selected[i]]; }
+    }
+    groups.push(cur);
+    resultEl.value = groups.map(g => applyTemplate(template, buildPostData(g))).join('\n\n');
+  } else {
+    const groups = [], seen = new Map();
+    for (const m of selected) {
+      if (!seen.has(m.表示名)) { seen.set(m.表示名, []); groups.push(seen.get(m.表示名)); }
+      seen.get(m.表示名).push(m);
+    }
+    resultEl.value = groups.map(g => applyTemplate(template, buildPostData(g))).join('\n\n');
+  }
+}
+
+function applyPreset(t) { document.getElementById('postTemplate').value = t; generatePost(); }
+function insertPlaceholder(tag) {
+  const ta = document.getElementById('postTemplate');
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + tag + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + tag.length;
+  ta.focus(); generatePost();
+}
+
+function copyPostResult() {
+  navigator.clipboard.writeText(document.getElementById('postResult').value);
+  const msg = document.getElementById('postCopyMsg');
+  msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 1500);
+}
+
+// ===== まとめ =====
+let collectCount = 0;
+function addToCollect() {
+  const val = document.getElementById('postResult').value.trim();
+  if (!val) return;
+  const area = document.getElementById('collectArea');
+  area.value = area.value ? area.value + '\n\n' + val : val;
+  collectCount++;
+  document.getElementById('collectCount').textContent = `${collectCount}件`;
+}
+function copyCollect() {
+  navigator.clipboard.writeText(document.getElementById('collectArea').value);
+  const msg = document.getElementById('collectCopyMsg');
+  msg.textContent = '✓ コピーしました'; msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 1500);
+}
+function clearCollect() {
+  document.getElementById('collectArea').value = '';
+  collectCount = 0;
+  document.getElementById('collectCount').textContent = '0件';
+}
+
+// ===== 定型文 =====
+let teikeiItems = JSON.parse(localStorage.getItem('postCreator_teikei') || '[]')
+  .map(t => typeof t === 'string' ? { title: '', text: t } : t);
+function saveTeikei() { localStorage.setItem('postCreator_teikei', JSON.stringify(teikeiItems)); }
+function teikeiAdd() {
+  const title = prompt('タイトルを入力してください（省略可）:') ?? '';
+  if (title === null) return;
+  const text = prompt('定型文を入力してください:');
+  if (!text || !text.trim()) return;
+  teikeiItems.push({ title: title.trim(), text: text.trim() });
+  saveTeikei(); renderTeikei();
+}
+function teikeiCopy(i) {
+  navigator.clipboard.writeText(teikeiItems[i].text);
+}
+function teikeiDelete(i) {
+  if (!confirm('削除しますか？')) return;
+  teikeiItems.splice(i, 1); saveTeikei(); renderTeikei();
+}
+function renderTeikei() {
+  const el = document.getElementById('teikeiList');
+  const empty = document.getElementById('teikeiEmpty');
+  if (!teikeiItems.length) { el.innerHTML = ''; el.appendChild(empty); empty.style.display = ''; return; }
+  if (empty) empty.style.display = 'none';
+  el.innerHTML = teikeiItems.map((t, i) => `
+    <div class="teikei-item">
+      <button onclick="teikeiCopy(${i})">コピー</button>
+      <div style="flex:1;min-width:0">
+        ${t.title ? `<div style="font-size:11px;font-weight:bold;color:#555;margin-bottom:2px">${t.title.replace(/</g,'&lt;')}</div>` : ''}
+        <span class="teikei-text">${t.text.replace(/</g,'&lt;')}</span>
+      </div>
+      <span class="teikei-del" onclick="teikeiDelete(${i})">✕</span>
+    </div>`).join('');
+}
+renderTeikei();
+</script>
+</body>
+</html>
