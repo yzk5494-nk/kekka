@@ -724,6 +724,7 @@
     <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
     <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')">🏪 店舗管理</button>
     <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')">🎰 機種管理</button>
+    <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()">🎫 パチンコ機種管理</button>
   </div>
 </header>
 
@@ -928,12 +929,21 @@
     <div class="basic-header" style="cursor:default;background:#c0527a;">
       🎰 <span id="cap-label-header">ジャグ系設置台数</span>
     </div>
-    <div style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;">
+    <div id="machine-rows-section" style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;">
       <div class="machine-table-header">
         <span>機種名</span><span style="text-align:center">台数</span><span></span>
       </div>
       <div id="machine-rows"></div>
       <button class="add-row-btn" onclick="addMachineRow()">＋ 機種を追加</button>
+    </div>
+    <div id="pachinko-total-section" style="display:none; padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;">
+      <div class="form-group">
+        <label>パチンコ設置台数</label>
+        <div style="display:flex; gap:6px;">
+          <input id="f-pachinko-total" placeholder="例：パチンコ／403台（4円・1円）" style="flex:1;">
+          <button type="button" id="pworld-total-btn" onclick="fetchPworldTotal()" style="white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;background:#1a5a1a;color:white;">🌐 p-worldから取得</button>
+        </div>
+      </div>
     </div>
 
     <!-- 生成ボタン -->
@@ -1004,7 +1014,7 @@
   <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px 16px; background:#f0f2f5; overflow-y:auto;">
     <div class="modal" style="position:static; width:100%; max-width:860px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
       <div class="modal-header">
-        <h3>🎰 機種画像 ＆ 表示名登録</h3>
+        <h3>🎰 機種画像 ＆ 表示名登録 <span id="machines-page-series-label" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
       </div>
       <div style="padding:8px 14px; background:#fffbe6; font-size:11px; color:#886600; border-bottom:1px solid #eee; flex-shrink:0;">
         ランキング生成時にRANK1の機種画像が自動でバナーに。表示名を設定すると機種名の表記ゆれを統一できます。
@@ -1386,21 +1396,33 @@ const SERIES_CONFIG = {
     tagKeywords: ['戦極', '一球入魂'],
     jugglerOnly: false,
     allowedMachines: [],
+    hideBigReg: true,
+    hideG: true,
+    unitLabel: '玉',
+    bodyUnit: '発',
+    adjMultiplier: 10,
+    dualBanner: true,
+    freeformCap: true,
     sheetKeyword: '一球入魂',
     machineEmoji: '⚾',
-    rankingTitle: '注目機種差玉ランキング',
+    rankingTitle: '店内差玉数ランキング',
     headerImgUrl: '/assets/ikkyunyukon-header.png',
-    capLabel: '取材対象機種設置台数',
+    capLabel: 'パチンコ設置台数',
     capColor: '#8c92a0', capBg: '#f5f6f8', capHeaderColor: '#8c92a0',
     defaultMachines: [],
-    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+    getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime }) {
       return {
-        b3:  '【戦極～一球入魂～】',
-        b4:  '',
-        b5:  '',
-        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b3:  '多くのご要望を頂きスタートした戦極系最新取材の【戦極～一球入魂～】',
+        b4:  'この企画は、【パチンコをこよなく愛し、一家言持つ精鋭編集部員】たちによる専門的調査取材ですっ📸',
+        b5:  '今回も全国津々浦々のパチンコファン注目ホールが参戦‼️\n\n各地で熱戦を繰り広げていますっっ⚔️',
+        b8:  '',
+        b9:  '',
+        b10: 'この日の店内差玉ランキングをご覧ください✋',
+        b11: `この日のトップ出玉は【${t1n}・${t1num}番台】の【${t1d}】👑`,
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
-        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜一球入魂〜開催時はかなり期待できそうです！',
+        b14: isFirstTime
+          ? '初回からして大変な盛り上がりを見せてくれた【戦極〜一球入魂〜】でした！'
+          : '次回の【戦極〜一球入魂〜】もお楽しみに‼️',
       };
     },
   },
@@ -1436,6 +1458,14 @@ function onSeriesChange(val) {
     capHeaderEl.closest('.basic-header').style.background = cfg.capHeaderColor;
   }
 
+  // 設置台数：機種別テーブル or 自由入力（パチンコ用）の切り替え
+  const rowsSection  = document.getElementById('machine-rows-section');
+  const totalSection = document.getElementById('pachinko-total-section');
+  if (rowsSection && totalSection) {
+    rowsSection.style.display  = cfg.freeformCap ? 'none' : '';
+    totalSection.style.display = cfg.freeformCap ? '' : 'none';
+  }
+
   // 機種一覧をシリーズのデフォルトにリセット
   const machineRows = document.getElementById('machine-rows');
   if (machineRows) {
@@ -1446,7 +1476,7 @@ function onSeriesChange(val) {
   // シリーズ依存テキストエリアを直接更新
   try {
     const texts = getTemplateTexts();
-    ['b3', 'b4', 'b5', 'b8', 'b13', 'b14'].forEach(key => {
+    ['b3', 'b4', 'b5', 'b8', 'b9', 'b10', 'b11', 'b13', 'b14'].forEach(key => {
       const el = document.getElementById(`input-${key}`);
       if (el) el.value = texts[key] || '';
     });
@@ -1533,12 +1563,13 @@ function getTemplateTexts() {
     : '';
   const cnt      = machines.length;
 
+  const adjMul = SERIES_CONFIG[currentSeries]?.adjMultiplier || 1;
   const n1 = parseInt((t1d||'').replace(/[^0-9]/g,''))||0;
-  const adj1 = n1>=3500?'驚異的な':n1>=2500?'素晴らしい':n1>=2000?'立派な':'堅実な';
+  const adj1 = n1>=3500*adjMul?'驚異的な':n1>=2500*adjMul?'素晴らしい':n1>=2000*adjMul?'立派な':'堅実な';
   const n2 = parseInt((t2d||'').replace(/[^0-9]/g,''))||0;
-  const adj2 = n2>=3500?'驚異的な':n2>=2500?'素晴らしい':n2>=2000?'立派な':'堅実な';
+  const adj2 = n2>=3500*adjMul?'驚異的な':n2>=2500*adjMul?'素晴らしい':n2>=2000*adjMul?'立派な':'堅実な';
 
-  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 });
+  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime });
 
   return {
     b1:  `皆さんこんにちわっ😊必勝本編集部・新人編集のマモルです❗️`,
@@ -1549,9 +1580,9 @@ function getTemplateTexts() {
     b6:  `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
     b7:  `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
-    b9:  `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
-    b10: `それでは、差枚ランキングをご覧ください✋`,
-    b11: `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`,
+    b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
+    b10: seriesTexts.b10 || `それでは、差枚ランキングをご覧ください✋`,
+    b11: seriesTexts.b11 || `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`,
     b12: `また、2位には【${t2n}・${t2num}番台】の${t2d}、そして3位${t3n===t2n?'にも':'には'}【${t3n}・${t3num}番台】の${t3d}がランクインですっ❗️`,
     b13: seriesTexts.b13,
     b14: seriesTexts.b14,
@@ -1851,6 +1882,32 @@ async function fetchPworldFromStore() {
   }
 }
 
+async function fetchPworldTotal() {
+  const pageUrl = document.getElementById('f-pworld-url').value.trim();
+  if (!pageUrl) { showToast('p-world URLが設定されていません'); return; }
+  const btn = document.getElementById('pworld-total-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 取得中…'; }
+  showToast('⏳ p-worldから設置台数を取得中…');
+  try {
+    const res = await fetch('/api/scrape-pworld-total', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('❌ ' + (data.error || '取得失敗')); return; }
+    if (!data.pachinkoTotal) { showToast('パチンコ設置台数が見つかりませんでした'); return; }
+    const denomStr = data.denominations && data.denominations.length ? `（${data.denominations.join('・')}）` : '';
+    document.getElementById('f-pachinko-total').value = `パチンコ／${data.pachinkoTotal}台${denomStr}`;
+    initPreview();
+    showToast('✅ 設置台数を取得しました');
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🌐 p-worldから取得'; }
+  }
+}
+
 async function scrapePworld() {
   const pageUrl = document.getElementById('pworld-url').value.trim();
   if (!pageUrl) { showToast('p-worldのURLを入力してください'); return; }
@@ -1934,7 +1991,9 @@ function generate() {
 
   // 機種リスト（cap-block）
   const _mEmoji = SERIES_CONFIG[currentSeries].machineEmoji || '🤡';
-  const machineListWP = machines.map(m => `${_mEmoji}${m.name}👉${m.count}台`).join('<br>');
+  const machineListWP = SERIES_CONFIG[currentSeries].freeformCap
+    ? v('f-pachinko-total')
+    : machines.map(m => `${_mEmoji}${m.name}👉${m.count}台`).join('<br>');
 
   // 締め文 WP用（プレビュー編集内容をSWELLクラスに変換）
   const paraWP = bHtml('para')
@@ -1992,9 +2051,11 @@ function initPreview() {
 // プレビュー描画
 // ============================================================
 function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, bText }) {
-  const machListPrev = machines.map(m =>
-    `${SERIES_CONFIG[currentSeries].machineEmoji || '🤡'}<strong>${m.name}</strong>👉${m.count}台`
-  ).join('<br>');
+  const machListPrev = SERIES_CONFIG[currentSeries].freeformCap
+    ? v('f-pachinko-total')
+    : machines.map(m =>
+        `${SERIES_CONFIG[currentSeries].machineEmoji || '🤡'}<strong>${m.name}</strong>👉${m.count}台`
+      ).join('<br>');
 
   function bHtmlPrev(key) {
     return (bText(key) || '').replace(/\n/g, '<br>');
@@ -2793,6 +2854,8 @@ async function generateRankingImage() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
   if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
+  if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
+  const unit     = SERIES_CONFIG[currentSeries]?.unitLabel || '枚';
   const title    = SERIES_CONFIG[currentSeries].rankingTitle || document.getElementById('img-title').value || 'ジャグ系機種／差枚ランキング';
   const subtitle = document.getElementById('img-subtitle').value || '';
   const count    = parseInt(document.getElementById('rank-count').value) || 30;
@@ -2804,9 +2867,12 @@ async function generateRankingImage() {
   const TOTAL_W   = W + OUTER_PAD * 2;
   const SUB_H     = subtitle ? 28 : 0;
   const rank1Name    = machines[0]?.機種名;
+  const rank2Name    = machines[1]?.機種名;
   const autoBannerUrl = rank1Name && libraryImages[rank1Name]?.url;
+  const rank2BannerUrl = rank2Name && libraryImages[rank2Name]?.url;
   const effectiveBanner = bannerDataUrl || autoBannerUrl || null;
-  const BANNER_H = effectiveBanner ? 320 : 0;
+  const isDualBanner = SERIES_CONFIG[currentSeries]?.dualBanner && !bannerDataUrl && autoBannerUrl && rank2BannerUrl;
+  const BANNER_H = (isDualBanner || effectiveBanner) ? 320 : 0;
   const THEAD_H  = 34;
   const ROW_H    = 40;
 
@@ -2916,7 +2982,18 @@ async function generateRankingImage() {
 
   // ─── バナー画像（translateの外・タイトル直下に描画） ───
   let bannerEndY = TITLE_H;
-  if (effectiveBanner) {
+  if (isDualBanner) {
+    const halfW = TOTAL_W / 2;
+    await Promise.all([autoBannerUrl, rank2BannerUrl].map((src, i) => new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { ctx.drawImage(img, i * halfW, TITLE_H, halfW, BANNER_H); resolve(); };
+      img.onerror = () => resolve();
+      img.src = src;
+    })));
+    bannerEndY = TITLE_H + BANNER_H;
+    showToast(`RANK1「${rank1Name}」・RANK2「${rank2Name}」の画像をバナーに自動設定しました`);
+  } else if (effectiveBanner) {
     await new Promise(resolve => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -2952,10 +3029,10 @@ async function generateRankingImage() {
   ctx.font = `bold 13px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差','差枚数']]
-   : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差','差枚数']]
-   : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差','差枚数']]
-   :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差','差枚数']]
+  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
+   : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
+   : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
+   :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]]
   ).forEach(([k, label]) => {
     ctx.fillStyle = brownGrad(y + CP, y + THEAD_H - CP);
     ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
@@ -3027,7 +3104,7 @@ async function generateRankingImage() {
     const diff = m.差;
     ctx.fillStyle = '#111111';
     ctx.font = `bold 16px ${font}`;
-    ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + '枚', cx('差'), ry + ROW_H / 2);
+    ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
   ctx.restore(); // translateを解除
@@ -3072,7 +3149,8 @@ async function generateRankingImage() {
   }
 
   // TOP3自動入力
-  function fmtDiff(d) { return (d >= 0 ? '+' : '') + d.toLocaleString() + '枚'; }
+  const bodyUnit = SERIES_CONFIG[currentSeries]?.bodyUnit || '枚';
+  function fmtDiff(d) { return (d >= 0 ? '+' : '') + d.toLocaleString() + bodyUnit; }
   if (machines[0]) { document.getElementById('f-top1-name').value = displayName(machines[0].機種名); document.getElementById('f-top1-num').value = machines[0].台番; document.getElementById('f-top1-diff').value = fmtDiff(machines[0].差); }
   if (machines[1]) { document.getElementById('f-top2-name').value = displayName(machines[1].機種名); document.getElementById('f-top2-num').value = machines[1].台番; document.getElementById('f-top2-diff').value = fmtDiff(machines[1].差); }
   if (machines[2]) { document.getElementById('f-top3-name').value = displayName(machines[2].機種名); document.getElementById('f-top3-num').value = machines[2].台番; document.getElementById('f-top3-diff').value = fmtDiff(machines[2].差); }
@@ -3857,9 +3935,19 @@ function switchPage(name) {
   });
   if (name === 'stores') renderStoreGrid();
   if (name === 'machines') {
+    const label = document.getElementById('machines-page-series-label');
+    if (label) label.textContent = `（${SERIES_CONFIG[currentSeries]?.name || ''}）`;
     try { renderMachineImgList(); } catch(e) { console.error('renderMachineImgList error:', e); }
     try { renderMachineFromData(); } catch(e) { console.error('renderMachineFromData error:', e); }
   }
+}
+
+// パチンコ（一球入魂）の機種管理へショートカット：シリーズをikkyunyukonに切り替えてから機種管理を開く
+function openPachinkoMachines() {
+  const sel = document.getElementById('series-select');
+  if (sel) sel.value = 'ikkyunyukon';
+  onSeriesChange('ikkyunyukon');
+  switchPage('machines');
 }
 
 // ============================================================

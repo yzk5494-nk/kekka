@@ -473,9 +473,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && parsed.pathname === '/assets/ikkyunyukon-header.png') {
-      const filePath = path.join(__dirname, '一球入魂ヘッダー.png');
+      const filePath = path.join(__dirname, '店内差玉数ランキング.jpg');
       if (fs.existsSync(filePath)) {
-        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.writeHead(200, { 'Content-Type': 'image/jpeg' });
         return res.end(fs.readFileSync(filePath));
       }
       res.writeHead(404); return res.end('Not found');
@@ -678,6 +678,66 @@ const server = http.createServer(async (req, res) => {
         return sendJson(200, { machines });
       } catch(e) {
         console.error('[pworld] error:', e.message);
+        return sendJson(500, { error: e.message });
+      } finally {
+        if (browser) await browser.close();
+      }
+    }
+
+    // ── p-world 設置台数合計（パチンコ／スロット・遊技料金）スクレイピング ──
+    if (req.method === 'POST' && parsed.pathname === '/api/scrape-pworld-total') {
+      const buf = await collectBody(req);
+      const { pageUrl } = JSON.parse(buf.toString('utf8'));
+      if (!pageUrl || !pageUrl.includes('p-world.co.jp')) {
+        return sendJson(400, { error: 'p-worldのURLを入力してください' });
+      }
+
+      let browser;
+      try {
+        const launchOpts = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+        if (process.platform === 'win32') launchOpts.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        browser = await puppeteer.launch(launchOpts);
+        const page = await browser.newPage();
+        await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        const info = await page.evaluate(() => {
+          const findValueCell = (label) => {
+            const td = [...document.querySelectorAll('td')].find(t => t.textContent.trim().replace(/\s|　/g, '') === label);
+            return td ? td.nextElementSibling : null;
+          };
+
+          let pachinkoTotal = null, slotTotal = null;
+          const taisuCell = findValueCell('台数');
+          if (taisuCell) {
+            const text = taisuCell.textContent;
+            const mP = text.match(/パチンコ\s*([0-9,]+)\s*台/);
+            const mS = text.match(/スロット\s*([0-9,]+)\s*台/);
+            if (mP) pachinkoTotal = parseInt(mP[1].replace(/,/g, ''), 10);
+            if (mS) slotTotal = parseInt(mS[1].replace(/,/g, ''), 10);
+          }
+
+          let denominations = [];
+          const feeCell = findValueCell('遊技料金');
+          if (feeCell) {
+            const text = feeCell.textContent;
+            const pMatch = text.match(/パチンコ[：:]?\s*((?:\[[^\]]+\]\s*)+)/);
+            if (pMatch) {
+              const nums = [...pMatch[1].matchAll(/1000円\/([0-9,]+)玉/g)].map(m => parseInt(m[1].replace(/,/g, ''), 10));
+              const candidates = [4, 2.5, 1];
+              denominations = [...new Set(nums.map(n => {
+                const rate = 1000 / n;
+                return candidates.reduce((a, b) => Math.abs(b - rate) < Math.abs(a - rate) ? b : a);
+              }))].sort((a, b) => b - a).map(r => `${r}円`);
+            }
+          }
+
+          return { pachinkoTotal, slotTotal, denominations };
+        });
+
+        console.log('[pworld-total] 取得結果:', info);
+        return sendJson(200, info);
+      } catch(e) {
+        console.error('[pworld-total] error:', e.message);
         return sendJson(500, { error: e.message });
       } finally {
         if (browser) await browser.close();
