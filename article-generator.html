@@ -1247,7 +1247,7 @@ const SERIES_CONFIG = {
     jugglerOnly: true,
     sheetKeyword: '電光石火',
     rankingTitle: 'ジャグ系機種／差枚ランキング',
-    headerImgUrl: '/assets/jag-header.jpg',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/jag-headerjpg.jpg',
     capLabel: 'ジャグ系設置台数',
     capColor: '#daa520',
     capBg:    '#fffdf0',
@@ -1270,8 +1270,8 @@ const SERIES_CONFIG = {
   },
   ifudodo: {
     name: '戦極～威風堂々～',
-    eventImgId:  null,
-    eventImgUrl: '/assets/ifudodo.jpg',
+    eventImgId:  510860,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/ifudodojpg.jpg',
     tagKeywords: ['戦極', '威風堂々'],
     jugglerOnly: false,
     allowedMachines: ['北斗の拳', '北斗転生', '化物語', 'カバネリ'],
@@ -1279,7 +1279,7 @@ const SERIES_CONFIG = {
     sheetKeyword: '威風堂々',
     machineEmoji: '👽',
     rankingTitle: 'サミー系機種／差枚ランキング',
-    headerImgUrl: '/assets/samy-header.jpg',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/samy-headerjpg.jpg',
     capLabel: 'サミー系機種設置台数',
     capColor: '#1a6fa8',
     capBg:    '#f0f7ff',
@@ -1303,15 +1303,15 @@ const SERIES_CONFIG = {
   },
   shishifunjin: {
     name: '戦極～獅子奮迅～',
-    eventImgId:  null,
-    eventImgUrl: '/assets/shishifunjin.jpg',
+    eventImgId:  510862,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/shishifunjinjpg.jpg',
     tagKeywords: ['戦極', '獅子奮迅'],
     jugglerOnly: false,
     allowedMachines: ['ヴァルヴレイヴ', 'かぐや様', 'からくりサーカス', '炎炎ノ消防隊'],
     sheetKeyword: '獅子奮迅',
     machineEmoji: '🦁',
     rankingTitle: 'SANKYO系機種／差枚ランキング',
-    headerImgUrl: '/assets/sankyo-header.jpg',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/sankyo-headerjpg.jpg',
     capLabel: '取材対象機種設置台数',
     capColor: '#2e8b57', capBg: '#f0fff4', capHeaderColor: '#2e8b57',
     defaultMachines: [
@@ -1334,8 +1334,8 @@ const SERIES_CONFIG = {
   },
   tokyoghoul: {
     name: '戦極～東京喰種～',
-    eventImgId:  null,
-    eventImgUrl: '/assets/tokyoghoul.png',
+    eventImgId:  510858,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tokyoghoul.jpg',
     tagKeywords: ['戦極', '東京喰種'],
     jugglerOnly: false,
     allowedMachines: ['東京喰種'],
@@ -1343,7 +1343,7 @@ const SERIES_CONFIG = {
     sheetKeyword: '東京喰種',
     machineEmoji: '👺',
     rankingTitle: 'スマスロ東京喰種',
-    headerImgUrl: '/assets/tokyoghoul-header.png',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tokyoghoul-header.png',
     capLabel: '取材対象機種設置台数',
     capColor: '#c0392b', capBg: '#fff5f5', capHeaderColor: '#c0392b',
     defaultMachines: [
@@ -1366,15 +1366,15 @@ const SERIES_CONFIG = {
   },
   hyakkaryoran: {
     name: '戦極～百花繚乱～',
-    eventImgId:  null,
-    eventImgUrl: '/assets/hyakkaryoran.png',
+    eventImgId:  510864,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/hyakkaryoran.jpg',
     tagKeywords: ['戦極', '百花繚乱'],
     jugglerOnly: false,
     allowedMachines: ['キングハナハナ', 'ハナハナホウオウ', 'ドラゴンハナハナ'],
     sheetKeyword: '百花繚乱',
     machineEmoji: '🌺',
     rankingTitle: 'ハナ系機種／差枚ランキング',
-    headerImgUrl: '/assets/hyakkaryoran-header.png',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/hyakkaryoran-header.png',
     capLabel: '取材対象機種設置台数',
     capColor: '#d6336c', capBg: '#fff0f5', capHeaderColor: '#d6336c',
     defaultMachines: [
@@ -1411,7 +1411,7 @@ const SERIES_CONFIG = {
     sheetKeyword: '一球入魂',
     machineEmoji: '⚾',
     rankingTitle: '店内差玉数ランキング',
-    headerImgUrl: '/assets/ikkyunyukon-header.png',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/ikkyunyukon-headerjpg.jpg',
     capLabel: 'パチンコ設置台数',
     capColor: '#8c92a0', capBg: '#f5f6f8', capHeaderColor: '#8c92a0',
     defaultMachines: [],
@@ -2891,7 +2891,7 @@ async function generateRankingImage() {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = SERIES_CONFIG[currentSeries].headerImgUrl || '/assets/jag-header.jpg';
+    img.src = SERIES_CONFIG[currentSeries].headerImgUrl || 'https://hisshobon-hall.info/wp-content/uploads/jag-headerjpg.jpg';
   });
   const TITLE_H = jagHeaderImg ? Math.round(W * jagHeaderImg.naturalHeight / jagHeaderImg.naturalWidth) : 52;
 
