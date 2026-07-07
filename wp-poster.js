@@ -310,6 +310,17 @@ const server = http.createServer(async (req, res) => {
       return res.end(content);
     }
 
+    // ── 画像プロキシ（外部画像をCanvasに描画してもCORSで汚染されないように同一オリジン経由で配信）──
+    if (req.method === 'GET' && parsed.pathname === '/api/proxy-image') {
+      const target = parsed.query.url;
+      if (!target || !/^https?:\/\//.test(target)) { res.writeHead(400); return res.end('Bad url'); }
+      https.get(target, upstream => {
+        res.writeHead(upstream.statusCode, { 'Content-Type': upstream.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+        upstream.pipe(res);
+      }).on('error', () => { res.writeHead(502); res.end('Proxy error'); });
+      return;
+    }
+
     // ── 静的ファイル（library-data.json） ────────────────────────────
     if (req.method === 'GET' && parsed.pathname === '/library-data.json') {
       const filePath = path.join(__dirname, 'library-data.json');
