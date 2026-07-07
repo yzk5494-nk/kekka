@@ -1348,14 +1348,18 @@ const SERIES_CONFIG = {
     defaultMachines: [
       { name:'スマスロ東京喰種', count:0 },
     ],
-    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, plusCount, achieved10000 }) {
       return {
         b3:  '【戦極～東京喰種～】',
         b4:  '',
-        b5:  '',
+        b5:  plusCount !== null ? `${total}台中${plusCount}台がプラスという結果にっ👀` : '',
         b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
-        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
-        b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜東京喰種〜開催時はかなり期待できそうです！',
+        b13: achieved10000
+          ? `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲見事万枚オーバー達成ですっ‼️\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`
+          : `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: achieved10000
+          ? '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜東京喰種〜開催時はかなり期待できそうです！'
+          : '今回も惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍\n次回のリベンジにも期待したいですね！',
       };
     },
   },
@@ -1569,7 +1573,11 @@ function getTemplateTexts() {
   const n2 = parseInt((t2d||'').replace(/[^0-9]/g,''))||0;
   const adj2 = n2>=3500*adjMul?'驚異的な':n2>=2500*adjMul?'素晴らしい':n2>=2000*adjMul?'立派な':'堅実な';
 
-  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime });
+  const plusCount = allMachineData.length ? allMachineData.filter(m => m.差 > 0).length : null;
+  const maxDiff = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
+  const achieved10000 = maxDiff >= 10000;
+
+  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime, plusCount, achieved10000 });
 
   return {
     b1:  `皆さんこんにちわっ😊必勝本編集部・新人編集のマモルです❗️`,
