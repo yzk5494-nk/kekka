@@ -1664,10 +1664,13 @@ async function generateWithAI() {
     } catch {}
 
     const eventName = SERIES_CONFIG[currentSeries]?.name || '戦極～電光石火～';
+    const plusCount = allMachineData.length ? allMachineData.filter(m => m.差 > 0).length : null;
+    const maxDiffAI = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
+    const achieved10000 = maxDiffAI >= 10000;
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000 }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
