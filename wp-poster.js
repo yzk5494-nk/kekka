@@ -1228,19 +1228,24 @@ JSONのみを返してください（説明文・コードブロック不要）:
 
     if (req.method === 'GET' && parsed.pathname === '/api/store-memory') {
       const hall = parsed.searchParams.get('hall') || '';
+      const series = parsed.searchParams.get('series') || 'denkoisseki';
       const memory = readStoreMemory();
-      const past = (memory[hall] || []).slice(0, 3);
+      const bucket = memory[hall];
+      // シリーズ別に記憶していない旧形式（配列）は他シリーズの文章が混ざる原因になるため参照しない
+      const past = (bucket && !Array.isArray(bucket) ? bucket[series] : null) || [];
       const prevTop1 = past.length > 0 ? (past[0].top1 || '') : '';
-      return sendJson(200, { past, prevTop1 });
+      return sendJson(200, { past: past.slice(0, 3), prevTop1 });
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/store-memory') {
       const buf = await collectBody(req);
-      const { hall, date, texts, top1 } = JSON.parse(buf.toString('utf8'));
+      const { hall, series, date, texts, top1 } = JSON.parse(buf.toString('utf8'));
+      const seriesKey = series || 'denkoisseki';
       const memory = readStoreMemory();
-      if (!memory[hall]) memory[hall] = [];
-      memory[hall].unshift({ date, texts, top1: top1 || '' });
-      if (memory[hall].length > 3) memory[hall] = memory[hall].slice(0, 3);
+      if (!memory[hall] || Array.isArray(memory[hall])) memory[hall] = {};
+      if (!memory[hall][seriesKey]) memory[hall][seriesKey] = [];
+      memory[hall][seriesKey].unshift({ date, texts, top1: top1 || '' });
+      if (memory[hall][seriesKey].length > 3) memory[hall][seriesKey] = memory[hall][seriesKey].slice(0, 3);
       writeStoreMemory(memory);
       return sendJson(200, { ok: true });
     }

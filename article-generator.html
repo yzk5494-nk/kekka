@@ -1659,7 +1659,7 @@ async function generateWithAI() {
     // この店舗の過去記事を取得
     let pastArticles = [];
     try {
-      const memRes = await fetch(`/api/store-memory?hall=${encodeURIComponent(hall)}`);
+      const memRes = await fetch(`/api/store-memory?hall=${encodeURIComponent(hall)}&series=${encodeURIComponent(currentSeries)}`);
       if (memRes.ok) { const memData = await memRes.json(); pastArticles = memData.past || []; }
     } catch {}
 
@@ -1689,7 +1689,7 @@ async function generateWithAI() {
     fetch('/api/store-memory', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hall, date: dateStr, texts: { b3: data.b3, b5: data.b5, b6: data.b6, b13: data.b13, b14: data.b14, b15: data.b15 }, top1: t1n }),
+      body: JSON.stringify({ hall, series: currentSeries, date: dateStr, texts: { b3: data.b3, b5: data.b5, b6: data.b6, b13: data.b13, b14: data.b14, b15: data.b15 }, top1: t1n }),
     }).catch(() => {});
 
     showToast('🤖 AI文章を生成しました！');
