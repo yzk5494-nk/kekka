@@ -819,7 +819,7 @@ const server = http.createServer(async (req, res) => {
             if (!name?.includes('ジャグ')) return;
 
             const category = machineCategory.get(a) || '';
-            if (category.includes('178') || category.includes('160') || category.includes('188') || category.includes('2.5') || category.includes('２.５') || category.includes('5.495') || category.includes('５.４９５') || category.includes('[5]') || category.includes('[５]')) return;
+            if (category.includes('178') || category.includes('160') || category.includes('188') || category.includes('184') || category.includes('2.5') || category.includes('２.５') || category.includes('5.495') || category.includes('５.４９５') || category.includes('[5]') || category.includes('[５]')) return;
 
             const li = a.closest('li');
             const liText = li?.innerText || '';
