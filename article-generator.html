@@ -1666,7 +1666,9 @@ async function generateWithAI() {
     const eventName = SERIES_CONFIG[currentSeries]?.name || '戦極～電光石火～';
     const plusCount = allMachineData.length ? allMachineData.filter(m => m.差 > 0).length : null;
     const maxDiffAI = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
-    const achieved10000 = maxDiffAI >= 10000;
+    // 万枚オーバーはスマスロ系（東京喰種等）だけで現実的な基準。ジャグラー系では起こり得ないため対象シリーズのみ送る
+    const milestoneRelevant = currentSeries === 'tokyoghoul';
+    const achieved10000 = milestoneRelevant ? (maxDiffAI >= 10000) : null;
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
