@@ -11,8 +11,21 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'wp-config.json')
 const WP_URL = config.url;
 const AUTH = Buffer.from(`${config.username}:${config.password}`).toString('base64');
 
+// Railwayの永続ボリュームがマウントされていればそちらにデータを保存する（デプロイをまたいでも消えないように）
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+// ボリューム初回起動時、Gitにコミットされている既存データをシードとしてコピーしておく
+function seedIfMissing(relPath) {
+  if (DATA_DIR === __dirname) return;
+  const dest = path.join(DATA_DIR, relPath);
+  const src = path.join(__dirname, relPath);
+  if (fs.existsSync(dest) || !fs.existsSync(src)) return;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+}
+['x-library.json', 'store-memory.json', 'article-data/library.json', 'pickup-data/library.json'].forEach(seedIfMissing);
+
 // Xポストライブラリ
-const X_LIBRARY_FILE = path.join(__dirname, 'x-library.json');
+const X_LIBRARY_FILE = path.join(DATA_DIR, 'x-library.json');
 function readXLibrary() {
   try { return JSON.parse(fs.readFileSync(X_LIBRARY_FILE, 'utf8')); }
   catch { return { posts: [], lastFetched: {} }; }
@@ -93,7 +106,7 @@ setTimeout(syncXLibrary, 5000);
 setInterval(syncXLibrary, 60 * 60 * 1000);
 
 // 店舗記憶ファイル
-const STORE_MEMORY_FILE = path.join(__dirname, 'store-memory.json');
+const STORE_MEMORY_FILE = path.join(DATA_DIR, 'store-memory.json');
 function readStoreMemory() {
   try { return JSON.parse(fs.readFileSync(STORE_MEMORY_FILE, 'utf8')); } catch { return {}; }
 }
@@ -516,7 +529,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── 記事ジェネレーター用ライブラリ（article-data/library.json）──
     if (req.method === 'GET' && parsed.pathname === '/api/article-library') {
-      const libPath = path.join(__dirname, 'article-data', 'library.json');
+      const libPath = path.join(DATA_DIR, 'article-data', 'library.json');
       if (fs.existsSync(libPath)) {
         const data = fs.readFileSync(libPath, 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -527,14 +540,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && parsed.pathname === '/api/article-library') {
       const buf = await collectBody(req);
-      const libPath = path.join(__dirname, 'article-data', 'library.json');
+      const libPath = path.join(DATA_DIR, 'article-data', 'library.json');
+      fs.mkdirSync(path.dirname(libPath), { recursive: true });
       fs.writeFileSync(libPath, buf.toString('utf8'), 'utf8');
       return sendJson(200, { ok: true });
     }
 
     // ── 優秀台ピックアップ用ライブラリ（pickup-data/library.json）──
     if (req.method === 'GET' && parsed.pathname === '/api/pickup-library') {
-      const libPath = path.join(__dirname, 'pickup-data', 'library.json');
+      const libPath = path.join(DATA_DIR, 'pickup-data', 'library.json');
       if (fs.existsSync(libPath)) {
         const data = fs.readFileSync(libPath, 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -545,7 +559,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && parsed.pathname === '/api/pickup-library') {
       const buf = await collectBody(req);
-      const libPath = path.join(__dirname, 'pickup-data', 'library.json');
+      const libPath = path.join(DATA_DIR, 'pickup-data', 'library.json');
+      fs.mkdirSync(path.dirname(libPath), { recursive: true });
       fs.writeFileSync(libPath, buf.toString('utf8'), 'utf8');
       return sendJson(200, { ok: true });
     }
