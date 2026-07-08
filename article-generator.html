@@ -1490,6 +1490,10 @@ function onSeriesChange(val) {
   renderMachineImgList();
   updateB13AiButton();
   initPreview();
+
+  // シリーズ切替時、既に入力済みの店舗名があれば「前回最多機種」をこのシリーズの履歴で再取得
+  const hallVal = v('f-hall');
+  if (hallVal) applyPrevTop1(hallVal);
 }
 
 function updateB13AiButton() {
@@ -3139,10 +3143,11 @@ async function generateRankingImage() {
   document.getElementById('img-preview-area').style.display = 'block';
   document.getElementById('img-upload-wp-btn').disabled = false;
 
-  // 今回のTOP1機種名を店舗名キーで保存（次回起動時に「前回最多機種」へ自動反映）
+  // 今回のTOP1機種名を店舗名+シリーズキーで保存（次回起動時に「前回最多機種」へ自動反映）
   const hallName = v('f-hall');
   if (hallName && machines[0]) {
-    prevTop1Data[hallName] = displayName(machines[0].機種名);
+    if (!prevTop1Data[hallName] || typeof prevTop1Data[hallName] !== 'object') prevTop1Data[hallName] = {};
+    prevTop1Data[hallName][currentSeries] = displayName(machines[0].機種名);
     saveLibrary();
   }
 
@@ -3450,23 +3455,25 @@ function toggleFirstTime() {
 
 async function applyPrevTop1(hallName) {
   const field = document.getElementById('f-prev-machine');
-  // まずローカルキャッシュを確認
-  const local = prevTop1Data[hallName];
+  // まずローカルキャッシュを確認（店舗名+シリーズ単位）
+  const bucket = prevTop1Data[hallName];
+  const local = bucket && typeof bucket === 'object' ? bucket[currentSeries] : null;
   if (local) { field.value = local; return; }
-  // なければstore-memoryから取得
+  // なければstore-memoryから取得（現在のシリーズを指定）
   try {
-    const res = await fetch(`/api/store-memory?hall=${encodeURIComponent(hallName)}`);
+    const res = await fetch(`/api/store-memory?hall=${encodeURIComponent(hallName)}&series=${encodeURIComponent(currentSeries)}`);
     if (res.ok) {
       const d = await res.json();
       if (d.prevTop1) {
         field.value = d.prevTop1;
-        prevTop1Data[hallName] = d.prevTop1;
+        if (!prevTop1Data[hallName] || typeof prevTop1Data[hallName] !== 'object') prevTop1Data[hallName] = {};
+        prevTop1Data[hallName][currentSeries] = d.prevTop1;
         return;
       }
     }
   } catch {}
-  // 履歴なし → 初開催ボタンで設定した値をクリア
-  if (field.value === '初開催') field.value = '';
+  // 履歴なし → 前回値をクリア（初開催ボタンで設定した値含む）
+  field.value = '';
 }
 
 function openMachineImgModal() {
@@ -3753,6 +3760,12 @@ async function loadStores() {
     const data = await res.json();
     storeData = data.stores || {};
     prevTop1Data = data.prevTop1 || {};
+    // 旧フォーマット（店舗名→機種名の文字列）→ denkoisseki のシリーズ別データへ移行
+    Object.keys(prevTop1Data).forEach(hall => {
+      if (typeof prevTop1Data[hall] === 'string') {
+        prevTop1Data[hall] = { denkoisseki: prevTop1Data[hall] };
+      }
+    });
     const rawImages = data.images || {};
     // 旧フォーマット（フラット）→ denkoisseki へ移行
     if (!rawImages.denkoisseki && !rawImages.ifudodo) {
