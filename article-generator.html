@@ -1354,7 +1354,7 @@ const SERIES_CONFIG = {
         b3:  '【戦極～東京喰種～】',
         b4:  '',
         b5:  plusCount !== null ? `${total}台中${plusCount}台がプラスという結果にっ👀` : '',
-        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b8:  `スマスロ東京喰種の設置台数はご覧の通りとなっています🔎`,
         b13: achieved10000
           ? `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲見事万枚オーバー達成ですっ‼️\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`
           : `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
@@ -1590,13 +1590,15 @@ function getTemplateTexts() {
     b3:  seriesTexts.b3,
     b4:  seriesTexts.b4,
     b5:  seriesTexts.b5,
-    b6:  `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
-    b7:  `それではまず、設置機種を確認していきましょう📷`,
+    b6:  currentSeries === 'tokyoghoul' ? '' : `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
+    b7:  currentSeries === 'tokyoghoul' ? `それではまず、取材対象機種の確認からいきましょう📹` : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
     b10: seriesTexts.b10 || `それでは、差枚ランキングをご覧ください✋`,
-    b11: seriesTexts.b11 || `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`,
-    b12: `また、2位には【${t2n}・${t2num}番台】の${t2d}、そして3位${t3n===t2n?'にも':'には'}【${t3n}・${t3num}番台】の${t3d}がランクインですっ❗️`,
+    b11: seriesTexts.b11 || (currentSeries === 'tokyoghoul' ? `この日のトップ差枚は【${t1num}番台】で${t1d}👍` : `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`),
+    b12: currentSeries === 'tokyoghoul'
+      ? `また、2位には【${t2num}番台】の${t2d}、そして3位には【${t3num}番台】の${t3d}がランクインですっ❗️`
+      : `また、2位には【${t2n}・${t2num}番台】の${t2d}、そして3位${t3n===t2n?'にも':'には'}【${t3n}・${t3num}番台】の${t3d}がランクインですっ❗️`,
     b13: seriesTexts.b13,
     b14: seriesTexts.b14,
     b15: `今回のレポートはここまで✋次回取材もお見逃しなく～`,
@@ -1673,21 +1675,33 @@ async function generateWithAI() {
     // 万枚オーバーはスマスロ系（東京喰種等）だけで現実的な基準。ジャグラー系では起こり得ないため対象シリーズのみ送る
     const milestoneRelevant = currentSeries === 'tokyoghoul';
     const achieved10000 = milestoneRelevant ? (maxDiffAI >= 10000) : null;
+    // 東京喰種のb13（全体の稼働傾向コメント）用の集計データ
+    const avgDiff = allMachineData.length ? Math.round(allMachineData.reduce((s, m) => s + m.差, 0) / allMachineData.length) : null;
+    const maxG = allMachineData.length ? Math.max(...allMachineData.map(m => m.G || 0)) : null;
+    const tier7000 = allMachineData.filter(m => m.差 >= 7000).length;
+    const tier4000 = allMachineData.filter(m => m.差 >= 4000).length;
+    const tier3000 = allMachineData.filter(m => m.差 >= 3000).length;
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000 }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000 }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
 
-    // AI生成された吹き出しをプレビューに反映
-    const keys = ['b3','b5','b6','b9','b13','b14','b15'];
+    // AI生成された吹き出しをプレビューに反映（東京喰種はb5と内容が被るためb6は生成しない）
+    const keys = currentSeries === 'tokyoghoul'
+      ? ['b3','b5','b9','b13','b14','b15']
+      : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
       if (!data[key]) return;
       const el = document.querySelector(`[data-key="${key}"]`);
       if (el) el.innerHTML = data[key].replace(/\n/g, '<br>');
     });
+    if (currentSeries === 'tokyoghoul') {
+      const b6El = document.querySelector('[data-key="b6"]');
+      if (b6El) b6El.innerHTML = '';
+    }
 
     // 生成結果をこの店舗の記憶として保存
     const today = new Date();
@@ -2032,13 +2046,13 @@ function generate() {
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
     wpImage(FIXED.listImgId, FIXED.listImgUrl),
     balloon(bid, bHtml('b5')),
-    balloon(bid, bHtml('b6')),
+    bHtml('b6').trim() ? balloon(bid, bHtml('b6')) : '',
     balloon(bid, bHtml('b7')),
     capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
     balloon(bid, bHtml('b8')),
-    balloon(bid, bHtml('b9')),
-    balloon(bid, bHtml('b10')),
-    wpImage(rankImgId, rankImgUrl),
+    ...(currentSeries === 'tokyoghoul'
+      ? [balloon(bid, bHtml('b10')), wpImage(rankImgId, rankImgUrl), balloon(bid, bHtml('b9'))]
+      : [balloon(bid, bHtml('b9')), balloon(bid, bHtml('b10')), wpImage(rankImgId, rankImgUrl)]),
     balloon(bid, bHtml('b11')),
     balloon(bid, bHtml('b12')),
     balloon(bid, bHtml('b13')),
@@ -2047,7 +2061,7 @@ function generate() {
     balloon(bid, bHtml('b15')),
     wpParagraph(paraWP),
     `<!-- wp:paragraph -->\n<p></p>\n<!-- /wp:paragraph -->`,
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
 
   document.getElementById('code-output').textContent = code;
   showToast('コードを生成しました！');
@@ -2132,9 +2146,9 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
     </div>
     ${bl(bHtmlPrev('b8'), 'b8')}
-    ${bl(bHtmlPrev('b9'), 'b9')}
-    ${bl(bHtmlPrev('b10'), 'b10')}
-    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}
+    ${currentSeries === 'tokyoghoul'
+      ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}\n    ${bl(bHtmlPrev('b9'), 'b9')}`
+      : `${bl(bHtmlPrev('b9'), 'b9')}\n    ${bl(bHtmlPrev('b10'), 'b10')}\n    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}`}
     ${bl(bHtmlPrev('b11'), 'b11')}
     ${bl(bHtmlPrev('b12'), 'b12')}
     ${bl(bHtmlPrev('b13'), 'b13')}
