@@ -1494,6 +1494,10 @@ function onSeriesChange(val) {
   // シリーズ切替時、既に入力済みの店舗名があれば「前回最多機種」をこのシリーズの履歴で再取得
   const hallVal = v('f-hall');
   if (hallVal) applyPrevTop1(hallVal);
+
+  // シリーズ切替時、既にファイルを読み込み済みならこのシリーズのフィルター設定で再読み込み
+  // （ジャグラーのみ等のチェックボックスは切替前の状態で読み込まれている可能性があるため）
+  if (lastLoadedFile) processDataFile(lastLoadedFile);
 }
 
 function updateB13AiButton() {
