@@ -192,6 +192,30 @@ function ygRequest(method, endpoint, body, extraHeaders) {
   });
 }
 
+// PISION（P-PRO）API リクエスト
+function pisionRequest(pathAndQuery) {
+  return new Promise((resolve, reject) => {
+    const pision = config.pision || {};
+    const urlObj = new URL(pision.base_url + pathAndQuery);
+    const headers = { [pision.api_key_header || 'X-Api-Key']: pision.api_key };
+    const req = https.request(
+      { hostname: urlObj.hostname, path: urlObj.pathname + urlObj.search, method: 'GET', headers },
+      (res) => {
+        const chunks = [];
+        res.on('data', chunk => chunks.push(chunk));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode !== 200) return reject(new Error(`PISION API エラー(${res.statusCode}): ${raw.slice(0, 200)}`));
+          try { resolve(JSON.parse(raw)); }
+          catch (e) { reject(e); }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 const PORT = process.env.PORT || 3000;
 
 // WordPress REST API リクエスト
@@ -397,6 +421,19 @@ const server = http.createServer(async (req, res) => {
       if (fs.existsSync(filePath)) {
         const ext = path.extname(filename).toLowerCase();
         const mime = { '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif', '.webp':'image/webp' }[ext] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': mime });
+        return res.end(fs.readFileSync(filePath));
+      }
+      res.writeHead(404); return res.end('Not found');
+    }
+
+    // ── 静的アセット配信（グラフ背景画像・フォント等） ──────────────────
+    if (req.method === 'GET' && parsed.pathname.startsWith('/assets/')) {
+      const filename = path.basename(parsed.pathname);
+      const filePath = path.join(__dirname, 'assets', filename);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filename).toLowerCase();
+        const mime = { '.png':'image/png', '.jpg':'image/jpeg', '.ttf':'font/ttf' }[ext] || 'application/octet-stream';
         res.writeHead(200, { 'Content-Type': mime });
         return res.end(fs.readFileSync(filePath));
       }
@@ -1311,6 +1348,35 @@ JSONのみを返してください（説明文・コードブロック不要）:
       if (memory[hall][seriesKey].length > 3) memory[hall][seriesKey] = memory[hall][seriesKey].slice(0, 3);
       writeStoreMemory(memory);
       return sendJson(200, { ok: true });
+    }
+
+    // ── PISION（P-PRO）ホール検索 ──────────────────────────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/pision-halls') {
+      const q = (parsed.searchParams.get('q') || '').trim();
+      if (!q) return sendJson(400, { error: 'q（店舗名）が必要です' });
+      const halls = await pisionRequest(`/api/v2/halls`);
+      const matches = (halls.halls || []).filter(h => h.name.includes(q));
+      return sendJson(200, { halls: matches.slice(0, 20) });
+    }
+
+    // ── PISION（P-PRO）結果取得 ────────────────────────────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/pision-results') {
+      const hallId = parsed.searchParams.get('hallId');
+      const date = parsed.searchParams.get('date');
+      if (!hallId || !date) return sendJson(400, { error: 'hallId・dateが必要です' });
+      const result = await pisionRequest(`/api/v2/halls/${encodeURIComponent(hallId)}/results/${encodeURIComponent(date)}`);
+      const machines = (result.details || []).map(d => ({
+        台番: d.unitId,
+        機種名: d.displayName || d.model?.name || '',
+        表示名: d.displayName || d.model?.name || '',
+        差: d.diff ?? 0,
+        colored: false,
+        G数: d.games ?? null,
+        BB: d.bb ?? null,
+        RB: d.rb ?? null,
+        points: d.points || [],
+      })).sort((a, b) => a.台番 - b.台番);
+      return sendJson(200, { hall: result.hall, targetDate: result.targetDate, machines });
     }
 
     res.writeHead(404);

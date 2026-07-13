@@ -6,6 +6,10 @@
   <title>優秀台ピックアップ ジェネレーター</title>
   <script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
   <style>
+    @font-face {
+      font-family: "RoundedMPlus";
+      src: url("/assets/rounded-mplus-1c-medium.ttf") format("truetype");
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "Yu Gothic", "Meiryo", sans-serif;
@@ -161,6 +165,7 @@
     .left-panel {
       width: 280px;
       flex-shrink: 0;
+      min-width: 160px;
       background: white;
       border-right: 1px solid #ddd;
       overflow-y: auto;
@@ -174,6 +179,7 @@
     .mid-panel {
       width: 380px;
       flex-shrink: 0;
+      min-width: 220px;
       background: #fafafa;
       border-right: 1px solid #ddd;
       display: flex;
@@ -968,6 +974,7 @@
   <button class="tab-btn active" onclick="switchTab('generator')">🖼 画像生成①</button>
   <button class="tab-btn" onclick="switchTab('generator2')">🖼 画像生成②</button>
   <button class="tab-btn" onclick="switchTab('generatorYG')">🖼 画像生成YG</button>
+  <button class="tab-btn" onclick="switchTab('generatorShizuoka')">🖼 画像生成静岡</button>
   <button class="tab-btn" onclick="switchTab('post')">📝 ポスト作成</button>
   <button class="tab-btn" onclick="switchTab('post2')">✍️ ポスト作成2</button>
   <button class="tab-btn" onclick="switchTab('library')">📚 ライブラリ管理</button>
@@ -1001,6 +1008,34 @@
           <span style="font-size:11px;color:#aaa">（.txt / .csv ファイル）</span>
           <input type="file" id="textFileInput" accept=".txt,.csv" style="display:none">
         </div>
+      </div>
+      <div id="pisionSection" style="display:none">
+        <input type="text" id="pisionHallInput" placeholder="店舗名で検索" autocomplete="off"
+          oninput="pisionSearchHall()"
+          style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
+        <div id="pisionHallCandidates" style="display:none;max-height:160px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;margin-top:4px"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <input type="date" id="pisionDateInput" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 P-PROから取得</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <span style="font-size:12px;color:#555;white-space:nowrap">グラフ 1行</span>
+          <select id="pisionGraphCols" onchange="updatePreview()" style="padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+            <option value="auto" selected>自動</option>
+            <option value="3">3枚</option>
+            <option value="4">4枚</option>
+            <option value="5">5枚</option>
+          </select>
+        </div>
+        <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
+          <input type="checkbox" id="pisionForceVertical" onchange="updatePreview()">
+          機種ごとに縦に並べる（複数機種選択時、2カラムにせず全幅で積む）
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
+          <input type="checkbox" id="pisionGraphLeftTable" onchange="updatePreview()">
+          グラフとデータを左右に並べる（縦に長くなりすぎる時用）
+        </label>
+        <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
       </div>
       <div id="sheetSelectBox" class="sheet-select-box" style="display:none">
         <div class="sheet-select-title">📄 シート選択（クリックで切り替え）</div>
@@ -1044,7 +1079,7 @@
     </div>
 
     <!-- テキスト設定 -->
-    <div>
+    <div id="textSettingsSection">
       <div class="section-label">テキスト設定</div>
       <div class="form-group" style="margin-bottom:8px">
         <label style="display:flex;align-items:center;gap:6px">
@@ -1064,7 +1099,7 @@
     </div>
 
     <!-- カード画像 -->
-    <div>
+    <div id="cardImageSection">
       <div class="section-label">カード上部の画像（最大4枚）</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
         <div id="imgUploadArea1" class="image-upload-area" style="flex-direction:column;padding:10px 6px;text-align:center">
@@ -1100,7 +1135,7 @@
     </div>
 
     <!-- フォント選択 -->
-    <div>
+    <div id="fontSection">
       <div class="section-label">フォント</div>
       <select id="canvasFontSelect" onchange="changeCanvasFont(this.value)" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;color:#333;background:#fff;cursor:pointer">
         <option value="yugothic">Yu Gothic（標準）</option>
@@ -1113,7 +1148,7 @@
     </div>
 
     <!-- カラーテーマ -->
-    <div>
+    <div id="colorThemeSection">
       <div class="section-label">カラーテーマ</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         <button onclick="applyTheme('#f5c518','#1e2a3a','#d62929','#2060c0')" title="ゴールド（現在）" style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f5c518 50%,#1e2a3a 50%);border:2px solid #ccc;cursor:pointer"></button>
@@ -1128,11 +1163,11 @@
     </div>
 
     <!-- カラー設定 -->
-    <div>
+    <div id="colorSettingsSection">
       <div class="section-label">カラー設定</div>
       <div class="color-row">
         <div class="color-item">
-          <input type="color" id="colorTitle" value="#f5c518" oninput="updatePreview()">
+          <input type="color" id="colorTitle" value="#000000" oninput="updatePreview()">
           <span>タイトル</span>
         </div>
         <div class="color-item">
@@ -1161,7 +1196,7 @@
     <!-- 自動ピックアップ（画像生成②専用） -->
     <div id="autoPickSection" style="display:none">
       <div class="section-label">自動ピックアップ</div>
-      <div style="margin-bottom:8px">
+      <div id="colorOnlyWrap" style="margin-bottom:8px">
         <button id="colorOnlyBtn" onclick="toggleColorOnly()"
           style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;background:white;color:#555;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;">
           🎨 色づき行のみ表示
@@ -1176,9 +1211,20 @@
         <span style="font-size:12px;color:#555;white-space:nowrap">設置</span>
         <input type="number" id="autoPickMin" value="3" min="1" max="99" style="width:52px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;text-align:center">
         <span style="font-size:12px;color:#555;white-space:nowrap">台以上の機種のみ</span>
-        <button onclick="autoPickTop()" style="flex:1;padding:6px 8px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">🏆 自動選択</button>
+        <button onclick="autoPickTop()" style="flex:1;padding:6px 8px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">🏆 自動選択（平均差枚数上位を一括生成）</button>
       </div>
       <div id="autoPickMsg" style="font-size:11px;color:#27ae60;margin-top:4px;display:none"></div>
+
+      <!-- 静岡専用：候補一覧から任意に選んで1枚の画像を生成（多い機種数を複数枚に分けたい時用） -->
+      <div id="autoPickManualSection" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #eee">
+        <button onclick="showAutoPickCandidates()" style="width:100%;padding:6px 8px;border:1px solid #1e2a3a;border-radius:6px;background:white;color:#1e2a3a;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">📋 候補一覧から選んで生成</button>
+        <div id="autoPickCandidates" style="display:none;margin-top:6px;max-height:220px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;padding:6px"></div>
+        <button id="autoPickClearBtn" onclick="clearAutoPickCandidateChecks()" style="display:none;width:100%;margin-top:6px;padding:5px 8px;border:1px solid #ccc;border-radius:6px;background:white;color:#555;font-size:12px;cursor:pointer;font-family:inherit">☐ チェッククリア</button>
+        <button id="autoPickGenBtn" onclick="generateFromCheckedCandidates()" style="display:none;width:100%;margin-top:6px;padding:6px 8px;background:#c0392b;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">🖼 選択した機種で画像生成</button>
+      </div>
+    </div>
+
+    <div id="autoPickPostSection" style="display:none">
       <!-- ポスト生成設定 -->
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee">
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
@@ -1210,6 +1256,26 @@
       </div>
       <div id="selectedList" class="selected-list">
         <div class="empty-selected">台一覧から選択してください</div>
+      </div>
+    </div>
+
+    <!-- Xポスト生成（画像生成静岡専用） -->
+    <div id="pisionPostSection" style="display:none">
+      <div class="section-label">Xポスト生成</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input type="text" id="pisionPostDate" placeholder="6/28" style="width:60px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;text-align:center">
+        <input type="text" id="pisionPostStore" placeholder="店舗名" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+      </div>
+      <input type="text" id="pisionPostTag" placeholder="取材タグ（例: C突撃取材）" value="C突撃取材"
+        style="width:100%;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px">
+      <div style="display:flex;gap:6px">
+        <button onclick="generateShizuokaPost()" style="flex:1;padding:7px;background:#27ae60;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">📝 ポスト文生成（累積）</button>
+        <button onclick="resetShizuokaPostAccumulator()" title="累積をリセットして新しいレポートを始める" style="padding:7px 10px;background:#eee;color:#666;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">🔄</button>
+      </div>
+      <div id="pisionPostAccumInfo" style="font-size:11px;color:#888;margin-top:4px"></div>
+      <div id="pisionPostOutputArea" style="display:none;margin-top:8px">
+        <textarea id="pisionPostOutput" style="width:100%;height:220px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;line-height:1.7;resize:vertical;box-sizing:border-box"></textarea>
+        <button onclick="copyShizuokaPost()" id="pisionPostCopyBtn" style="width:100%;margin-top:4px;padding:6px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">📋 コピー</button>
       </div>
     </div>
 
@@ -1375,6 +1441,25 @@
       <div style="display:flex;gap:8px">
         <button class="btn-download" id="allDataDownloadBtn" onclick="downloadAllDataImage()" style="padding:8px 20px;font-size:13px">📥 ダウンロード</button>
         <button class="btn-download" id="allDataCopyBtn" onclick="copyAllDataImage()" style="padding:8px 20px;font-size:13px;background:#2c6e49">📋 コピー</button>
+      </div>
+    </div>
+
+    <!-- 差枚数ランキング画像（画像生成静岡専用） -->
+    <div id="pisionRankingSection" style="display:none;width:100%;border-top:1px solid #eee;padding-top:16px;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-size:12px;color:#999;align-self:flex-start">差枚数ランキング画像（全台データより）</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;color:#555">TOP</span>
+        <select id="pisionRankingTopN" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+          <option value="20">20</option>
+          <option value="30" selected>30</option>
+          <option value="40">40</option>
+        </select>
+        <button class="btn-download" onclick="generateShizuokaRankingImage()" style="padding:8px 20px;font-size:13px;background:#c0392b">🏆 ランキング画像を生成</button>
+      </div>
+      <canvas id="rankingCanvas" width="1080" height="200" style="max-width:100%;border:1px solid #ddd;border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,0.08);background:white;display:none"></canvas>
+      <div id="rankingImageBtns" style="display:none;gap:8px">
+        <button class="btn-download" id="rankingDownloadBtn" onclick="downloadRankingImage()" style="padding:8px 20px;font-size:13px">📥 ダウンロード</button>
+        <button class="btn-download" id="rankingCopyBtn" onclick="copyRankingImage()" style="padding:8px 20px;font-size:13px;background:#2c6e49">📋 コピー</button>
       </div>
     </div>
   </div>
@@ -1811,8 +1896,8 @@
 let currentGenSlot = 1;
 
 function switchTab(name) {
-  const isGen = name === 'generator' || name === 'generator2' || name === 'generatorYG';
-  const newSlot = name === 'generatorYG' ? 3 : name === 'generator2' ? 2 : 1;
+  const isGen = name === 'generator' || name === 'generator2' || name === 'generatorYG' || name === 'generatorShizuoka';
+  const newSlot = name === 'generatorYG' ? 3 : name === 'generator2' ? 2 : name === 'generatorShizuoka' ? 4 : 1;
 
   if (isGen && newSlot !== currentGenSlot) {
     genSaveState(currentGenSlot);
@@ -1820,7 +1905,7 @@ function switchTab(name) {
     genLoadState(currentGenSlot);
   }
 
-  const tabId = (name === 'generator2' || name === 'generatorYG') ? 'generator' : name;
+  const tabId = (name === 'generator2' || name === 'generatorYG' || name === 'generatorShizuoka') ? 'generator' : name;
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1834,7 +1919,48 @@ function switchTab(name) {
   if (tabId === 'teikei') { tkBtnRender(); tkCopyBtnRender(); }
   if (isGen) {
     const sec = document.getElementById('autoPickSection');
-    if (sec) sec.style.display = currentGenSlot >= 2 ? 'block' : 'none';
+    if (sec) sec.style.display = (currentGenSlot >= 2 && currentGenSlot <= 4) ? 'block' : 'none';
+    const postSec = document.getElementById('autoPickPostSection');
+    if (postSec) postSec.style.display = (currentGenSlot >= 2 && currentGenSlot <= 3) ? 'block' : 'none';
+
+    // 画像生成静岡（スロット4）はP-PRO取得のみ、Excel/テキストアップロードは隠す
+    const isShizuoka = currentGenSlot === 4;
+    const autoPickManualEl = document.getElementById('autoPickManualSection');
+    if (autoPickManualEl) autoPickManualEl.style.display = isShizuoka ? 'block' : 'none';
+    // 静岡データに色づき行の概念はないため、色フィルターボタンは隠す（フィルター状態も解除）
+    const colorOnlyWrapEl = document.getElementById('colorOnlyWrap');
+    if (colorOnlyWrapEl) colorOnlyWrapEl.style.display = isShizuoka ? 'none' : 'block';
+    if (isShizuoka && colorOnlyFilter) toggleColorOnly();
+    document.getElementById('modeExcelBtn').closest('div').style.display = isShizuoka ? 'none' : 'flex';
+    if (isShizuoka) {
+      document.getElementById('excelUploadSection').style.display = 'none';
+      document.getElementById('textUploadSection').style.display = 'none';
+    } else {
+      switchFileMode(lastFileMode);
+    }
+    document.getElementById('pisionSection').style.display = isShizuoka ? 'block' : 'none';
+    const pisionPostEl = document.getElementById('pisionPostSection');
+    if (pisionPostEl) pisionPostEl.style.display = isShizuoka ? 'block' : 'none';
+    const pisionRankingEl = document.getElementById('pisionRankingSection');
+    if (pisionRankingEl) pisionRankingEl.style.display = isShizuoka ? 'flex' : 'none';
+    ['textSettingsSection', 'cardImageSection', 'fontSection', 'colorThemeSection', 'colorSettingsSection'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isShizuoka ? 'none' : '';
+    });
+
+    // 画像生成静岡のみ、3パネル(データファイル・台一覧・プレビュー)を1:1:1の均等幅にする
+    const leftPanelEl = document.querySelector('.left-panel');
+    const midPanelEl = document.querySelector('.mid-panel');
+    if (leftPanelEl && midPanelEl) {
+      if (isShizuoka) {
+        leftPanelEl.style.flex = '1 1 0';
+        midPanelEl.style.flex = '1 1 0';
+      } else {
+        leftPanelEl.style.flex = '';
+        midPanelEl.style.flex = '';
+      }
+    }
+
     filterMachines(); renderSelectedList(); updatePreview();
   }
 }
@@ -1932,6 +2058,261 @@ function copyPickupPost() {
   });
 }
 
+// ===== Xポスト生成（画像生成静岡） =====
+function shizuokaTierEmoji(avg) {
+  if (avg >= 3000) return '🔥';
+  if (avg >= 2000) return '🌈';
+  if (avg >= 1000) return '💮';
+  return '✅';
+}
+
+// 「ポスト文生成」を押すたびに選択中の台をここへ累積していく（チェックを外して別機種を選び直しても消えない）
+let pisionPostAccumulator = [];
+
+function resetShizuokaPostAccumulator() {
+  pisionPostAccumulator = [];
+  document.getElementById('pisionPostAccumInfo').textContent = '';
+  document.getElementById('pisionPostOutputArea').style.display = 'none';
+}
+
+// 静岡のポスト文用累積に台を追加（同じ台番は上書き）。画像を複数回に分けて
+// 生成した場合でも、生成のたびにここへ足しておけば最後にまとめて反映される。
+function accumulateShizuokaPost(machinesToAdd) {
+  machinesToAdd.forEach(m => {
+    const idx = pisionPostAccumulator.findIndex(x => x.台番 === m.台番);
+    if (idx >= 0) pisionPostAccumulator[idx] = m; else pisionPostAccumulator.push(m);
+  });
+  const infoEl = document.getElementById('pisionPostAccumInfo');
+  if (infoEl) infoEl.textContent = `累積中: ${pisionPostAccumulator.length}台`;
+}
+
+function generateShizuokaPost() {
+  const current = selectedOrder.map(n => allMachines.find(m => m.台番 === n)).filter(Boolean);
+  if (!current.length && !pisionPostAccumulator.length) { alert('画像用に台を選択してください'); return; }
+
+  accumulateShizuokaPost(current);
+  const machines = pisionPostAccumulator;
+
+  const date  = document.getElementById('pisionPostDate').value.trim()  || '―';
+  const store = document.getElementById('pisionPostStore').value.trim() || '―';
+  const tag   = document.getElementById('pisionPostTag').value.trim()   || '';
+  const fmt   = v => String(Math.round(v));
+
+  // 機種ごとにグループ化して平均差枚・勝率を集計
+  const order = [];
+  const map = {};
+  machines.forEach(m => {
+    const key = getDisplayName(m.表示名) || m.機種名 || '';
+    if (!map[key]) { map[key] = []; order.push(key); }
+    map[key].push(m);
+  });
+  const groups = order.map(name => {
+    const list = map[name];
+    const total = list.reduce((s, m) => s + (m.差 * diffMult), 0);
+    const avg = total / list.length;
+    const wins = list.filter(m => (m.差 * diffMult) > 0).length;
+    const winRate = Math.round(wins / list.length * 100);
+    return { name, avg, winRate };
+  }).sort((a, b) => b.avg - a.avg);
+
+  // 全台(取得した全データ)の総差枚・平均差枚。平均100枚以上のときだけ掲載
+  const fmtSigned = v => (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
+  const grandTotal = allMachines.reduce((s, m) => s + (m.差 * diffMult), 0);
+  const grandAvg = allMachines.length ? grandTotal / allMachines.length : 0;
+
+  const lines = [];
+  lines.push('🗻きまぐレポート🗻');
+  lines.push('');
+  lines.push(date);
+  lines.push(`🔹${store}`);
+  lines.push(`〈${tag}〉`);
+  lines.push('');
+  if (grandAvg >= 100) {
+    lines.push(`🌋総差枚${fmtSigned(grandTotal)}枚`);
+    lines.push(`🌋平均差枚${fmtSigned(grandAvg)}枚`);
+    lines.push('');
+  }
+  lines.push('🗻ピックアップ🗻');
+  lines.push('');
+  groups.forEach(g => {
+    lines.push(`${shizuokaTierEmoji(g.avg)}${g.name} 　平均${fmt(g.avg)}枚　 勝率${g.winRate}%`);
+  });
+
+  document.getElementById('pisionPostOutput').value = lines.join('\n');
+  document.getElementById('pisionPostOutputArea').style.display = 'block';
+}
+
+function copyShizuokaPost() {
+  const text = document.getElementById('pisionPostOutput').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('pisionPostCopyBtn');
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
+  });
+}
+
+// ===== 差枚数ランキング画像（画像生成静岡） =====
+async function generateShizuokaRankingImage() {
+  if (!allMachines.length) { alert('データが読み込まれていません'); return; }
+  try { await document.fonts.load('600 19px RoundedMPlus'); await document.fonts.load('bold 40px RoundedMPlus'); } catch {}
+
+  const canvas = document.getElementById('rankingCanvas');
+  const ctx = canvas.getContext('2d');
+  const SCALE = 2;
+  const W = 1080;
+  const HEADER_H = 90;
+  const THEAD_H = 60;
+  const ROW_H = 42;
+
+  const topN = parseInt(document.getElementById('pisionRankingTopN')?.value) || 30;
+  const ranked = [...allMachines]
+    .map(m => ({ ...m, diff: (m.差 * diffMult) || 0 }))
+    .sort((a, b) => b.diff - a.diff)
+    .slice(0, topN);
+  const maxG = Math.max(1, ...ranked.map(m => m.G数 || 0));
+  const maxDiff = Math.max(1, ...ranked.map(m => m.diff));
+
+  const H = HEADER_H + THEAD_H + ROW_H * ranked.length;
+  canvas.width = W * SCALE;
+  canvas.height = H * SCALE;
+  canvas.style.width = '';
+  canvas.style.height = '';
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+
+  // 列定義
+  const cols = [
+    { key: 'rank', label: 'ベスト', x: 0,   w: 80  },
+    { key: 'num',  label: '台番',   x: 80,  w: 120 },
+    { key: 'name', label: '機種名', x: 200, w: 280 },
+    { key: 'big',  label: 'BIG',   x: 480, w: 90  },
+    { key: 'reg',  label: 'REG',   x: 570, w: 90  },
+    { key: 'g',    label: '回転数', x: 660, w: 210 },
+    { key: 'diff', label: '差枚数', x: 870, w: 210 },
+  ];
+
+  // ヘッダーバナー
+  ctx.fillStyle = '#e8231d';
+  ctx.fillRect(0, 0, W, HEADER_H);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 40px "RoundedMPlus","Yu Gothic",sans-serif';
+  ctx.fillText('差枚数ランキング', 24, HEADER_H / 2);
+
+  // 表ヘッダー
+  const theadY = HEADER_H;
+  ctx.fillStyle = '#e0e0e0';
+  ctx.fillRect(0, theadY, W, THEAD_H);
+  ctx.fillStyle = '#111';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 22px "RoundedMPlus","Yu Gothic",sans-serif';
+  cols.forEach(c => ctx.fillText(c.label, c.x + c.w / 2, theadY + THEAD_H / 2));
+
+  // データ行
+  const bodyTop = theadY + THEAD_H;
+  ranked.forEach((m, i) => {
+    const rowY = bodyTop + i * ROW_H;
+    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#fbecc0';
+    ctx.fillRect(0, rowY, W, ROW_H);
+    const mid = rowY + ROW_H / 2;
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 20px "RoundedMPlus","Yu Gothic",sans-serif';
+    ctx.fillText(String(i + 1), cols[0].x + cols[0].w / 2, mid);
+    ctx.fillText(String(m.台番), cols[1].x + cols[1].w / 2, mid);
+
+    // 長い機種名は列からはみ出さないよう自動縮小（余裕を持たせて縮小判定）
+    const nameStr = getDisplayName(m.表示名 || m.機種名 || '');
+    const nameMaxW = cols[2].w - 40;
+    let nameSize = 19;
+    ctx.font = `bold ${nameSize}px "RoundedMPlus","Yu Gothic",sans-serif`;
+    while (nameSize > 10 && ctx.measureText(nameStr).width > nameMaxW) {
+      nameSize -= 1;
+      ctx.font = `bold ${nameSize}px "RoundedMPlus","Yu Gothic",sans-serif`;
+    }
+    ctx.fillText(nameStr, cols[2].x + cols[2].w / 2, mid);
+
+    ctx.font = '600 19px "RoundedMPlus","Yu Gothic",sans-serif';
+    ctx.fillText(m.BB != null ? String(m.BB) : '-', cols[3].x + cols[3].w / 2, mid);
+    ctx.fillText(m.RB != null ? String(m.RB) : '-', cols[4].x + cols[4].w / 2, mid);
+
+    // 回転数バー
+    const gCol = cols[5];
+    const barPad = 10;
+    const barMaxW = gCol.w - barPad * 2; // 数値と重なってもよい
+    const gVal = m.G数 || 0;
+    const barW = Math.max(2, (gVal / maxG) * barMaxW);
+    const barH = ROW_H * 0.55;
+    const barY = rowY + (ROW_H - barH) / 2;
+    const barGrad = ctx.createLinearGradient(gCol.x + barPad, 0, gCol.x + barPad + barMaxW, 0);
+    barGrad.addColorStop(0, '#b8f2c8');
+    barGrad.addColorStop(1, '#4caf7d');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(gCol.x + barPad, barY, barW, barH);
+    ctx.fillStyle = '#222';
+    ctx.textAlign = 'right';
+    ctx.font = '600 18px "RoundedMPlus","Yu Gothic",sans-serif';
+    ctx.fillText(`${gVal.toLocaleString()}G`, gCol.x + gCol.w - barPad, mid);
+
+    // 差枚数バー
+    const diffCol = cols[6];
+    const diffBarPad = 10;
+    const diffBarMaxW = diffCol.w - diffBarPad * 2; // 数値と重なってもよい
+    const diffBarW = Math.max(2, (Math.max(0, m.diff) / maxDiff) * diffBarMaxW);
+    const diffBarH = ROW_H * 0.55;
+    const diffBarY = rowY + (ROW_H - diffBarH) / 2;
+    const diffGrad = ctx.createLinearGradient(diffCol.x + diffBarPad, 0, diffCol.x + diffBarPad + diffBarMaxW, 0);
+    diffGrad.addColorStop(0, '#eaf6fd');
+    diffGrad.addColorStop(1, '#8fd6f0');
+    ctx.fillStyle = diffGrad;
+    ctx.fillRect(diffCol.x + diffBarPad, diffBarY, diffBarW, diffBarH);
+
+    const diffStr = (m.diff >= 0 ? '+' : '') + Math.round(m.diff).toLocaleString() + currentUnit;
+    ctx.fillStyle = '#1a56c4';
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 20px "RoundedMPlus","Yu Gothic",sans-serif';
+    ctx.fillText(diffStr, diffCol.x + diffCol.w - diffBarPad, mid);
+  });
+
+  // 罫線（背景塗りより後に描画）
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1;
+  const hLines = [0, theadY, bodyTop];
+  for (let r = 1; r <= ranked.length; r++) hLines.push(bodyTop + r * ROW_H);
+  hLines.forEach(ly => { ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W, ly); ctx.stroke(); });
+  const vLines = cols.map(c => c.x).concat([W]);
+  vLines.forEach(x => { ctx.beginPath(); ctx.moveTo(x, theadY); ctx.lineTo(x, bodyTop + ranked.length * ROW_H); ctx.stroke(); });
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
+
+  canvas.style.display = 'block';
+  document.getElementById('rankingImageBtns').style.display = 'flex';
+}
+
+function downloadRankingImage() {
+  const canvas = document.getElementById('rankingCanvas');
+  const link = document.createElement('a');
+  link.download = '差枚数ランキング.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+async function copyRankingImage() {
+  const canvas = document.getElementById('rankingCanvas');
+  const btn = document.getElementById('rankingCopyBtn');
+  canvas.toBlob(async blob => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      btn.textContent = '✓ コピーしました';
+      setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
+    } catch (e) {
+      alert('コピーに失敗しました。ブラウザがClipboard APIに対応していない可能性があります。');
+    }
+  }, 'image/png');
+}
+
 // ===== 自動ピックアップ（画像生成②） =====
 async function autoPickTop() {
   const msg = document.getElementById('autoPickMsg');
@@ -1968,7 +2349,29 @@ async function autoPickTop() {
     return;
   }
 
-  // 機種ごとに1枚ずつ画像を生成してキューに追加
+  // 画像生成静岡は複数機種をキューに分けず、まとめて1枚の画像にする
+  if (currentGenSlot === 4) {
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+    selectedOrder = topTypes.flatMap(t => t.machines.map(m => m.台番));
+    document.getElementById('selectedCount').textContent = `${selectedOrder.length}台`;
+    renderSelectedList();
+    updateCardImagesFromSelection();
+    await updatePreview();
+    accumulateShizuokaPost(topTypes.flatMap(t => t.machines));
+    document.getElementById('downloadBtn').disabled = selectedOrder.length === 0;
+    document.getElementById('copyBtn').disabled = selectedOrder.length === 0;
+    document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
+    document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
+    btn.disabled = false;
+    btn.textContent = '🏆 自動選択（平均差枚数上位を一括生成）';
+    msg.textContent = `上位${topTypes.length}機種・${selectedOrder.length}台を1枚の画像にまとめました`;
+    msg.style.color = '#27ae60';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    return;
+  }
+
+  // 機種ごとに1枚ずつ画像を生成してキューに追加（画像生成①②）
   const savedOrder = [...selectedOrder];
   btn.disabled = true;
   btn.textContent = '生成中...';
@@ -1997,6 +2400,98 @@ async function autoPickTop() {
   btn.textContent = '🏆 自動選択';
   msg.textContent = `上位${topTypes.length}機種の画像をリストに追加しました`;
   msg.style.color = '#27ae60';
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
+}
+
+// ===== 静岡専用：候補一覧から任意選択して1枚の画像を生成 =====
+let autoPickCandidateTypes = [];
+
+function showAutoPickCandidates() {
+  const box = document.getElementById('autoPickCandidates');
+  const genBtn = document.getElementById('autoPickGenBtn');
+  if (!allMachines.length) {
+    alert('データが読み込まれていません');
+    return;
+  }
+  const minCount = parseInt(document.getElementById('autoPickMin').value) || 3;
+
+  const typeMap = {};
+  for (const m of allMachines) {
+    const key = m.表示名 || m.機種名;
+    if (!typeMap[key]) typeMap[key] = { name: key, machines: [], total: 0 };
+    typeMap[key].machines.push(m);
+    typeMap[key].total += (m.差 * diffMult);
+  }
+  autoPickCandidateTypes = Object.values(typeMap)
+    .filter(t => t.machines.length >= minCount)
+    .map(t => {
+      const wins = t.machines.filter(m => (m.差 * diffMult) > 0).length;
+      const gamesList = t.machines.filter(m => m.G数 != null);
+      const avgGames = gamesList.length ? gamesList.reduce((s, m) => s + m.G数, 0) / gamesList.length : null;
+      return {
+        ...t,
+        avg: t.total / t.machines.length,
+        winRate: Math.round(wins / t.machines.length * 100),
+        avgGames,
+      };
+    })
+    .sort((a, b) => b.avg - a.avg);
+
+  if (!autoPickCandidateTypes.length) {
+    box.innerHTML = `<div style="font-size:12px;color:#e74c3c">${minCount}台以上の機種が見つかりません</div>`;
+    box.style.display = 'block';
+    genBtn.style.display = 'none';
+    document.getElementById('autoPickClearBtn').style.display = 'none';
+    return;
+  }
+
+  box.innerHTML = autoPickCandidateTypes.map((t, i) => `
+    <label style="display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:12px;color:#333;cursor:pointer">
+      <input type="checkbox" class="autoPickCandCb" data-idx="${i}">
+      <span style="flex:1">${t.name}</span>
+      <span style="color:#888;white-space:nowrap">${t.machines.length}台</span>
+      <span style="color:#888;white-space:nowrap">勝率${t.winRate}%</span>
+      <span style="color:#888;white-space:nowrap">${t.avgGames != null ? Math.round(t.avgGames).toLocaleString() + 'G' : '―G'}</span>
+      <span style="color:${t.avg >= 0 ? '#c0392b' : '#2980b9'};white-space:nowrap">${t.avg >= 0 ? '+' : ''}${Math.round(t.avg).toLocaleString()}枚</span>
+    </label>
+  `).join('');
+  box.style.display = 'block';
+  genBtn.style.display = 'block';
+  document.getElementById('autoPickClearBtn').style.display = 'block';
+}
+
+function clearAutoPickCandidateChecks() {
+  document.querySelectorAll('.autoPickCandCb').forEach(cb => cb.checked = false);
+}
+
+async function generateFromCheckedCandidates() {
+  const checkedIdx = [...document.querySelectorAll('.autoPickCandCb:checked')].map(cb => parseInt(cb.dataset.idx));
+  if (!checkedIdx.length) {
+    alert('機種を選択してください');
+    return;
+  }
+  const checked = checkedIdx.map(i => autoPickCandidateTypes[i]);
+  const btn = document.getElementById('autoPickGenBtn');
+  const msg = document.getElementById('autoPickMsg');
+
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  selectedOrder = checked.flatMap(t => t.machines.map(m => m.台番));
+  document.getElementById('selectedCount').textContent = `${selectedOrder.length}台`;
+  renderSelectedList();
+  updateCardImagesFromSelection();
+  await updatePreview();
+  accumulateShizuokaPost(checked.flatMap(t => t.machines));
+  document.getElementById('downloadBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('copyBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
+  btn.disabled = false;
+  btn.textContent = '🖼 選択した機種で画像生成';
+
+  msg.textContent = `選択した${checked.length}機種・${selectedOrder.length}台を1枚の画像にまとめました`;
+  msg.style.color = '#27ae60';
+  msg.style.display = 'block';
   setTimeout(() => { msg.style.display = 'none'; }, 3000);
 }
 
@@ -2258,7 +2753,9 @@ textUploadArea.addEventListener('dragleave', () => textUploadArea.classList.remo
 textUploadArea.addEventListener('drop', e => { e.preventDefault(); textUploadArea.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadTextFile(e.dataTransfer.files[0]); });
 textFileInput.addEventListener('change', () => { if (textFileInput.files[0]) loadTextFile(textFileInput.files[0]); });
 
+let lastFileMode = 'excel';
 function switchFileMode(mode) {
+  lastFileMode = mode;
   const excelSection = document.getElementById('excelUploadSection');
   const textSection = document.getElementById('textUploadSection');
   const excelBtn = document.getElementById('modeExcelBtn');
@@ -2376,7 +2873,7 @@ function loadExcel(file) {
     const wb = XLSX.read(e.target.result, {type: 'array', cellStyles: true});
     currentWorkbook = wb;
     currentFile = file;
-    if (currentGenSlot >= 2) {
+    if ((currentGenSlot >= 2 && currentGenSlot <= 3)) {
       const parsed = parseFilenameForPost(file.name);
       const dateEl  = document.getElementById('postDate');
       const storeEl = document.getElementById('postStore');
@@ -2438,7 +2935,7 @@ function showColMap(rawData, cols) {
 
   // 画像生成②専用: G数/BB/RBセレクタ
   const slot2Rows = document.getElementById('colMapSlot2Rows');
-  if (currentGenSlot >= 2) {
+  if ((currentGenSlot >= 2 && currentGenSlot <= 3)) {
     slot2Rows.style.display = 'block';
     const noneOption = '<option value="-1">── なし ──</option>';
     ['mapG数','mapBB','mapRB'].forEach(id => {
@@ -2469,9 +2966,9 @@ function applyColMap() {
   const 差Col     = parseInt(document.getElementById('map差').value);
   const dataStart = parseInt(document.getElementById('mapDataRow').value);
 
-  const G数ColVal = currentGenSlot >= 2 ? parseInt(document.getElementById('mapG数').value) : -1;
-  const BBColVal  = currentGenSlot >= 2 ? parseInt(document.getElementById('mapBB').value)  : -1;
-  const RBColVal  = currentGenSlot >= 2 ? parseInt(document.getElementById('mapRB').value)  : -1;
+  const G数ColVal = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapG数').value) : -1;
+  const BBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapBB').value)  : -1;
+  const RBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapRB').value)  : -1;
 
   // YGモード限定：ヘッダー行に同じ列名が2セット以上ある場合を検出
   const extraSets = [];
@@ -2546,8 +3043,89 @@ function applyColMap() {
   updatePreview();
   drawAllDataCanvas();
 
-  if (currentGenSlot >= 2 && allMachines.length) {
+  if ((currentGenSlot >= 2 && currentGenSlot <= 3) && allMachines.length) {
     setTimeout(() => autoPickTop(), 100);
+  }
+}
+
+// ===== P-PRO（PISION）連携（画像生成静岡専用） =====
+let pisionSelectedHallId = null;
+let pisionSearchTimer = null;
+let pisionLastHallName = '';
+let pisionLastDate = '';
+
+function pisionSearchHall() {
+  const q = document.getElementById('pisionHallInput').value.trim();
+  pisionSelectedHallId = null;
+  const box = document.getElementById('pisionHallCandidates');
+  if (pisionSearchTimer) clearTimeout(pisionSearchTimer);
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  pisionSearchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/pision-halls?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const halls = data.halls || [];
+      box.style.display = 'block';
+      if (!halls.length) {
+        box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#aaa">該当する店舗がありません</div>';
+        return;
+      }
+      box.innerHTML = halls.map(h =>
+        `<div class="pision-hall-item" style="padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid #eee" onclick="pisionSelectHall(${h.id}, '${h.name.replace(/'/g, "\\'")}')">${h.name}</div>`
+      ).join('');
+    } catch (e) {
+      box.style.display = 'block';
+      box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#e74c3c">検索エラー</div>';
+    }
+  }, 300);
+}
+
+function pisionSelectHall(id, name) {
+  pisionSelectedHallId = id;
+  document.getElementById('pisionHallInput').value = name;
+  document.getElementById('pisionHallCandidates').style.display = 'none';
+}
+
+async function pisionFetchResults() {
+  const status = document.getElementById('pisionStatus');
+  const dateVal = document.getElementById('pisionDateInput').value;
+  if (!pisionSelectedHallId) { status.style.color = '#e74c3c'; status.textContent = '候補一覧から店舗を選択してください'; return; }
+  if (!dateVal) { status.style.color = '#e74c3c'; status.textContent = '日付を指定してください'; return; }
+
+  status.style.color = '#888';
+  status.textContent = '取得中…';
+  try {
+    const res = await fetch(`/api/pision-results?hallId=${pisionSelectedHallId}&date=${dateVal}`);
+    const data = await res.json();
+    if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+
+    allMachines = data.machines || [];
+    allMachines.sort((a, b) => a.台番 - b.台番);
+    document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+
+    selectedOrder = [];
+    renderSelectedList();
+    renderMachineList(allMachines);
+    renderLibList();
+    updatePreview();
+    drawAllDataCanvas();
+    resetShizuokaPostAccumulator(); // 別の店舗・日付を取得したら累積をクリア
+
+    pisionLastHallName = data.hall?.name || '';
+    pisionLastDate = data.targetDate || '';
+    const dateEl = document.getElementById('pisionPostDate');
+    const storeEl = document.getElementById('pisionPostStore');
+    if (dateEl && pisionLastDate) {
+      const [, mm, dd] = pisionLastDate.split('-');
+      dateEl.value = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
+    }
+    if (storeEl) storeEl.value = pisionLastHallName;
+
+    status.style.color = '#27ae60';
+    status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
+  } catch (e) {
+    status.style.color = '#e74c3c';
+    status.textContent = '❌ 通信エラー: ' + e.message;
   }
 }
 
@@ -2876,7 +3454,8 @@ function renderMachineList(list) {
   const el = document.getElementById('machineList');
   if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:12px;font-size:12px;color:#ccc">一致なし</div>'; return; }
   document.getElementById('machineCount').textContent = `${list.length}台`;
-  const showSlot2 = currentGenSlot >= 2;
+  const showSlot2 = (currentGenSlot >= 2 && currentGenSlot <= 4);
+  const isShizuokaList = currentGenSlot === 4;
   el.innerHTML = list.map(m => {
     const sel = selectedOrder.includes(m.台番);
     const d = (m.差 * diffMult) || 0;
@@ -2884,6 +3463,19 @@ function renderMachineList(list) {
     const cls = d > 0 ? 'positive' : d < 0 ? 'negative' : 'zero';
     const u = currentUnit;
     const hasSlot2 = showSlot2 && m.G数 !== null;
+
+    if (isShizuokaList) {
+      return `<div class="machine-item ${sel ? 'selected' : ''}" onclick="toggleMachine(${m.台番})" style="grid-template-columns:20px 40px 1fr 52px 30px 30px 72px;">
+        <input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleMachine(${m.台番})">
+        <span class="m-num">${m.台番}</span>
+        <span class="m-name">${getDisplayName(m.表示名)}</span>
+        <span style="font-size:12px;font-weight:600;color:#333;text-align:right;padding-right:4px">${m.G数 != null ? m.G数.toLocaleString() : '-'}</span>
+        <span style="font-size:12px;font-weight:600;color:#333;text-align:right;padding-right:4px">${m.BB ?? '-'}</span>
+        <span style="font-size:12px;font-weight:600;color:#333;text-align:right;padding-right:4px">${m.RB ?? '-'}</span>
+        <span class="m-diff ${cls}">${diffStr}${u}</span>
+      </div>`;
+    }
+
     const slot2Sub = hasSlot2
       ? `<div style="grid-column:1/-1;font-size:11px;color:#777;padding-left:30px;margin-top:-4px;padding-bottom:3px">G:${m.G数.toLocaleString()} &nbsp;BB:${m.BB ?? '-'} &nbsp;RB:${m.RB ?? '-'}</div>`
       : '';
@@ -3840,8 +4432,138 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
   const TITLE_H = titleEnabled ? 100 : 0;
   const SUB_H = subtitle ? 56 : 0;
   const THEAD_H = 80;
-  const ROW_H = 96;
+  const ROW_H = currentGenSlot === 4 ? 68 : 96;
   const STATS_H = (statsEnabled && machines.length > 0) ? 270 : 0;
+
+  // 画像生成静岡（P-PRO連携）：推移グラフグリッド
+  const FUJI_W = 324, FUJI_H = 390;
+  const hasGraphData = currentGenSlot === 4 && machines.some(m => m.points && m.points.length);
+  const sideBySide = hasGraphData && !!document.getElementById('pisionGraphLeftTable')?.checked;
+  // 「自動」選択時：3〜5枚の中から最後の行の空きマスが最少になる枚数を選ぶ（同点なら大きい画像になる方＝枚数が少ない方を優先）
+  function autoPickCols(n) {
+    if (n <= 1) return 1;
+    if (n <= 3) return n;
+    // 行数が少なくなる列数を優先（縦に長くなりすぎないように）。
+    // 行数が同じなら余白（空きマス）が少ない方、それも同じならより少ない列数を選ぶ
+    const candidates = [3, 4, 5].map(c => ({
+      c,
+      rows: Math.ceil(n / c),
+      remainder: (c - (n % c)) % c,
+    }));
+    candidates.sort((a, b) => a.rows - b.rows || a.remainder - b.remainder || a.c - b.c);
+    return candidates[0].c;
+  }
+  const graphColsSetting = document.getElementById('pisionGraphCols')?.value || 'auto';
+  const graphCols = graphColsSetting === 'auto' ? autoPickCols(machines.length) : (parseInt(graphColsSetting) || 4);
+  const graphCardW = W / graphCols;
+  const graphCardH = graphCardW * (FUJI_H / FUJI_W);
+  const graphRows = hasGraphData ? Math.ceil(machines.length / graphCols) : 0;
+  const graphGridH = graphRows * graphCardH;
+  // 単一機種（グループ分けなし）でグラフとデータを左右に並べる場合のレイアウト
+  const singleSideBySideLayout = (sideBySide && hasGraphData)
+    ? computeGroupLayoutSideBySide({ machines }, W)
+    : null;
+
+  // 機種が複数種類ある場合：機種ごとにグラフ+表をグループ化して2カラムで並べる
+  function groupMachinesByModel(list) {
+    const order = [];
+    const map = {};
+    list.forEach(m => {
+      const key = getDisplayName(m.表示名) || m.機種名 || '';
+      if (!map[key]) { map[key] = []; order.push(key); }
+      map[key].push(m);
+    });
+    return order.map(k => ({ name: k, machines: map[k] }));
+  }
+  const modelGroups = hasGraphData ? groupMachinesByModel(machines) : [];
+  const useMultiGroup = hasGraphData && modelGroups.length > 1;
+  // 「機種ごとに縦に並べる」がチェックされていれば全幅で縦積み、そうでなければ機種数に関わらず2カラムに分ける
+  const forceVertical = document.getElementById('pisionForceVertical')?.checked;
+  const useSingleColumnGroups = useMultiGroup && forceVertical;
+  const GROUP_GAP = 20;
+  const COL_GAP = 16;
+  const colWidth = useSingleColumnGroups ? W : (W - COL_GAP) / 2;
+  const colScale = colWidth / W;
+
+  function computeGroupLayout(group) {
+    const n = group.machines.length;
+    const maxPerRow = graphColsSetting === 'auto' ? autoPickCols(n) : graphCols;
+    const rows = Math.ceil(n / maxPerRow);
+    const perRow = Math.ceil(n / rows);
+    const cardW = colWidth / perRow;
+    const cardH = cardW * (FUJI_H / FUJI_W);
+    const graphH = rows * cardH;
+    const theadH = THEAD_H * colScale;
+    const rowH = ROW_H * colScale;
+    const tableH = theadH + n * rowH;
+    return { group, n, rows, perRow, cardW, cardH, graphH, theadH, rowH, tableH, totalH: graphH + tableH };
+  }
+
+  // グラフとデータを左右に並べるレイアウト（縦に長くなりすぎるのを防ぐ）
+  function computeGroupLayoutSideBySide(group, blockWidth) {
+    const n = group.machines.length;
+    const leftW = blockWidth * 0.42;
+    const rightW = blockWidth - leftW;
+    const cols = graphColsSetting === 'auto' ? autoPickCols(n) : graphCols;
+    const rows = Math.ceil(n / cols);
+    const cardW = leftW / cols;
+    const cardH = cardW * (FUJI_H / FUJI_W);
+    const graphH = rows * cardH;
+    const s = rightW / W; // 列幅（横方向の位置決め）用スケール
+
+    // 表の縦の高さ・文字サイズはグラフの高さに合わせて個別に伸縮させ、
+    // 左右で余白ができないようにする（横方向の列幅比率はsのまま変えない）
+    const MIN_HS = 0.32, MAX_HS = 1.8;
+    let hs = graphH / (THEAD_H + n * ROW_H);
+    hs = Math.max(MIN_HS, Math.min(MAX_HS, hs));
+    const theadH = THEAD_H * hs;
+    const rowH = ROW_H * hs;
+    const tableH = theadH + n * rowH;
+    return { group, n, leftW, rightW, cols, rows, cardW, cardH, graphH, theadH, rowH, tableH, s, hs, totalH: Math.max(graphH, tableH) };
+  }
+
+  let multiGroupColumns = null;
+  let multiGroupH = 0;
+  if (useMultiGroup) {
+    const layouts = sideBySide
+      ? modelGroups.map(g => computeGroupLayoutSideBySide(g, colWidth))
+      : modelGroups.map(computeGroupLayout);
+    if (useSingleColumnGroups) {
+      multiGroupColumns = [{ items: [], height: 0 }];
+      layouts.forEach(item => {
+        multiGroupColumns[0].items.push(item);
+        multiGroupColumns[0].height += item.totalH + GROUP_GAP;
+      });
+      multiGroupH = multiGroupColumns[0].height;
+    } else {
+      multiGroupColumns = [{ items: [], height: 0 }, { items: [], height: 0 }];
+      layouts.forEach(item => {
+        const col = multiGroupColumns[0].height <= multiGroupColumns[1].height ? multiGroupColumns[0] : multiGroupColumns[1];
+        col.items.push(item);
+        col.height += item.totalH + GROUP_GAP;
+      });
+      multiGroupH = Math.max(multiGroupColumns[0].height, multiGroupColumns[1].height);
+    }
+  }
+
+  // 通常のfillTextに縁取りを重ねて文字を太く見せる（画像生成静岡専用）
+  const fillTextBold = (str, x, y, strokeW) => {
+    ctx.fillText(str, x, y);
+    ctx.lineWidth = strokeW || 0.8;
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.strokeText(str, x, y);
+  };
+
+  // 列幅からはみ出す場合はフォントサイズを自動で縮小してから太字描画する
+  const fillTextBoldFit = (str, x, y, maxWidth, baseSize, weight, family, strokeW) => {
+    let size = baseSize;
+    ctx.font = `${weight} ${size}px ${family}`;
+    while (size > baseSize * 0.55 && ctx.measureText(str).width > maxWidth) {
+      size -= 1;
+      ctx.font = `${weight} ${size}px ${family}`;
+    }
+    fillTextBold(str, x, y, strokeW);
+  };
 
   let H = 0;
   const draw = () => {
@@ -3870,7 +4592,8 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     };
 
     const drawAll = async () => {
-      const activeCardImages = targetCardImages || cardImages;
+      // 画像生成静岡はカード画像パネル機能を使わないため、常に非表示にする
+      const activeCardImages = currentGenSlot === 4 ? [] : (targetCardImages || cardImages);
       const imgs = await Promise.all(activeCardImages.map(d => d ? loadImage(d) : null));
       const present = imgs.filter(Boolean);
       const count = present.length;
@@ -3895,7 +4618,11 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
                  + baseH * (W / w23.reduce((a, b) => a + b, 0));
       }
 
-      H = imgAreaH + TITLE_H + SUB_H + THEAD_H + Math.max(machines.length, 1) * ROW_H + 16 + STATS_H;
+      H = useMultiGroup
+        ? imgAreaH + multiGroupH + TITLE_H + SUB_H + 16
+        : (hasGraphData && sideBySide)
+          ? imgAreaH + singleSideBySideLayout.totalH + TITLE_H + SUB_H + 16 + STATS_H
+          : imgAreaH + graphGridH + TITLE_H + SUB_H + THEAD_H + Math.max(machines.length, 1) * ROW_H + 16 + STATS_H;
       canvas.width  = W * SCALE;
       canvas.height = H * SCALE;
       canvas.style.width  = W + 'px';
@@ -3918,13 +4645,351 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
         y += drawRow(present.slice(2, 4), 0, y, W);
       }
 
-      drawTable(y);
+      if (useMultiGroup) {
+        y = drawTitleBar(y);
+        await drawMultiGroupLayout(y);
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, W - 4, H - 4);
+      } else if (hasGraphData && sideBySide) {
+        y = drawTitleBar(y);
+        const fujiImg = await loadImage('/assets/fuji_5000_bk.png');
+        try { await document.fonts.load('20px RoundedMPlus'); } catch {}
+        const rainbow = ctx.createLinearGradient(0, y, singleSideBySideLayout.leftW, y + singleSideBySideLayout.totalH);
+        rainbow.addColorStop(0,    '#ffb3d9');
+        rainbow.addColorStop(0.2,  '#ffd9a0');
+        rainbow.addColorStop(0.4,  '#c9f2a0');
+        rainbow.addColorStop(0.6,  '#a0e8f2');
+        rainbow.addColorStop(0.8,  '#b3b3ff');
+        rainbow.addColorStop(1,    '#e0a0f2');
+        ctx.fillStyle = rainbow;
+        ctx.fillRect(0, y, singleSideBySideLayout.leftW, singleSideBySideLayout.totalH);
+        drawGroupBlockSideBySide(0, y, singleSideBySideLayout, fujiImg);
+        drawStatsPanel();
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, W - 4, H - 4);
+      } else {
+        if (hasGraphData) {
+          await drawGraphGrid(y);
+          y += graphGridH;
+        }
+        drawTable(y);
+      }
       _resolvePreview(canvas);
     };
+
+    // P-PRO推移グラフグリッド描画（画像生成静岡専用）
+    const drawGraphGrid = async (startY) => {
+      const fujiImg = await loadImage('/assets/fuji_5000_bk.png');
+      try { await document.fonts.load('20px RoundedMPlus'); } catch {}
+
+      const PLOT_ORIGIN_X = 26, PLOT_ORIGIN_Y = 238, PLOT_Y_PER_5000 = 120, PLOT_RIGHT_MARGIN = 14;
+      const plotWidthPx = FUJI_W - PLOT_ORIGIN_X - PLOT_RIGHT_MARGIN;
+      const allX = machines.flatMap(m => (m.points || []).map(p => p.x));
+      const maxX = allX.length ? Math.max(...allX) : 1;
+
+      // 背景をレインボーグラデーションで塗りつぶし（カード間の余白に見える）
+      const rainbow = ctx.createLinearGradient(0, startY, W, startY + graphGridH);
+      rainbow.addColorStop(0,    '#ffb3d9');
+      rainbow.addColorStop(0.2,  '#ffd9a0');
+      rainbow.addColorStop(0.4,  '#c9f2a0');
+      rainbow.addColorStop(0.6,  '#a0e8f2');
+      rainbow.addColorStop(0.8,  '#b3b3ff');
+      rainbow.addColorStop(1,    '#e0a0f2');
+      ctx.fillStyle = rainbow;
+      ctx.fillRect(0, startY, W, graphGridH);
+
+      const pad = 6; // カード間の余白（レインボー背景を覗かせる）
+      machines.forEach((m, i) => {
+        const col = i % graphCols;
+        const row = Math.floor(i / graphCols);
+        const x0 = col * graphCardW + pad;
+        const y0 = startY + row * graphCardH + pad;
+        const cardScale = (graphCardW - pad * 2) / FUJI_W;
+
+        ctx.save();
+        ctx.translate(x0, y0);
+        ctx.scale(cardScale, cardScale);
+
+        if (fujiImg) ctx.drawImage(fujiImg, 0, 0, FUJI_W, FUJI_H);
+
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 18px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(m.表示名 || m.機種名 || '', (13 + 309) / 2, (7 + 27) / 2, 0.6);
+        ctx.font = 'bold 16px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(`${m.台番}番台`, (13 + 309) / 2, (48 + 67) / 2, 0.5);
+
+        // 機種名・台番・グラフの各枠に囲い線
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0, 0, FUJI_W, FUJI_H);
+        ctx.beginPath(); ctx.moveTo(0, 34); ctx.lineTo(FUJI_W, 34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 72); ctx.lineTo(FUJI_W, 72); ctx.stroke();
+
+        // グラフ線がカード外にはみ出さないようクリップ
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, FUJI_W, FUJI_H);
+        ctx.clip();
+
+        const pts = m.points || [];
+        if (pts.length) {
+          ctx.strokeStyle = 'rgb(120,220,220)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          pts.forEach((p, idx) => {
+            const px = PLOT_ORIGIN_X + (p.x / maxX) * plotWidthPx;
+            const py = PLOT_ORIGIN_Y - (p.y / 5000) * PLOT_Y_PER_5000;
+            if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        }
+        ctx.restore(); // クリップ解除
+
+        ctx.restore();
+      });
+    };
+
+    // 機種混在時：機種ごとにグラフ+ミニ表をブロック化して2カラムで描画
+    const drawGroupBlock = (x0, y0, layout, fujiImg) => {
+      const { n, rows, perRow, cardW, cardH, graphH, theadH, rowH } = layout;
+      const groupMachines = layout.group.machines;
+
+      const PLOT_ORIGIN_X = 26, PLOT_ORIGIN_Y = 238, PLOT_Y_PER_5000 = 120, PLOT_RIGHT_MARGIN = 14;
+      const plotWidthPx = FUJI_W - PLOT_ORIGIN_X - PLOT_RIGHT_MARGIN;
+      const allX = groupMachines.flatMap(m => (m.points || []).map(p => p.x));
+      const maxX = allX.length ? Math.max(...allX) : 1;
+      const pad = 6 * colScale;
+      const cardScale = (cardW - pad * 2) / FUJI_W;
+
+      groupMachines.forEach((m, i) => {
+        const col = i % perRow;
+        const row = Math.floor(i / perRow);
+        const cx = x0 + col * cardW + pad;
+        const cy = y0 + row * cardH + pad;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(cardScale, cardScale);
+        if (fujiImg) ctx.drawImage(fujiImg, 0, 0, FUJI_W, FUJI_H);
+
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 18px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(m.表示名 || m.機種名 || '', (13 + 309) / 2, (7 + 27) / 2, 0.6);
+        ctx.font = 'bold 16px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(`${m.台番}番台`, (13 + 309) / 2, (48 + 67) / 2, 0.5);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0, 0, FUJI_W, FUJI_H);
+        ctx.beginPath(); ctx.moveTo(0, 34); ctx.lineTo(FUJI_W, 34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 72); ctx.lineTo(FUJI_W, 72); ctx.stroke();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, FUJI_W, FUJI_H);
+        ctx.clip();
+        const pts = m.points || [];
+        if (pts.length) {
+          ctx.strokeStyle = 'rgb(120,220,220)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          pts.forEach((p, idx) => {
+            const px = PLOT_ORIGIN_X + (p.x / maxX) * plotWidthPx;
+            const py = PLOT_ORIGIN_Y - (p.y / 5000) * PLOT_Y_PER_5000;
+            if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        }
+        ctx.restore();
+        ctx.restore();
+      });
+
+      // ミニ表
+      const ty = y0 + graphH;
+      const s = colScale;
+      const colXBase = [0, 140, 420, 560, 700, 860, 1080].map(v => x0 + v * s);
+      ctx.fillStyle = '#d62929';
+      ctx.fillRect(x0, ty, colWidth, theadH);
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `bold ${26 * s}px "RoundedMPlus","Yu Gothic",sans-serif`;
+      const headers = ['台番', '機種', 'BB', 'RB', 'G数', '差枚数'];
+      headers.forEach((h, i) => fillTextBold(h, (colXBase[i] + colXBase[i + 1]) / 2, ty + theadH / 2, 0.6 * s));
+
+      groupMachines.forEach((m, i) => {
+        const ry = ty + theadH + i * rowH;
+        ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#fbecc0';
+        ctx.fillRect(x0, ry, colWidth, rowH);
+        const mid = ry + rowH / 2;
+        const diff = (m.差 * diffMult) || 0;
+        const diffStr = `${diff.toLocaleString()}${currentUnit}`;
+
+        ctx.fillStyle = '#222';
+        ctx.font = `bold ${30 * s}px "RoundedMPlus","Yu Gothic",sans-serif`;
+        fillTextBold(m.台番, (colXBase[0] + colXBase[1]) / 2, mid, 0.6 * s);
+        fillTextBoldFit(getDisplayName(m.表示名), (colXBase[1] + colXBase[2]) / 2, mid, 260 * s, 30 * s, 'bold', '"RoundedMPlus","Yu Gothic",sans-serif', 0.6 * s);
+        ctx.fillStyle = '#222';
+        fillTextBold(m.BB != null ? m.BB : '-', (colXBase[2] + colXBase[3]) / 2, mid, 0.6 * s);
+        fillTextBold(m.RB != null ? m.RB : '-', (colXBase[3] + colXBase[4]) / 2, mid, 0.6 * s);
+        fillTextBold(m.G数 != null ? m.G数.toLocaleString() + 'G' : '-', (colXBase[4] + colXBase[5]) / 2, mid, 0.6 * s);
+
+        ctx.fillStyle = diff > 0 ? colorPos : '#222';
+        ctx.font = `bold ${30 * s}px "RoundedMPlus","Yu Gothic",sans-serif`;
+        fillTextBold(diffStr, (colXBase[5] + colXBase[6]) / 2, mid, 0.6 * s);
+      });
+
+      // 罫線（背景塗りの後に描画）
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = Math.max(1, 2 * s);
+      const hLines = [ty, ty + theadH];
+      for (let r = 1; r <= n; r++) hLines.push(ty + theadH + r * rowH);
+      hLines.forEach(ly => { ctx.beginPath(); ctx.moveTo(x0, ly); ctx.lineTo(x0 + colWidth, ly); ctx.stroke(); });
+      colXBase.forEach(vx => { ctx.beginPath(); ctx.moveTo(vx, ty); ctx.lineTo(vx, ty + theadH + n * rowH); ctx.stroke(); });
+
+      return y0 + layout.totalH;
+    };
+
+    // 機種混在時（左右並べモード）：グラフを左、データ表を右に描画
+    const drawGroupBlockSideBySide = (x0, y0, layout, fujiImg) => {
+      const { leftW, rightW, cols, cardW, cardH, theadH, rowH, s, hs } = layout;
+      const groupMachines = layout.group.machines;
+      const n = groupMachines.length;
+      const rightX = x0 + leftW;
+
+      // ---- 左：グラフグリッド ----
+      const PLOT_ORIGIN_X = 26, PLOT_ORIGIN_Y = 238, PLOT_Y_PER_5000 = 120, PLOT_RIGHT_MARGIN = 14;
+      const plotWidthPx = FUJI_W - PLOT_ORIGIN_X - PLOT_RIGHT_MARGIN;
+      const allX = groupMachines.flatMap(m => (m.points || []).map(p => p.x));
+      const maxX = allX.length ? Math.max(...allX) : 1;
+      const pad = 6;
+
+      groupMachines.forEach((m, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const cx = x0 + col * cardW + pad;
+        const cy = y0 + row * cardH + pad;
+        const cardScale = (cardW - pad * 2) / FUJI_W;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(cardScale, cardScale);
+        if (fujiImg) ctx.drawImage(fujiImg, 0, 0, FUJI_W, FUJI_H);
+
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 18px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(m.表示名 || m.機種名 || '', (13 + 309) / 2, (7 + 27) / 2, 0.6);
+        ctx.font = 'bold 16px "RoundedMPlus","Yu Gothic",sans-serif';
+        fillTextBold(`${m.台番}番台`, (13 + 309) / 2, (48 + 67) / 2, 0.5);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0, 0, FUJI_W, FUJI_H);
+        ctx.beginPath(); ctx.moveTo(0, 34); ctx.lineTo(FUJI_W, 34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 72); ctx.lineTo(FUJI_W, 72); ctx.stroke();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, FUJI_W, FUJI_H);
+        ctx.clip();
+        const pts = m.points || [];
+        if (pts.length) {
+          ctx.strokeStyle = 'rgb(120,220,220)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          pts.forEach((p, idx) => {
+            const px = PLOT_ORIGIN_X + (p.x / maxX) * plotWidthPx;
+            const py = PLOT_ORIGIN_Y - (p.y / 5000) * PLOT_Y_PER_5000;
+            if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        }
+        ctx.restore();
+        ctx.restore();
+      });
+
+      // ---- 右：データ表 ----
+      const colXBase = [0, 140, 420, 560, 700, 860, 1080].map(v => rightX + v * s);
+      ctx.fillStyle = '#d62929';
+      ctx.fillRect(rightX, y0, rightW, theadH);
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `bold ${26 * hs}px "RoundedMPlus","Yu Gothic",sans-serif`;
+      const headers = ['台番', '機種', 'BB', 'RB', 'G数', '差枚数'];
+      headers.forEach((h, i) => fillTextBold(h, (colXBase[i] + colXBase[i + 1]) / 2, y0 + theadH / 2, 0.6 * hs));
+
+      groupMachines.forEach((m, i) => {
+        const ry = y0 + theadH + i * rowH;
+        ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#fbecc0';
+        ctx.fillRect(rightX, ry, rightW, rowH);
+        const mid = ry + rowH / 2;
+        const diff = (m.差 * diffMult) || 0;
+        const diffStr = `${diff.toLocaleString()}${currentUnit}`;
+
+        ctx.fillStyle = '#222';
+        ctx.font = `bold ${30 * hs}px "RoundedMPlus","Yu Gothic",sans-serif`;
+        fillTextBold(m.台番, (colXBase[0] + colXBase[1]) / 2, mid, 0.6 * hs);
+        fillTextBoldFit(getDisplayName(m.表示名), (colXBase[1] + colXBase[2]) / 2, mid, 260 * s, 30 * hs, 'bold', '"RoundedMPlus","Yu Gothic",sans-serif', 0.6 * hs);
+        ctx.fillStyle = '#222';
+        fillTextBold(m.BB != null ? m.BB : '-', (colXBase[2] + colXBase[3]) / 2, mid, 0.6 * hs);
+        fillTextBold(m.RB != null ? m.RB : '-', (colXBase[3] + colXBase[4]) / 2, mid, 0.6 * hs);
+        fillTextBold(m.G数 != null ? m.G数.toLocaleString() + 'G' : '-', (colXBase[4] + colXBase[5]) / 2, mid, 0.6 * hs);
+
+        ctx.fillStyle = diff > 0 ? colorPos : '#222';
+        ctx.font = `bold ${30 * hs}px "RoundedMPlus","Yu Gothic",sans-serif`;
+        fillTextBold(diffStr, (colXBase[5] + colXBase[6]) / 2, mid, 0.6 * hs);
+      });
+
+      // 罫線
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = Math.max(1, 2 * hs);
+      const hLines = [y0, y0 + theadH];
+      for (let r = 1; r <= n; r++) hLines.push(y0 + theadH + r * rowH);
+      hLines.forEach(ly => { ctx.beginPath(); ctx.moveTo(rightX, ly); ctx.lineTo(rightX + rightW, ly); ctx.stroke(); });
+      colXBase.forEach(vx => { ctx.beginPath(); ctx.moveTo(vx, y0); ctx.lineTo(vx, y0 + theadH + n * rowH); ctx.stroke(); });
+
+      return y0 + layout.totalH;
+    };
+
+    const drawMultiGroupLayout = async (startY) => {
+      const fujiImg = await loadImage('/assets/fuji_5000_bk.png');
+      try { await document.fonts.load('20px RoundedMPlus'); } catch {}
+
+      // 背景を全面レインボーグラデーションで塗りつぶし（グループ間の余白・カード間の余白・余った枠に見える）
+      const rainbow = ctx.createLinearGradient(0, startY, W, startY + multiGroupH);
+      rainbow.addColorStop(0,    '#ffb3d9');
+      rainbow.addColorStop(0.2,  '#ffd9a0');
+      rainbow.addColorStop(0.4,  '#c9f2a0');
+      rainbow.addColorStop(0.6,  '#a0e8f2');
+      rainbow.addColorStop(0.8,  '#b3b3ff');
+      rainbow.addColorStop(1,    '#e0a0f2');
+      ctx.fillStyle = rainbow;
+      ctx.fillRect(0, startY, W, multiGroupH);
+
+      const colX = [0, colWidth + COL_GAP];
+      const blockDraw = sideBySide ? drawGroupBlockSideBySide : drawGroupBlock;
+      for (let c = 0; c < multiGroupColumns.length; c++) {
+        let cy = startY;
+        for (const item of multiGroupColumns[c].items) {
+          cy = blockDraw(colX[c], cy, item, fujiImg);
+          cy += GROUP_GAP;
+        }
+      }
+    };
+
     drawAll().catch(() => _resolvePreview(canvas));
   };
 
-  const drawTable = (startY) => {
+  const drawTitleBar = (startY) => {
     let y = startY;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -3962,6 +5027,11 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
+      if (currentGenSlot === 4) {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, y, W, TITLE_H);
+      }
       y += TITLE_H;
     }
 
@@ -3974,17 +5044,102 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
       ctx.fillText(subtitle, W / 2, y + SUB_H / 2);
       y += SUB_H;
     }
+    return y;
+  };
+
+  // ===== 集計パネル（画面下部・単独呼び出し可能） =====
+  const drawStatsPanel = () => {
+    if (!(statsEnabled && machines.length > 0)) return;
+    const sy = H - STATS_H;
+    const u = currentUnit;
+    const fmt = n => n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString();
+    const count = machines.length;
+    const wins = machines.filter(m => (m.差 * diffMult) > 0).length;
+    const winRate = (wins / count * 100).toFixed(1);
+    const total = machines.reduce((s, m) => s + (m.差 * diffMult), 0);
+    const avg = Math.round(total / count);
+
+    // 機種名（同じなら1つ、違えば 始-終）
+    const firstName = getDisplayName(machines[0].表示名);
+    const lastName  = getDisplayName(machines[machines.length - 1].表示名);
+    const machineName = firstName === lastName ? firstName : `${firstName}-${lastName}`;
+
+    // 背景（薄いクリーム）
+    ctx.fillStyle = '#fafafa';
+    ctx.fillRect(0, sy, W, STATS_H);
+
+    // 上部ボーダー（ヘッダーと同色）
+    ctx.fillStyle = colorHeader;
+    ctx.fillRect(0, sy, W, 6);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    // ★ + 機種名（行1）
+    const nameY = sy + 6 + 54;
+    ctx.fillStyle = '#e8a800';
+    ctx.font = 'bold 42px "Yu Gothic","Meiryo",sans-serif';
+    ctx.fillText('★', 44, nameY);
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold 40px "Yu Gothic","Meiryo",sans-serif';
+    ctx.fillText(machineName, 122, nameY);
+
+    // 集計行（3行）
+    const rows = [
+      { label: '勝率',   value: `${winRate}%（${wins}/${count}台）` },
+      { label: '総差枚', value: `${fmt(total)}${u}` },
+      { label: '平均',   value: `${fmt(avg)}${u}` },
+    ];
+    const LABEL_X = 60;
+    const COLON_X = 210;
+    const VALUE_X = 255;
+    const rowStartY = sy + 6 + 110;
+    const lineH = 52;
+
+    rows.forEach((row, i) => {
+      const ry = rowStartY + i * lineH;
+      // ラベル（太字・濃色）
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold 38px "Yu Gothic","Meiryo",sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(row.label, LABEL_X, ry);
+      // コロン
+      ctx.fillStyle = '#555';
+      ctx.fillText('：', COLON_X, ry);
+      // 値
+      const val = row.value;
+      const isPlus = val.startsWith('+');
+      const isMinus = val.startsWith('-');
+      ctx.fillStyle = isPlus ? colorPos : isMinus ? colorNeg : '#111';
+      ctx.font = 'bold 40px "Yu Gothic","Meiryo",sans-serif';
+      ctx.fillText(val, VALUE_X, ry);
+    });
+  };
+
+  const drawTable = (startY) => {
+    let y = drawTitleBar(startY);
 
     // ②スロット時にG数/BB/RBカラムを追加するか判定
-    const useSlot2Cols = currentGenSlot >= 2 && machines.some(m => m.G数 !== null);
+    const useSlot2Cols = (currentGenSlot >= 2 && currentGenSlot <= 4) && machines.some(m => m.G数 !== null);
+    // 画像生成静岡は列順・配色を専用デザインにする（台番/機種名/BB/RB/G数/差枚数）
+    const isShizuokaTable = currentGenSlot === 4 && useSlot2Cols;
 
     // テーブルヘッダー
     const tableTop = y;
-    ctx.fillStyle = colorHeader;
+    ctx.fillStyle = isShizuokaTable ? '#d62929' : colorHeader;
     ctx.fillRect(0, y, W, THEAD_H);
     ctx.fillStyle = 'white';
 
-    if (useSlot2Cols) {
+    if (isShizuokaTable) {
+      // 台番(0-140) 機種名(140-420) BB(420-560) RB(560-700) G数(700-860) 差枚数(860-1080)
+      ctx.font = 'bold 26px "RoundedMPlus","Yu Gothic",sans-serif';
+      fillTextBold('台番',   70,  y + THEAD_H / 2);
+      fillTextBold('機種',   280, y + THEAD_H / 2);
+      fillTextBold('BB',    490, y + THEAD_H / 2);
+      fillTextBold('RB',    630, y + THEAD_H / 2);
+      fillTextBold('G数',   780, y + THEAD_H / 2);
+      fillTextBold('差枚数', 970, y + THEAD_H / 2);
+    } else if (useSlot2Cols) {
       // 台番(0-140) 機種名(140-420) G数(420-590) BB(590-730) RB(730-860) 差枚数(860-1080)
       ctx.font = '26px "Yu Gothic","Meiryo",sans-serif';
       ctx.fillText('台番',   70,  y + THEAD_H / 2);
@@ -4001,13 +5156,14 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     }
     y += THEAD_H;
 
-    // 縦区切り線
-    ctx.strokeStyle = '#ddd';
-    ctx.lineWidth = 2;
-    const dividers = useSlot2Cols ? [140, 420, 590, 730, 860] : [310, 740];
-    dividers.forEach(x => {
-      ctx.beginPath(); ctx.moveTo(x, tableTop); ctx.lineTo(x, H - 8); ctx.stroke();
-    });
+    if (!isShizuokaTable) {
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 2;
+      const dividers = useSlot2Cols ? [140, 420, 590, 730, 860] : [310, 740];
+      dividers.forEach(x => {
+        ctx.beginPath(); ctx.moveTo(x, tableTop); ctx.lineTo(x, H - 8); ctx.stroke();
+      });
+    }
 
     // データ行 or 空メッセージ
     if (!machines.length) {
@@ -4017,11 +5173,15 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     } else {
       machines.forEach((m, i) => {
         const rowY = y + i * ROW_H;
-        ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
+        ctx.fillStyle = isShizuokaTable
+          ? (i % 2 === 0 ? '#ffffff' : '#fbecc0')
+          : (i % 2 === 0 ? '#ffffff' : '#f9f9f9');
         ctx.fillRect(0, rowY, W, ROW_H);
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(0, rowY + ROW_H); ctx.lineTo(W, rowY + ROW_H); ctx.stroke();
+        if (!isShizuokaTable) {
+          ctx.strokeStyle = '#e0e0e0';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(0, rowY + ROW_H); ctx.lineTo(W, rowY + ROW_H); ctx.stroke();
+        }
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -4029,8 +5189,26 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
 
         const diff = (m.差 * diffMult) || 0;
         const diffStr = diff > 0 ? `+${diff.toLocaleString()}${currentUnit}` : `${diff.toLocaleString()}${currentUnit}`;
+        const diffStrShizuoka = `${diff.toLocaleString()}${currentUnit}`;
 
-        if (useSlot2Cols) {
+        if (isShizuokaTable) {
+          ctx.fillStyle = '#222';
+          ctx.font = 'bold 30px "RoundedMPlus","Yu Gothic",sans-serif';
+          fillTextBold(m.台番, 70, mid);
+
+          ctx.fillStyle = '#222';
+          fillTextBoldFit(getDisplayName(m.表示名), 280, mid, 260, 30, 'bold', '"RoundedMPlus","Yu Gothic",sans-serif');
+
+          ctx.fillStyle = '#222';
+          ctx.font = 'bold 30px "RoundedMPlus","Yu Gothic",sans-serif';
+          fillTextBold(m.BB  !== null ? m.BB  : '-', 490, mid);
+          fillTextBold(m.RB  !== null ? m.RB  : '-', 630, mid);
+          fillTextBold(m.G数 !== null ? m.G数.toLocaleString() + 'G' : '-', 780, mid);
+
+          ctx.fillStyle = diff > 0 ? colorPos : '#222';
+          ctx.font = 'bold 30px "RoundedMPlus","Yu Gothic",sans-serif';
+          fillTextBold(diffStrShizuoka, 970, mid);
+        } else if (useSlot2Cols) {
           ctx.fillStyle = '#222';
           ctx.font = 'bold 30px "Yu Gothic","Meiryo",sans-serif';
           ctx.fillText(m.台番, 70, mid);
@@ -4062,75 +5240,23 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
           ctx.fillText(diffStr, 910, mid);
         }
       });
+
+      if (isShizuokaTable) {
+        // Excelのような全セル囲い線（行の背景塗りより後に描画して消えないようにする）
+        const rowCount = Math.max(machines.length, 1);
+        const headerBottom = tableTop + THEAD_H;
+        const gridBottom = headerBottom + rowCount * ROW_H;
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        const hLines = [tableTop, headerBottom];
+        for (let r = 1; r <= rowCount; r++) hLines.push(headerBottom + r * ROW_H);
+        hLines.forEach(ly => { ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W, ly); ctx.stroke(); });
+        const vLines = [0, 140, 420, 560, 700, 860, W];
+        vLines.forEach(x => { ctx.beginPath(); ctx.moveTo(x, tableTop); ctx.lineTo(x, gridBottom); ctx.stroke(); });
+      }
     }
 
-    // ===== 集計パネル（下部） =====
-    if (statsEnabled && machines.length > 0) {
-      const sy = H - STATS_H;
-      const u = currentUnit;
-      const fmt = n => n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString();
-      const count = machines.length;
-      const wins = machines.filter(m => (m.差 * diffMult) > 0).length;
-      const winRate = (wins / count * 100).toFixed(1);
-      const total = machines.reduce((s, m) => s + (m.差 * diffMult), 0);
-      const avg = Math.round(total / count);
-
-      // 機種名（同じなら1つ、違えば 始-終）
-      const firstName = getDisplayName(machines[0].表示名);
-      const lastName  = getDisplayName(machines[machines.length - 1].表示名);
-      const machineName = firstName === lastName ? firstName : `${firstName}-${lastName}`;
-
-      // 背景（薄いクリーム）
-      ctx.fillStyle = '#fafafa';
-      ctx.fillRect(0, sy, W, STATS_H);
-
-      // 上部ボーダー（ヘッダーと同色）
-      ctx.fillStyle = colorHeader;
-      ctx.fillRect(0, sy, W, 6);
-
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-
-      // ★ + 機種名（行1）
-      const nameY = sy + 6 + 54;
-      ctx.fillStyle = '#e8a800';
-      ctx.font = 'bold 42px "Yu Gothic","Meiryo",sans-serif';
-      ctx.fillText('★', 44, nameY);
-      ctx.fillStyle = '#111';
-      ctx.font = 'bold 40px "Yu Gothic","Meiryo",sans-serif';
-      ctx.fillText(machineName, 122, nameY);
-
-      // 集計行（3行）
-      const rows = [
-        { label: '勝率',   value: `${winRate}%（${wins}/${count}台）` },
-        { label: '総差枚', value: `${fmt(total)}${u}` },
-        { label: '平均',   value: `${fmt(avg)}${u}` },
-      ];
-      const LABEL_X = 60;
-      const COLON_X = 210;
-      const VALUE_X = 255;
-      const rowStartY = sy + 6 + 110;
-      const lineH = 52;
-
-      rows.forEach((row, i) => {
-        const ry = rowStartY + i * lineH;
-        // ラベル（太字・濃色）
-        ctx.fillStyle = '#111';
-        ctx.font = 'bold 38px "Yu Gothic","Meiryo",sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(row.label, LABEL_X, ry);
-        // コロン
-        ctx.fillStyle = '#555';
-        ctx.fillText('：', COLON_X, ry);
-        // 値
-        const val = row.value;
-        const isPlus = val.startsWith('+');
-        const isMinus = val.startsWith('-');
-        ctx.fillStyle = isPlus ? colorPos : isMinus ? colorNeg : '#111';
-        ctx.font = 'bold 40px "Yu Gothic","Meiryo",sans-serif';
-        ctx.fillText(val, VALUE_X, ry);
-      });
-    }
+    drawStatsPanel();
 
     // 外枠
     ctx.strokeStyle = '#ccc';
@@ -4700,7 +5826,7 @@ function renderImageQueue() {
   const count = document.getElementById('queueCount');
   count.textContent = `${imageQueue.length}件`;
   const mergeBtn = document.getElementById('mergeQueueBtn');
-  if (mergeBtn) mergeBtn.style.display = currentGenSlot >= 2 ? '' : 'none';
+  if (mergeBtn) mergeBtn.style.display = (currentGenSlot >= 2 && currentGenSlot <= 3) ? '' : 'none';
   const qcBox = document.getElementById('quickCopyBtns');
   if (!imageQueue.length) {
     section.style.display = 'none';
@@ -6179,7 +7305,7 @@ function sendAllQueueToWP() {
     document.addEventListener('mousemove', e => {
       if (!dragging) return;
       const newW = Math.max(160, Math.min(startW + e.clientX - startX, 520));
-      leftPanel.style.width = newW + 'px';
+      leftPanel.style.flex = '0 0 ' + newW + 'px';
     });
     document.addEventListener('mouseup', () => {
       if (!dragging) return;
@@ -6209,7 +7335,7 @@ function sendAllQueueToWP() {
     document.addEventListener('mousemove', e => {
       if (!dragging) return;
       const newW = Math.max(220, Math.min(startW + e.clientX - startX, 700));
-      midPanel.style.width = newW + 'px';
+      midPanel.style.flex = '0 0 ' + newW + 'px';
     });
     document.addEventListener('mouseup', () => {
       if (!dragging) return;
@@ -6259,7 +7385,7 @@ function sendAllQueueToWP() {
       }
     });
     window.addEventListener('beforeunload', () => {
-      if (currentGenSlot >= 2) genSaveState(currentGenSlot);
+      if ((currentGenSlot >= 2 && currentGenSlot <= 4)) genSaveState(currentGenSlot);
     });
   } else {
     initMainLeftDivider();
