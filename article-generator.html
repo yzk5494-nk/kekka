@@ -1319,6 +1319,7 @@ const SERIES_CONFIG = {
       { name:'ヴァルヴレイヴ2',         count:0 },
       { name:'ヴァルヴレイヴ',          count:0 },
       { name:'かぐや様は告らせたい',     count:0 },
+      { name:'からくりサーカス2',       count:0 },
       { name:'からくりサーカス',        count:0 },
       { name:'炎炎ノ消防隊2',           count:0 },
     ],
@@ -1873,10 +1874,11 @@ async function fetchPtown() {
   btn.disabled = true; btn.textContent = '⏳';
   showToast('⏳ p-town(DMM)から取得中…');
   try {
+    const keywords = SERIES_CONFIG[currentSeries]?.allowedMachines || [];
     const res = await fetch('/api/scrape-ptown', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageUrl }),
+      body: JSON.stringify({ pageUrl, keywords }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || '取得失敗')); return; }

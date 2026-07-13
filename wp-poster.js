@@ -810,8 +810,9 @@ const server = http.createServer(async (req, res) => {
     // ── p-town(DMM) スクレイピング ────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/scrape-ptown') {
       const buf = await collectBody(req);
-      const { pageUrl } = JSON.parse(buf.toString('utf8'));
+      const { pageUrl, keywords } = JSON.parse(buf.toString('utf8'));
       if (!pageUrl) return sendJson(400, { error: 'pageUrl が必要です' });
+      const filterKeywords = (keywords && keywords.length) ? keywords : null;
 
       let browser;
       try {
@@ -826,7 +827,7 @@ const server = http.createServer(async (req, res) => {
           .catch(() => console.warn('[ptown] 機種リストが見つかりませんでした'));
 
         // スロット機種名と台数を取得
-        const { machines, debugCategories } = await page.evaluate(() => {
+        const { machines, debugCategories } = await page.evaluate((filterKeywords) => {
           const results = [];
           const slotAnchor = document.getElementById('anc-slot');
           const slotSection = slotAnchor?.closest('section') || slotAnchor?.parentElement;
@@ -853,8 +854,15 @@ const server = http.createServer(async (req, res) => {
           slotSection.querySelectorAll('a[href*="/machines/"]').forEach(a => {
             if (!/\/machines\/\d+/.test(a.getAttribute('href'))) return;
             const name = a.innerText?.trim();
-            if (!name?.includes('ジャグ')) return;
+            // シリーズの機種フィルターが指定されていればそれで判定、
+            // なければ従来通りジャグラー機種のみを対象にする
+            if (filterKeywords && filterKeywords.length) {
+              if (!filterKeywords.some(kw => name?.includes(kw))) return;
+            } else {
+              if (!name?.includes('ジャグ')) return;
+            }
 
+            // この除外カテゴリー判定は全シリーズ共通
             const category = machineCategory.get(a) || '';
             if (category.includes('178') || category.includes('160') || category.includes('188') || category.includes('184') || category.includes('2.5') || category.includes('２.５') || category.includes('5.495') || category.includes('５.４９５') || category.includes('[5]') || category.includes('[５]')) return;
 
@@ -865,7 +873,7 @@ const server = http.createServer(async (req, res) => {
             if (count > 0) results.push({ name, count });
           });
           return { machines: results, debugCategories };
-        });
+        }, filterKeywords);
 
         console.log(`[ptown] 取得: ${machines.length}機種, カテゴリー: ${debugCategories.join(', ')}`);
         return sendJson(200, { machines, debugCategories });
