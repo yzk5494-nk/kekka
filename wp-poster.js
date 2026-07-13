@@ -5,6 +5,7 @@ const path = require('path');
 const url = require('url');
 let puppeteer;
 try { puppeteer = require('puppeteer'); } catch { puppeteer = require('puppeteer-core'); }
+const { convertImagesTree, LIB_IMAGES_DIR } = require('./lib-image-store');
 
 // 設定読み込み
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'wp-config.json'), 'utf8'));
@@ -23,6 +24,25 @@ function seedIfMissing(relPath) {
   fs.copyFileSync(src, dest);
 }
 ['x-library.json', 'store-memory.json', 'article-data/library.json', 'pickup-data/library.json'].forEach(seedIfMissing);
+
+// 起動時: ライブラリ画像がまだbase64埋め込みのままなら個別ファイルに変換しておく
+// （初回デプロイ時点の永続ボリューム上の既存データを1回だけ軽量化するため。変換済みなら何もしない）
+function migrateLibraryImagesOnBoot(relFile, subdir, nested) {
+  try {
+    const full = path.join(DATA_DIR, relFile);
+    if (!fs.existsSync(full)) return;
+    const data = JSON.parse(fs.readFileSync(full, 'utf8'));
+    const stats = convertImagesTree(data.images, subdir, nested);
+    if (stats.converted > 0) {
+      fs.writeFileSync(full, JSON.stringify(data), 'utf8');
+      console.log(`[起動時移行] ${relFile}: ${stats.converted}枚をlibrary-imagesに変換しました`);
+    }
+  } catch (e) {
+    console.error(`[起動時移行] ${relFile} の変換に失敗:`, e.message);
+  }
+}
+migrateLibraryImagesOnBoot('article-data/library.json', 'article', true);
+migrateLibraryImagesOnBoot('pickup-data/library.json', 'pickup', false);
 
 // Xポストライブラリ
 const X_LIBRARY_FILE = path.join(DATA_DIR, 'x-library.json');
@@ -440,6 +460,20 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404); return res.end('Not found');
     }
 
+    // ── ライブラリ画像静的配信（article/pickup 配下の個別画像ファイル） ──────
+    if (req.method === 'GET' && parsed.pathname.startsWith('/library-images/')) {
+      const relPath = decodeURIComponent(parsed.pathname.replace('/library-images/', ''));
+      if (relPath.includes('..')) { res.writeHead(400); return res.end('Bad request'); }
+      const filePath = path.join(LIB_IMAGES_DIR, relPath);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filePath).toLowerCase();
+        const mime = { '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif', '.webp':'image/webp' }[ext] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': mime });
+        return res.end(fs.readFileSync(filePath));
+      }
+      res.writeHead(404); return res.end('Not found');
+    }
+
     // ── 機種画像ローカル保存 ─────────────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/save-machine-image') {
       const buf = await collectBody(req);
@@ -589,8 +623,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && parsed.pathname === '/api/article-library') {
       const buf = await collectBody(req);
       const libPath = path.join(DATA_DIR, 'article-data', 'library.json');
+      const data = JSON.parse(buf.toString('utf8'));
+      // 新しく登録された画像（base64埋め込み）はファイルに保存し、JSONには参照だけ残す
+      convertImagesTree(data.images, 'article', true);
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
-      fs.writeFileSync(libPath, buf.toString('utf8'), 'utf8');
+      fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
       return sendJson(200, { ok: true });
     }
 
@@ -608,8 +645,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && parsed.pathname === '/api/pickup-library') {
       const buf = await collectBody(req);
       const libPath = path.join(DATA_DIR, 'pickup-data', 'library.json');
+      const data = JSON.parse(buf.toString('utf8'));
+      // 新しく登録された画像（base64埋め込み）はファイルに保存し、JSONには参照だけ残す
+      convertImagesTree(data.images, 'pickup', false);
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
-      fs.writeFileSync(libPath, buf.toString('utf8'), 'utf8');
+      fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
       return sendJson(200, { ok: true });
     }
 

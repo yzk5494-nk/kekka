@@ -2565,6 +2565,15 @@ document.getElementById('libGridImgInput').addEventListener('change', function()
   reader.readAsDataURL(file);
 });
 
+// machineImageLibの値は通常はdata URL/参照パスの文字列だが、複数画像(endImages)を
+// 持つ古い登録形式では {id,url,nickname,endImages} オブジェクトのこともある。
+// 表示用に常に文字列（またはnull）を返す。
+function getMachineImageSrc(entry) {
+  if (!entry) return null;
+  if (typeof entry === 'string') return entry;
+  return entry.url || null;
+}
+
 function renderLibGrid() {
   const el = document.getElementById('libGrid');
   const q = (document.getElementById('libPageSearch').value || '').toLowerCase();
@@ -2579,7 +2588,7 @@ function renderLibGrid() {
   }
 
   el.innerHTML = filtered.map(name => {
-    const img = machineImageLib[name];
+    const img = getMachineImageSrc(machineImageLib[name]);
     const nick = machineNicknames[name];
     const esc = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const cardId = 'libcard-' + btoa(encodeURIComponent(name)).replace(/=/g,'');
@@ -3192,7 +3201,12 @@ async function recompressLibrary() {
   btn.disabled = true;
   btn.textContent = '⏳ 処理中...';
   for (const name of names) {
-    machineImageLib[name] = await compressImage(machineImageLib[name]);
+    const entry = machineImageLib[name];
+    const src = getMachineImageSrc(entry);
+    if (!src) continue;
+    const compressed = await compressImage(src);
+    if (typeof entry === 'string') machineImageLib[name] = compressed;
+    else entry.url = compressed;
   }
   saveLibToStorage();
   btn.disabled = false;
@@ -3243,7 +3257,7 @@ function renderLibList() {
   }
 
   const rows = filtered.map((name, idx) => {
-    const img = machineImageLib[name];
+    const img = getMachineImageSrc(machineImageLib[name]);
     const nick = machineNicknames[name];
     const esc = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const id = `lfi-${idx}`;
@@ -3397,7 +3411,8 @@ function updateCardImagesFromSelection() {
     const m = allMachines.find(m => m.台番 === num);
     if (m && !seen.has(m.表示名)) {
       seen.add(m.表示名);
-      if (machineImageLib[m.表示名]) matchedImages.push({ name: m.表示名, data: machineImageLib[m.表示名] });
+      const _src = getMachineImageSrc(machineImageLib[m.表示名]);
+      if (_src) matchedImages.push({ name: m.表示名, data: _src });
     }
   }
   for (let i = 0; i < 4; i++) {
@@ -5393,7 +5408,8 @@ function getCardImagesForGroup(nums) {
     const m = allMachines.find(m => m.台番 === num);
     if (m && !seen.has(m.表示名)) {
       seen.add(m.表示名);
-      if (machineImageLib[m.表示名]) matched.push(machineImageLib[m.表示名]);
+      const _src2 = getMachineImageSrc(machineImageLib[m.表示名]);
+      if (_src2) matched.push(_src2);
     }
   }
   // ライブラリに画像がない場合は現在のcardImagesをそのまま使う
