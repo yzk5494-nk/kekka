@@ -1389,7 +1389,7 @@ const SERIES_CONFIG = {
     getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2 }) {
       return {
         b3:  '【戦極～百花繚乱～】',
-        b4:  '',
+        b4:  `${new Date().getMonth() + 1}月も全国の強豪店舗が数多く参戦っ‼️\n各地で熱い火花を散らしますっ🌺`,
         b5:  '',
         b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
@@ -1600,6 +1600,7 @@ function getTemplateTexts() {
     b6:  currentSeries === 'tokyoghoul' ? '' : `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
     b7:  currentSeries === 'tokyoghoul' ? `それではまず、取材対象機種の確認からいきましょう📹`
       : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
+      : currentSeries === 'hyakkaryoran' ? ['まずは設置機種を確認していきましょう🔍', 'まずは取材対象となるハナ系機種の設置台数をごらんください✋'][Math.floor(Math.random() * 2)]
       : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
@@ -1705,6 +1706,8 @@ async function generateWithAI() {
     // AI生成された吹き出しをプレビューに反映（東京喰種はb5と内容が被るためb6は生成しない）
     const keys = currentSeries === 'tokyoghoul'
       ? ['b3','b5','b9','b13','b14','b15']
+      : currentSeries === 'hyakkaryoran'
+      ? ['b3','b6','b8','b9','b13','b14','b15']
       : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
       if (!data[key]) return;
