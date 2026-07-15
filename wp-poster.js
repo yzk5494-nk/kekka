@@ -1025,6 +1025,7 @@ const server = http.createServer(async (req, res) => {
       const eventName = data.eventName || '戦極～電光石火～';
       const series = data.series || '';
       const pastArticles = data.pastArticles || [];
+      const prevArticle = pastArticles[0];
 
       const b3Section = series === 'tokyoghoul' ? `■ b3（新企画の紹介。2026年開始・2025年に話題になった機種への特化調査という体で）
 実例:
@@ -1032,7 +1033,10 @@ const server = http.createServer(async (req, res) => {
 - 「2026年よりスタートした新企画【${eventName}】👿\n2025年、プレイヤーを熱狂させたスマスロ東京喰種のみに焦点を当てた徹底調査を行って参りましたっ💪」
 - 「満を持して2026年に始動した新企画【${eventName}】👿👿\n2025年最も話題をさらったスマスロ東京喰種、その実態を徹底的に調査してきましたっ💪」
 - 「2026年、新たに動き出した企画【${eventName}】👿\n2025年に絶大な人気を博したスマスロ東京喰種だけを追いかける徹底調査ですっ💪」
-→ 「2026年から始まった新企画」であること、「2025年に最も話題になった／プレイヤーの心を鷲掴みにした」という点、「スマスロ東京喰種に特化した徹底調査」という要素は必ず含め、言い回しだけを変えること。2文。` : `■ b3（${eventName}の形容。慣用句＋イベント名の形）
+→ 「2026年から始まった新企画」であること、「2025年に最も話題になった／プレイヤーの心を鷲掴みにした」という点、「スマスロ東京喰種に特化した徹底調査」という要素は必ず含め、言い回しだけを変えること。2文。` : series === 'shishifunjin' ? `■ b3（好評開催中＋SANKYO機種特化調査という体で）
+実例:
+- 「好評を博し、2026年も絶賛開催中となっている【${eventName}】🌸🌸🌸\nこの取材は、今のパチスロシーンを代表する"SANKYO機種"に特化した編集部総力調査です🌸🌸🌸」
+→ 「好評を博し、2026年も絶賛開催中」であること、「今のパチスロシーンを代表するSANKYO機種に特化した編集部総力調査」という要素は必ず含め、言い回しだけを変えること。2文。` : `■ b3（${eventName}の形容。慣用句＋イベント名の形）
 実例:
 - 「回を重ねるに連れて好評を博している${eventName}🤡」
 - 「破竹の勢いで規模を拡大している${eventName}」
@@ -1044,7 +1048,6 @@ const server = http.createServer(async (req, res) => {
 
       let b5Section;
       if (series === 'tokyoghoul') {
-        const prevArticle = pastArticles[0];
         const openCount = pastArticles.length + 1; // 保存上限3件のため概算
         let prevMonth = '';
         if (prevArticle?.date) {
@@ -1061,6 +1064,11 @@ ${prevArticle?.texts?.b13 ? `前回のB13参考: "${prevArticle.texts.b13}"` : '
 実例:
 - 「こちらの店舗での${eventName}開催は2回目‼️\n前回は4月に取材を行い、万枚オーバー台が複数現れるほどに盛り上がりましたので、今回の結果も楽しみにしています🔥🔥」
 → 前半で「開催は${openCount}回目」であることに触れ、後半で前回${prevMonth ? `(${prevMonth})` : ''}の取材結果(上記B13参考があればそれを踏まえる)を出玉的にアピールすること。前回情報が無ければ後半は省略可。1〜2文。`;
+      } else if (series === 'shishifunjin') {
+        b5Section = `■ b5（全国参戦告知＋どのホールが制するか気になる煽り）
+実例:
+- 「今月も全国津々浦々、出玉自慢のホールが参戦⚔⚔⚔\n荒波マシンを制するホールは果たしてどのホールになるのでしょうか…⁉️」
+→ 「全国津々浦々、出玉自慢のホールが参戦」であること、「荒波マシンを制するホールはどこか」という問いかけの要素は必ず含め、言い回しだけを変えること。2文。`;
       } else {
         b5Section = `■ b5（全国参戦告知）
 実例:
@@ -1091,7 +1099,9 @@ ${prevArticle?.texts?.b13 ? `前回のB13参考: "${prevArticle.texts.b13}"` : '
 - 「前回の${data.prev}旋風からどう変わるのか⁉️今回のランキングも目が離せませんよ🔥」
 - 「前回は${data.prev}が頭一つ抜け出していましたが、今回はその流れを受け継ぐ機種が現れるのか注目ですっ✨」
 - 「${data.prev}が躍動した前回の余韻も冷めやらぬ中、今回はいったいどの機種から優秀台が飛び出すのか⁉️楽しみですね～🎉」
-→ 前回機種(${data.prev})に必ず触れて今回への期待を。1〜2文。上記のどれかをベースにバリエーションを出すこと。`);
+- 「こちらは【戦極】取材の常連店🌺\n毎回ド派手な出玉で我々を魅了してくれていますので、今回の結果も非常に楽しみですっ💥」
+${prevArticle?.over10000Count >= 2 ? `- 「前回は万枚オーバーが${prevArticle.over10000Count}件と、かなりの盛り上がりを見せていました🎉今回も期待が高まりますねっ🔥」` : ''}
+→ 前回機種(${data.prev})に触れて今回への期待を出すか、または「常連店」として毎回の実績を称える切り口でもよい。${prevArticle?.over10000Count >= 2 ? `前回は万枚オーバーが${prevArticle.over10000Count}件あったので、その実績に触れてもよい。` : ''}1〜2文。上記のどれかをベースにバリエーションを出すこと。`);
 
       // 東京喰種は機種が1種類のみのためTOP1/TOP2の機種名比較ではなく、全体の稼働傾向コメントにする
       let b13Section;
@@ -1190,6 +1200,14 @@ ${data.achieved10000 === true ? '※今回は万枚オーバー達成台があ�
 - 「ランキングを見る感じ、やはり設置台数が多い機種が多くランクインしている傾向に🤔次回の立ち回りの参考にしてみてくださいね☝️」
 - 「やはり多台数設置機種が優勢ではありましたが、全体的にチャンスがあった取材となりましたね☺️」
 - 「惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍次回のリベンジにも期待したいですね！」
+${series === 'shishifunjin' ? `今回のデータ:
+${data.over10000Count ? `万枚オーバー×${data.over10000Count}件` : ''}
+${data.over5000Count ? `5,000枚以上×${data.over5000Count}件` : ''}
+${data.rankInMinDiff != null ? `ランクイン台は全て${data.rankInMinDiff}枚以上` : ''}
+追加実例（上記データに合うものがあれば1〜2個選んで組み合わせてもよい）:
+- 「今回は万枚オーバーが${data.over10000Count}件と、かなりの盛り上がりを見せてくれましたっ🎉」
+- 「5,000枚以上が${data.over5000Count}件と、優秀台の多さがうかがえる結果に📝」
+- 「ランクイン台は全て${data.rankInMinDiff}枚以上と、粒ぞろいの結果となりましたね✨」` : ''}
 → 今回の傾向・次回への期待。1〜2文。
 
 ■ b15（レポート終了）
@@ -1387,12 +1405,12 @@ JSONのみを返してください（説明文・コードブロック不要）:
 
     if (req.method === 'POST' && parsed.pathname === '/api/store-memory') {
       const buf = await collectBody(req);
-      const { hall, series, date, texts, top1 } = JSON.parse(buf.toString('utf8'));
+      const { hall, series, date, texts, top1, over10000Count } = JSON.parse(buf.toString('utf8'));
       const seriesKey = series || 'denkoisseki';
       const memory = readStoreMemory();
       if (!memory[hall] || Array.isArray(memory[hall])) memory[hall] = {};
       if (!memory[hall][seriesKey]) memory[hall][seriesKey] = [];
-      memory[hall][seriesKey].unshift({ date, texts, top1: top1 || '' });
+      memory[hall][seriesKey].unshift({ date, texts, top1: top1 || '', over10000Count: over10000Count || 0 });
       if (memory[hall][seriesKey].length > 3) memory[hall][seriesKey] = memory[hall][seriesKey].slice(0, 3);
       writeStoreMemory(memory);
       return sendJson(200, { ok: true });
@@ -1413,11 +1431,12 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const date = parsed.searchParams.get('date');
       if (!hallId || !date) return sendJson(400, { error: 'hallId・dateが必要です' });
       const result = await pisionRequest(`/api/v2/halls/${encodeURIComponent(hallId)}/results/${encodeURIComponent(date)}`);
+      const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,
         機種名: d.displayName || d.model?.name || '',
         表示名: d.displayName || d.model?.name || '',
-        差: d.diff ?? 0,
+        差: roundUp50(d.diff ?? 0),
         colored: false,
         G数: d.games ?? null,
         BB: d.bb ?? null,

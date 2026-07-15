@@ -1328,7 +1328,8 @@ const SERIES_CONFIG = {
         b3:  '【戦極～獅子奮迅～】',
         b4:  '',
         b5:  '',
-        b8:  `同店の設置は${cnt}機種合計${total}台‼️`,
+        b8:  [`SANKYO系機種は${cnt}機種で合計${total}台🎰`, `取材対象となるSANKYO機種は、${cnt}機種合計で${total}台の設置となります📝`][Math.floor(Math.random() * 2)],
+        b10: [`それでは、この日の差枚ランキングを見ていきましょう👍`, `それでは、この日の差枚ランキングをご覧ください👍`][Math.floor(Math.random() * 2)],
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
         b14: '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜獅子奮迅〜開催時はかなり期待できそうです！',
       };
@@ -1597,7 +1598,9 @@ function getTemplateTexts() {
     b4:  seriesTexts.b4,
     b5:  seriesTexts.b5,
     b6:  currentSeries === 'tokyoghoul' ? '' : `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
-    b7:  currentSeries === 'tokyoghoul' ? `それではまず、取材対象機種の確認からいきましょう📹` : `それではまず、設置機種を確認していきましょう📷`,
+    b7:  currentSeries === 'tokyoghoul' ? `それではまず、取材対象機種の確認からいきましょう📹`
+      : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
+      : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
     b10: seriesTexts.b10 || `それでは、差枚ランキングをご覧ください✋`,
@@ -1679,8 +1682,12 @@ async function generateWithAI() {
     const plusCount = allMachineData.length ? allMachineData.filter(m => m.差 > 0).length : null;
     const maxDiffAI = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
     // 万枚オーバーはスマスロ系（東京喰種等）だけで現実的な基準。ジャグラー系では起こり得ないため対象シリーズのみ送る
-    const milestoneRelevant = currentSeries === 'tokyoghoul';
+    const milestoneRelevant = currentSeries === 'tokyoghoul' || currentSeries === 'shishifunjin';
     const achieved10000 = milestoneRelevant ? (maxDiffAI >= 10000) : null;
+    const over10000Count = allMachineData.length ? allMachineData.filter(m => m.差 >= 10000).length : 0;
+    const over5000Count  = allMachineData.length ? allMachineData.filter(m => m.差 >= 5000).length : 0;
+    // ランクイン台の最低差枚（ランクイン台は全て◯枚以上、のアピール用）
+    const rankInMinDiff = rankData.length ? rankData[rankData.length - 1].差 : null;
     // 東京喰種のb13（全体の稼働傾向コメント）用の集計データ
     const avgDiff = allMachineData.length ? Math.round(allMachineData.reduce((s, m) => s + m.差, 0) / allMachineData.length) : null;
     const maxG = allMachineData.length ? Math.max(...allMachineData.map(m => m.G || 0)) : null;
@@ -1690,7 +1697,7 @@ async function generateWithAI() {
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000 }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
@@ -1715,7 +1722,7 @@ async function generateWithAI() {
     fetch('/api/store-memory', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hall, series: currentSeries, date: dateStr, texts: { b3: data.b3, b5: data.b5, b6: data.b6, b13: data.b13, b14: data.b14, b15: data.b15 }, top1: t1n }),
+      body: JSON.stringify({ hall, series: currentSeries, date: dateStr, texts: { b3: data.b3, b5: data.b5, b6: data.b6, b13: data.b13, b14: data.b14, b15: data.b15 }, top1: t1n, over10000Count }),
     }).catch(() => {});
 
     showToast('🤖 AI文章を生成しました！');
@@ -2046,7 +2053,6 @@ function generate() {
     balloon(bid, bHtml('b1')),
     balloon(bid, bHtml('b2')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
-    wpImage(FIXED.eventImgId, FIXED.eventImgUrl),
     balloon(bid, bHtml('b3')
       .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')),
     balloon(bid, bHtml('b4')
