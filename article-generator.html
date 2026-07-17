@@ -2050,31 +2050,37 @@ function generate() {
     .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')
     .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"');
 
+  // 内容が空のブロックはバルーンごと出力しない（機種名テンプレなどで空文字が返るシリーズ向け）
+  function balloonMaybe(html) {
+    const stripped = html.replace(/<br\s*\/?>/gi, '').trim();
+    return stripped ? balloon(bid, html) : '';
+  }
+
   const bid = FIXED.balloonID;
   const code = [
     wpImage(storeImgId, storeImgUrl),
     balloon(bid, bHtml('b1')),
     balloon(bid, bHtml('b2')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
-    balloon(bid, bHtml('b3')
+    balloonMaybe(bHtml('b3')
       .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')),
-    balloon(bid, bHtml('b4')
+    balloonMaybe(bHtml('b4')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
     wpImage(FIXED.listImgId, FIXED.listImgUrl),
-    balloon(bid, bHtml('b5')),
-    bHtml('b6').trim() ? balloon(bid, bHtml('b6')) : '',
-    balloon(bid, bHtml('b7')),
+    balloonMaybe(bHtml('b5')),
+    balloonMaybe(bHtml('b6')),
+    balloonMaybe(bHtml('b7')),
     capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
-    balloon(bid, bHtml('b8')),
+    balloonMaybe(bHtml('b8')),
     ...(currentSeries === 'tokyoghoul'
-      ? [balloon(bid, bHtml('b10')), wpImage(rankImgId, rankImgUrl), balloon(bid, bHtml('b9'))]
-      : [balloon(bid, bHtml('b9')), balloon(bid, bHtml('b10')), wpImage(rankImgId, rankImgUrl)]),
-    balloon(bid, bHtml('b11')),
-    balloon(bid, bHtml('b12')),
-    balloon(bid, bHtml('b13')),
-    balloon(bid, bHtml('b14')),
+      ? [balloonMaybe(bHtml('b10')), wpImage(rankImgId, rankImgUrl), balloonMaybe(bHtml('b9'))]
+      : [balloonMaybe(bHtml('b9')), balloonMaybe(bHtml('b10')), wpImage(rankImgId, rankImgUrl)]),
+    balloonMaybe(bHtml('b11')),
+    balloonMaybe(bHtml('b12')),
+    balloonMaybe(bHtml('b13')),
+    balloonMaybe(bHtml('b14')),
     wpImage(endImgId, endImgUrl),
-    balloon(bid, bHtml('b15')),
+    balloonMaybe(bHtml('b15')),
     wpParagraph(paraWP),
     `<!-- wp:paragraph -->\n<p></p>\n<!-- /wp:paragraph -->`,
   ].filter(Boolean).join('\n\n');
