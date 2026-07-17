@@ -286,6 +286,30 @@ function collectBody(req) {
   });
 }
 
+// AIが生成したJSON文字列内に、文字列値としてエスケープされていない生の改行等の
+// 制御文字が混ざっていると JSON.parse が失敗するため、文字列リテラル内でのみ
+// 制御文字をエスケープしてから返す
+function sanitizeAiJsonText(raw) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of raw) {
+    if (inString) {
+      if (escaped) { out += ch; escaped = false; continue; }
+      if (ch === '\\') { out += ch; escaped = true; continue; }
+      if (ch === '"') { inString = false; out += ch; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') { continue; }
+      if (ch === '\t') { out += '\\t'; continue; }
+      out += ch;
+      continue;
+    }
+    if (ch === '"') { inString = true; }
+    out += ch;
+  }
+  return out;
+}
+
 // カテゴリー全件取得（ページング対応）
 async function fetchAllCategories() {
   const first = await wpRequest('GET', 'categories?per_page=100&page=1');
@@ -1330,7 +1354,12 @@ JSONのみを返してください（説明文・コードブロック不要）:
         const parsed2 = JSON.parse(match[0]);
         return sendJson(200, parsed2);
       } catch(e) {
-        return sendJson(500, { error: 'JSON解析エラー', raw: text });
+        try {
+          const parsed2 = JSON.parse(sanitizeAiJsonText(match[0]));
+          return sendJson(200, parsed2);
+        } catch(e2) {
+          return sendJson(500, { error: 'JSON解析エラー', raw: text });
+        }
       }
     }
 
@@ -1423,7 +1452,11 @@ JSONのみを返してください（説明文・コードブロック不要）:
       try {
         return sendJson(200, JSON.parse(match[0]));
       } catch(e) {
-        return sendJson(500, { error: 'JSON解析エラー', raw: text });
+        try {
+          return sendJson(200, JSON.parse(sanitizeAiJsonText(match[0])));
+        } catch(e2) {
+          return sendJson(500, { error: 'JSON解析エラー', raw: text });
+        }
       }
     }
 
