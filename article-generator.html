@@ -2439,6 +2439,38 @@ async function submitWpPost() {
     content = content.replace(/https:\/\/example\.com\/ranking\.jpg/g, rankUrl);
   }
 
+  // 締め用機種画像が、このアプリのローカルライブラリ画像（/library-images/...）のままだと
+  // WordPress側では表示できないため、投稿前にWordPressのメディアへ自動アップロードする
+  const endUrlBefore = v('input-end-img-url');
+  if (endUrlBefore && endUrlBefore.startsWith('/library-images/')) {
+    btn.textContent = '⏳ 締め画像アップロード中…';
+    try {
+      const imgRes = await fetch(endUrlBefore);
+      const blob = await imgRes.blob();
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const filename = endUrlBefore.split('/').pop() || 'end_image.jpg';
+      const upRes = await fetch('/api/upload-hb-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, data: base64 }),
+      });
+      const upData = await upRes.json();
+      if (upData.id && upData.source_url) {
+        content = content.split(endUrlBefore).join(upData.source_url);
+        content = content.replace(/END_IMG_ID/g, String(upData.id));
+        document.getElementById('input-end-img-id').value  = String(upData.id);
+        document.getElementById('input-end-img-url').value = upData.source_url;
+      }
+    } catch(e) {
+      showToast('⚠️ 締め画像アップロード失敗: ' + e.message);
+    }
+  }
+
   btn.textContent = '⏳ 投稿中…';
 
   try {

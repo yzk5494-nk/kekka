@@ -943,6 +943,7 @@
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <button id="modeExcelBtn" onclick="switchFileMode('excel')" style="flex:1;padding:5px;border:1px solid #1e2a3a;border-radius:5px;background:#1e2a3a;color:white;cursor:pointer;font-size:12px;font-family:inherit">Excel (.xlsx)</button>
         <button id="modeTextBtn" onclick="switchFileMode('text')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit">テキスト (.txt/.csv)</button>
+        <button id="modePisionBtn" onclick="switchFileMode('pision')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit">P-PRO</button>
       </div>
       <div id="excelUploadSection">
         <label class="upload-area" id="uploadArea" for="fileInput">
@@ -957,6 +958,20 @@
           <span style="font-size:11px;color:#aaa">（.txt / .csv ファイル）</span>
           <input type="file" id="textFileInput" accept=".txt,.csv" style="display:none">
         </div>
+      </div>
+      <div id="pisionSection" style="display:none">
+        <input type="text" id="pisionHallInput" placeholder="店舗名で検索" autocomplete="off"
+          oninput="pisionSearchHall()"
+          style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
+        <div id="pisionHallCandidates" style="display:none;max-height:160px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;margin-top:4px"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <input type="date" id="pisionDateInput" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 P-PROから取得</button>
+        </div>
+        <input type="text" id="pisionEventInput" placeholder="イベント名（取得後に手動入力。イベント画像ライブラリと連動）"
+          onchange="pisionEventChanged()"
+          style="width:100%;margin-top:6px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box">
+        <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
       </div>
       <div id="sheetSelectBox" class="sheet-select-box" style="display:none">
         <div class="sheet-select-title">📄 シート選択（クリックで切り替え）</div>
@@ -1518,10 +1533,10 @@ async function createYgCategory() {
   }
 }
 
-// 公約ブロックの手前のインデックスを返す（なければ末尾）
+// 結果コンテンツ（画像・見出し等）の挿入位置は常にエディター末尾。
+// 公約ブロックは「事前情報」見出しの手前に配置されるため、末尾を避ける必要はない。
 function gbIndexBeforeRule() {
-  const ruleIdx = gbBlocks.findIndex(b => b._isRule);
-  return ruleIdx >= 0 ? ruleIdx : gbBlocks.length;
+  return gbBlocks.length;
 }
 
 // ===== ブロック管理 =====
@@ -2075,7 +2090,7 @@ function lineGenerateAndInsert() {
 
     }
 
-    // 公約をカラーボックスとしてエディター末尾に追加
+    // 公約をカラーボックスとして「事前情報」見出しの手前に追加
     if (eventData.rule) {
       const ruleBlock = gbMakeBlock('callout', {
         html: eventData.rule,
@@ -2084,7 +2099,8 @@ function lineGenerateAndInsert() {
         borderColor: '#f5c518',
         textColor: '#f5c518',
       });
-      gbBlocks.push(ruleBlock);
+      const jizenIdx = gbBlocks.findIndex(b => b.type === 'heading' && (b.html || '').includes('事前情報'));
+      gbBlocks.splice(jizenIdx >= 0 ? jizenIdx : gbBlocks.length, 0, ruleBlock);
     }
 
     gbRender();
@@ -3019,19 +3035,114 @@ if (textFileInput) {
 function switchFileMode(mode) {
   const excelSection = document.getElementById('excelUploadSection');
   const textSection = document.getElementById('textUploadSection');
+  const pisionSection = document.getElementById('pisionSection');
   const excelBtn = document.getElementById('modeExcelBtn');
   const textBtn = document.getElementById('modeTextBtn');
-  if (mode === 'excel') {
-    excelSection.style.display = '';
-    textSection.style.display = 'none';
-    excelBtn.style.background = '#1e2a3a'; excelBtn.style.color = 'white'; excelBtn.style.borderColor = '#1e2a3a';
-    textBtn.style.background = 'white'; textBtn.style.color = '#555'; textBtn.style.borderColor = '#ccc';
-  } else {
-    excelSection.style.display = 'none';
-    textSection.style.display = '';
-    textBtn.style.background = '#1e2a3a'; textBtn.style.color = 'white'; textBtn.style.borderColor = '#1e2a3a';
-    excelBtn.style.background = 'white'; excelBtn.style.color = '#555'; excelBtn.style.borderColor = '#ccc';
+  const pisionBtn = document.getElementById('modePisionBtn');
+  const sections = { excel: excelSection, text: textSection, pision: pisionSection };
+  const buttons = { excel: excelBtn, text: textBtn, pision: pisionBtn };
+  for (const key of Object.keys(sections)) {
+    sections[key].style.display = key === mode ? '' : 'none';
+    if (key === mode) {
+      buttons[key].style.background = '#1e2a3a'; buttons[key].style.color = 'white'; buttons[key].style.borderColor = '#1e2a3a';
+    } else {
+      buttons[key].style.background = 'white'; buttons[key].style.color = '#555'; buttons[key].style.borderColor = '#ccc';
+    }
   }
+}
+
+// ===== P-PRO（PISION）連携 =====
+let pisionSelectedHallId = null;
+let pisionSearchTimer = null;
+
+function pisionSearchHall() {
+  const q = document.getElementById('pisionHallInput').value.trim();
+  pisionSelectedHallId = null;
+  const box = document.getElementById('pisionHallCandidates');
+  if (pisionSearchTimer) clearTimeout(pisionSearchTimer);
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  pisionSearchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/pision-halls?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const halls = data.halls || [];
+      box.style.display = 'block';
+      if (!halls.length) {
+        box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#aaa">該当する店舗がありません</div>';
+        return;
+      }
+      box.innerHTML = halls.map(h =>
+        `<div class="pision-hall-item" style="padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid #eee" onclick="pisionSelectHall(${h.id}, '${h.name.replace(/'/g, "\\'")}')">${h.name}</div>`
+      ).join('');
+    } catch (e) {
+      box.style.display = 'block';
+      box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#e74c3c">検索エラー</div>';
+    }
+  }, 300);
+}
+
+function pisionSelectHall(id, name) {
+  pisionSelectedHallId = id;
+  document.getElementById('pisionHallInput').value = name;
+  document.getElementById('pisionHallCandidates').style.display = 'none';
+}
+
+async function pisionFetchResults() {
+  const status = document.getElementById('pisionStatus');
+  const dateVal = document.getElementById('pisionDateInput').value;
+  if (!pisionSelectedHallId) { status.style.color = '#e74c3c'; status.textContent = '候補一覧から店舗を選択してください'; return; }
+  if (!dateVal) { status.style.color = '#e74c3c'; status.textContent = '日付を指定してください'; return; }
+
+  status.style.color = '#888';
+  status.textContent = '取得中…';
+  try {
+    const res = await fetch(`/api/pision-results?hallId=${pisionSelectedHallId}&date=${dateVal}`);
+    const data = await res.json();
+    if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+
+    allMachines = data.machines || [];
+    allMachines.sort((a, b) => a.台番 - b.台番);
+    document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+
+    selectedOrder = [];
+    renderSelectedList();
+    renderMachineList(allMachines);
+    renderLibList();
+    updatePreview();
+    drawAllDataCanvas();
+
+    // 「LINEから記事生成」と同じ仕組みに、取得した店舗名・日付を流し込む
+    // （イベント名はP-PROからは取得できないため、この時点では空のまま。取得後に手動入力欄へ入力するとpisionEventChanged()で反映される）
+    if (data.targetDate) {
+      const [y, mo, da] = data.targetDate.split('-').map(Number);
+      const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+      const dow = DOW[new Date(y, mo - 1, da).getDay()];
+      const dateWithDow = `${mo}/${da}(${dow})`;
+      const store = data.hall?.name || '';
+      lineParsed = { date: dateWithDow, store, event: '' };
+      const resultEl = document.getElementById('lineParseResult');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<b>日付：</b>${dateWithDow}<br><b>店舗：</b>${store}`;
+      lineGenerateAndInsert();
+    }
+
+    status.style.color = '#27ae60';
+    status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
+  } catch (e) {
+    status.style.color = '#e74c3c';
+    status.textContent = '❌ 通信エラー: ' + e.message;
+  }
+}
+
+// P-PRO取得後、イベント名を手動入力した時に呼ばれる（店舗名・日付は取得済みのlineParsedに、イベント名だけ追加する）
+function pisionEventChanged() {
+  if (!lineParsed) return;
+  lineParsed.event = document.getElementById('pisionEventInput').value.trim();
+  const resultEl = document.getElementById('lineParseResult');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<b>日付：</b>${lineParsed.date}<br><b>店舗：</b>${lineParsed.store}` +
+    (lineParsed.event ? `<br><b>イベント：</b>${lineParsed.event}` : '');
+  lineGenerateAndInsert();
 }
 
 function parseTextData(text) {

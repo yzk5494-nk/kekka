@@ -304,7 +304,7 @@ const server = http.createServer(async (req, res) => {
 
   const sendJson = (status, data) => {
     const body = JSON.stringify(data);
-    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
     res.end(body);
   };
 
@@ -1466,6 +1466,26 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const date = parsed.searchParams.get('date');
       if (!hallId || !date) return sendJson(400, { error: 'hallId・dateが必要です' });
       const result = await pisionRequest(`/api/v2/halls/${encodeURIComponent(hallId)}/results/${encodeURIComponent(date)}`);
+      const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
+      const machines = (result.details || []).map(d => ({
+        台番: d.unitId,
+        機種名: d.displayName || d.model?.name || '',
+        表示名: d.displayName || d.model?.name || '',
+        差: roundUp50(d.diff ?? 0),
+        colored: false,
+        G数: d.games ?? null,
+        BB: d.bb ?? null,
+        RB: d.rb ?? null,
+        points: d.points || [],
+      })).sort((a, b) => a.台番 - b.台番);
+      return sendJson(200, { hall: result.hall, targetDate: result.targetDate, machines });
+    }
+
+    // ── PISION（P-PRO）速報データ取得（結果IDから直接取得。速報一覧のarticles/:idに対応） ──
+    if (req.method === 'GET' && parsed.pathname === '/api/pision-result-by-id') {
+      const id = parsed.searchParams.get('id');
+      if (!id) return sendJson(400, { error: 'idが必要です' });
+      const result = await pisionRequest(`/api/v2/results/${encodeURIComponent(id)}`);
       const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,

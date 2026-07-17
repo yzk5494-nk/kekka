@@ -1019,6 +1019,11 @@
           <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 P-PROから取得</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <input type="text" id="pisionResultIdInput" placeholder="速報URL(https://www.pision.io/articles/1234567)または結果IDを貼り付け"
+            style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box">
+          <button onclick="pisionFetchResultById()" style="padding:6px 12px;background:#2e8b57;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">📡 速報から取得</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
           <span style="font-size:12px;color:#555;white-space:nowrap">グラフ 1行</span>
           <select id="pisionGraphCols" onchange="updatePreview()" style="padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
             <option value="auto" selected>自動</option>
@@ -1030,6 +1035,11 @@
         <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
           <input type="checkbox" id="pisionForceVertical" onchange="updatePreview()">
           機種ごとに縦に並べる（複数機種選択時、2カラムにせず全幅で積む）
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
+          <input type="checkbox" id="pisionSplit4" onchange="updatePreview()">
+          <input type="number" id="pisionSplit4Size" value="4" min="1" max="99" onclick="event.stopPropagation()" onchange="updatePreview()" style="width:44px;padding:3px 4px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit;text-align:center">
+          台ずつグループ化する（機種に関わらず、選択順にこの台数ごとに区切って2カラムに並べる）
         </label>
         <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
           <input type="checkbox" id="pisionGraphLeftTable" onchange="updatePreview()">
@@ -1248,6 +1258,12 @@
       </div>
     </div>
 
+    <!-- 連番4台ランキング -->
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee">
+      <button onclick="showConsecutiveBankRanking()" style="width:100%;padding:6px 10px;border:1px solid #8e44ad;border-radius:6px;background:#8e44ad;color:white;cursor:pointer;font-size:12px;font-family:inherit">🔍 連番4台 平均差枚ランキング</button>
+      <div id="consecutiveBankResult" style="display:none;font-size:12px;background:#faf5ff;border:1px solid #e0d0f0;border-radius:6px;padding:8px;margin-top:6px;max-height:200px;overflow-y:auto"></div>
+    </div>
+
     <!-- 選択済み台 -->
     <div>
       <div class="section-label" style="display:flex;justify-content:space-between;align-items:center">
@@ -1276,6 +1292,10 @@
       <div id="pisionPostOutputArea" style="display:none;margin-top:8px">
         <textarea id="pisionPostOutput" style="width:100%;height:220px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;line-height:1.7;resize:vertical;box-sizing:border-box"></textarea>
         <button onclick="copyShizuokaPost()" id="pisionPostCopyBtn" style="width:100%;margin-top:4px;padding:6px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">📋 コピー</button>
+      </div>
+      <div id="pisionPostMemoArea" style="display:none;margin-top:8px">
+        <div style="font-size:11px;color:#888;margin-bottom:4px">📝 メモ（各グループの台番。自分用の把握用）</div>
+        <textarea id="pisionPostMemo" readonly style="width:100%;height:120px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;line-height:1.7;resize:vertical;box-sizing:border-box;background:#fafafa;color:#666"></textarea>
       </div>
     </div>
 
@@ -1356,6 +1376,7 @@
             </select>
             <button onclick="addSplitGroupsToQueue()" id="splitGroupBtn" style="flex:1;padding:4px;border:none;border-radius:5px;background:#1e7a4a;color:white;cursor:pointer;font-size:12px;font-family:inherit">✂ 分割して画像生成</button>
           </div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px">※上のテキスト欄が空欄の場合、チェックボックスで選択中の台をそのまま分割します</div>
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
@@ -2031,6 +2052,7 @@ function generatePickupPost() {
   lines.push('');
   lines.push(`🌈総差枚 ${fmt(totalAll)}枚`);
   lines.push(`🌈平均差枚 ${fmt(avgAll)}枚`);
+
   lines.push('');
   lines.push('✅合計差枚 上位機種');
   lines.push('');
@@ -2073,6 +2095,7 @@ function resetShizuokaPostAccumulator() {
   pisionPostAccumulator = [];
   document.getElementById('pisionPostAccumInfo').textContent = '';
   document.getElementById('pisionPostOutputArea').style.display = 'none';
+  document.getElementById('pisionPostMemoArea').style.display = 'none';
 }
 
 // 静岡のポスト文用累積に台を追加（同じ台番は上書き）。画像を複数回に分けて
@@ -2099,21 +2122,51 @@ function generateShizuokaPost() {
   const fmt   = v => String(Math.round(v));
 
   // 機種ごとにグループ化して平均差枚・勝率を集計
-  const order = [];
-  const map = {};
-  machines.forEach(m => {
-    const key = getDisplayName(m.表示名) || m.機種名 || '';
-    if (!map[key]) { map[key] = []; order.push(key); }
-    map[key].push(m);
-  });
-  const groups = order.map(name => {
-    const list = map[name];
+  // 「N台ずつグループ化する」（画像レイアウト用）がONの場合は、機種名でまとめず
+  // 累積した順にN台ずつ区切ってグループ化する（同じ機種を複数回チェックしても別グループのまま）
+  const split4 = document.getElementById('pisionSplit4')?.checked;
+  const splitSize = parseInt(document.getElementById('pisionSplit4Size')?.value) || 4;
+  let rawGroups;
+  if (split4) {
+    rawGroups = [];
+    for (let i = 0; i < machines.length; i += splitSize) {
+      const list = machines.slice(i, i + splitSize);
+      const firstName = getDisplayName(list[0].表示名) || list[0].機種名 || '';
+      const lastName = getDisplayName(list[list.length - 1].表示名) || list[list.length - 1].機種名 || '';
+      const name = firstName === lastName ? firstName : `${firstName}～${lastName}`;
+      rawGroups.push({ name, list });
+    }
+  } else {
+    const order = [];
+    const map = {};
+    machines.forEach(m => {
+      const key = getDisplayName(m.表示名) || m.機種名 || '';
+      if (!map[key]) { map[key] = []; order.push(key); }
+      map[key].push(m);
+    });
+    rawGroups = order.map(name => ({ name, list: map[name] }));
+  }
+  const groups = rawGroups.map(({ name, list }) => {
     const total = list.reduce((s, m) => s + (m.差 * diffMult), 0);
     const avg = total / list.length;
     const wins = list.filter(m => (m.差 * diffMult) > 0).length;
     const winRate = Math.round(wins / list.length * 100);
-    return { name, avg, winRate };
+    return { name, avg, winRate, list };
   }).sort((a, b) => b.avg - a.avg);
+
+  // 台番の配列を「812-815」のような範囲表記に圧縮する（連続していない場合はカンマ区切り）
+  function formatUnitRange(nums) {
+    const sorted = [...nums].sort((a, b) => a - b);
+    const parts = [];
+    let start = sorted[0], prev = sorted[0];
+    for (let i = 1; i <= sorted.length; i++) {
+      const n = sorted[i];
+      if (n === prev + 1) { prev = n; continue; }
+      parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+      start = prev = n;
+    }
+    return parts.join('、');
+  }
 
   // 全台(取得した全データ)の総差枚・平均差枚。平均100枚以上のときだけ掲載
   const fmtSigned = v => (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
@@ -2135,11 +2188,17 @@ function generateShizuokaPost() {
   lines.push('🗻ピックアップ🗻');
   lines.push('');
   groups.forEach(g => {
-    lines.push(`${shizuokaTierEmoji(g.avg)}${g.name} 　平均${fmt(g.avg)}枚　 勝率${g.winRate}%`);
+    const winRateStr = split4 ? '' : `　 勝率${g.winRate}%`;
+    lines.push(`${shizuokaTierEmoji(g.avg)}${g.name} 　平均${fmt(g.avg)}枚${winRateStr}`);
   });
 
   document.getElementById('pisionPostOutput').value = lines.join('\n');
   document.getElementById('pisionPostOutputArea').style.display = 'block';
+
+  // メモ欄：各グループの台番を範囲表記で出力（自分用の把握用、ポスト文には含めない）
+  const memoLines = groups.map(g => formatUnitRange(g.list.map(m => m.台番)));
+  document.getElementById('pisionPostMemo').value = memoLines.join('\n');
+  document.getElementById('pisionPostMemoArea').style.display = 'block';
 }
 
 function copyShizuokaPost() {
@@ -3095,6 +3154,34 @@ function pisionSelectHall(id, name) {
   document.getElementById('pisionHallCandidates').style.display = 'none';
 }
 
+// PISIONから取得したデータ(machines/hall/targetDate)を画面に反映する共通処理
+function applyPisionData(data, status) {
+  allMachines = data.machines || [];
+  allMachines.sort((a, b) => a.台番 - b.台番);
+  document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+
+  selectedOrder = [];
+  renderSelectedList();
+  renderMachineList(allMachines);
+  renderLibList();
+  updatePreview();
+  drawAllDataCanvas();
+  resetShizuokaPostAccumulator(); // 別の店舗・日付を取得したら累積をクリア
+
+  pisionLastHallName = data.hall?.name || '';
+  pisionLastDate = data.targetDate || '';
+  const dateEl = document.getElementById('pisionPostDate');
+  const storeEl = document.getElementById('pisionPostStore');
+  if (dateEl && pisionLastDate) {
+    const [, mm, dd] = pisionLastDate.split('-');
+    dateEl.value = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
+  }
+  if (storeEl) storeEl.value = pisionLastHallName;
+
+  status.style.color = '#27ae60';
+  status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
+}
+
 async function pisionFetchResults() {
   const status = document.getElementById('pisionStatus');
   const dateVal = document.getElementById('pisionDateInput').value;
@@ -3107,31 +3194,29 @@ async function pisionFetchResults() {
     const res = await fetch(`/api/pision-results?hallId=${pisionSelectedHallId}&date=${dateVal}`);
     const data = await res.json();
     if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+    applyPisionData(data, status);
+  } catch (e) {
+    status.style.color = '#e74c3c';
+    status.textContent = '❌ 通信エラー: ' + e.message;
+  }
+}
 
-    allMachines = data.machines || [];
-    allMachines.sort((a, b) => a.台番 - b.台番);
-    document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+// 速報URL(https://www.pision.io/articles/:id)または結果IDを直接指定して取得（速報＝未確定データにも対応）
+async function pisionFetchResultById() {
+  const status = document.getElementById('pisionStatus');
+  const raw = (document.getElementById('pisionResultIdInput').value || '').trim();
+  if (!raw) { status.style.color = '#e74c3c'; status.textContent = '速報URLまたは結果IDを入力してください'; return; }
+  const m = raw.match(/articles\/(\d+)/);
+  const id = m ? m[1] : raw.replace(/\D/g, '');
+  if (!id) { status.style.color = '#e74c3c'; status.textContent = 'IDが読み取れませんでした'; return; }
 
-    selectedOrder = [];
-    renderSelectedList();
-    renderMachineList(allMachines);
-    renderLibList();
-    updatePreview();
-    drawAllDataCanvas();
-    resetShizuokaPostAccumulator(); // 別の店舗・日付を取得したら累積をクリア
-
-    pisionLastHallName = data.hall?.name || '';
-    pisionLastDate = data.targetDate || '';
-    const dateEl = document.getElementById('pisionPostDate');
-    const storeEl = document.getElementById('pisionPostStore');
-    if (dateEl && pisionLastDate) {
-      const [, mm, dd] = pisionLastDate.split('-');
-      dateEl.value = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
-    }
-    if (storeEl) storeEl.value = pisionLastHallName;
-
-    status.style.color = '#27ae60';
-    status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
+  status.style.color = '#888';
+  status.textContent = '速報データ取得中…';
+  try {
+    const res = await fetch(`/api/pision-result-by-id?id=${encodeURIComponent(id)}`);
+    const data = await res.json();
+    if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+    applyPisionData(data, status);
   } catch (e) {
     status.style.color = '#e74c3c';
     status.textContent = '❌ 通信エラー: ' + e.message;
@@ -3578,6 +3663,47 @@ function selectTopByDiff() {
   document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
   document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
   generatePost();
+}
+
+// 連番4台（台番が4つ連続）の平均差枚が高い組み合わせをランキング表示（閲覧専用、選択状態には影響しない）
+function showConsecutiveBankRanking() {
+  const box = document.getElementById('consecutiveBankResult');
+  if (!allMachines.length) {
+    box.style.display = 'block';
+    box.innerHTML = '<div style="color:#888">データがありません</div>';
+    return;
+  }
+
+  const byNum = new Map(allMachines.map(m => [m.台番, m]));
+  const nums = [...byNum.keys()].sort((a, b) => a - b);
+
+  const windows = [];
+  for (const n of nums) {
+    if (byNum.has(n + 1) && byNum.has(n + 2) && byNum.has(n + 3)) {
+      const group = [n, n + 1, n + 2, n + 3].map(x => byNum.get(x));
+      const avg = group.reduce((s, m) => s + (m.差 * diffMult), 0) / 4;
+      windows.push({ start: n, end: n + 3, group, avg });
+    }
+  }
+
+  box.style.display = 'block';
+  if (!windows.length) {
+    box.innerHTML = '<div style="color:#888">連番4台の組み合わせが見つかりませんでした</div>';
+    return;
+  }
+
+  windows.sort((a, b) => b.avg - a.avg);
+  const top = windows.slice(0, 10);
+  const fmt = v => (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
+
+  box.innerHTML = `<div style="font-weight:bold;margin-bottom:6px">連番4台 平均差枚ランキング（上位${top.length}件）</div>` +
+    top.map((w, i) => {
+      const detail = w.group.map(m => `${m.台番}番(${fmt(m.差 * diffMult)})`).join('、');
+      return `<div style="padding:4px 0;${i > 0 ? 'border-top:1px solid #eee' : ''}">
+        <b>${i + 1}位</b> ${w.start}〜${w.end}番　平均<b style="color:${w.avg >= 0 ? '#c0392b' : '#2980b9'}">${fmt(w.avg)}枚</b>
+        <div style="color:#888;font-size:11px">${detail}</div>
+      </div>`;
+    }).join('');
 }
 
 // ===== 台番一括入力 =====
@@ -4480,7 +4606,19 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     : null;
 
   // 機種が複数種類ある場合：機種ごとにグラフ+表をグループ化して2カラムで並べる
+  // 「N台ずつグループ化する」がONの場合、機種に関わらず選択順にN台ずつ区切ってグループ化する
+  const split4Regardless = !!document.getElementById('pisionSplit4')?.checked;
+  const splitGroupSize = parseInt(document.getElementById('pisionSplit4Size')?.value) || 4;
   function groupMachinesByModel(list) {
+    if (split4Regardless) {
+      const groups = [];
+      for (let i = 0; i < list.length; i += splitGroupSize) {
+        const chunk = list.slice(i, i + splitGroupSize);
+        const name = getDisplayName(chunk[0]?.表示名) || chunk[0]?.機種名 || '';
+        groups.push({ name, machines: chunk });
+      }
+      return groups;
+    }
     const order = [];
     const map = {};
     list.forEach(m => {
@@ -5539,27 +5677,30 @@ async function renderGroupPreviews(groups) {
 // ===== グループ一括追加 =====
 async function addSplitGroupsToQueue() {
   const text = document.getElementById('bulkInput').value;
-  if (!text.trim()) return;
   const size = parseInt(document.getElementById('splitGroupSize').value) || 3;
   const machineNums = new Set(allMachines.map(m => m.台番));
 
-  // 全台番を順番に収集
-  const allNums = [];
-  text.split(/[\n,、\u3000]+/).forEach(s => {
-    s = s.trim();
-    if (!s) return;
-    const rangeMatch = s.match(/^(\d+)-(\d+)$/);
-    if (rangeMatch) {
-      const from = parseInt(rangeMatch[1]), to = parseInt(rangeMatch[2]);
-      if (!isNaN(from) && !isNaN(to) && from <= to)
-        for (let i = from; i <= to; i++) if (machineNums.has(i)) allNums.push(i);
-    } else if (/^\d+$/.test(s)) {
-      const n = parseInt(s);
-      if (machineNums.has(n)) allNums.push(n);
-    }
-  });
+  // 全台番を順番に収集（テキスト入力があればそちらを優先、無ければチェックボックスで選択中の台を使う）
+  let allNums = [];
+  if (text.trim()) {
+    text.split(/[\n,、\u3000]+/).forEach(s => {
+      s = s.trim();
+      if (!s) return;
+      const rangeMatch = s.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const from = parseInt(rangeMatch[1]), to = parseInt(rangeMatch[2]);
+        if (!isNaN(from) && !isNaN(to) && from <= to)
+          for (let i = from; i <= to; i++) if (machineNums.has(i)) allNums.push(i);
+      } else if (/^\d+$/.test(s)) {
+        const n = parseInt(s);
+        if (machineNums.has(n)) allNums.push(n);
+      }
+    });
+  } else {
+    allNums = selectedOrder.filter(n => machineNums.has(n));
+  }
 
-  if (!allNums.length) { alert('有効な台番が見つかりませんでした。'); return; }
+  if (!allNums.length) { alert('有効な台番が見つかりませんでした。チェックボックスで台を選択するか、台番を入力してください。'); return; }
 
   // N台ずつグループ分割
   const groups = [];
@@ -5583,6 +5724,19 @@ async function addSplitGroupsToQueue() {
   }
 
   renderImageQueue();
+
+  // 最後のグループをメインプレビュー（1枚絵）にも反映する
+  const lastGroup = groups[groups.length - 1];
+  selectedOrder = [...lastGroup];
+  document.getElementById('selectedCount').textContent = `${selectedOrder.length}台`;
+  renderSelectedList();
+  filterMachines();
+  updateCardImagesFromSelection();
+  document.getElementById('downloadBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('copyBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
+
   btn.disabled = false;
   btn.textContent = `✓ ${groups.length}件追加`;
   setTimeout(() => { btn.textContent = '✂ 分割して画像生成'; }, 2000);
@@ -5842,7 +5996,7 @@ function renderImageQueue() {
   const count = document.getElementById('queueCount');
   count.textContent = `${imageQueue.length}件`;
   const mergeBtn = document.getElementById('mergeQueueBtn');
-  if (mergeBtn) mergeBtn.style.display = (currentGenSlot >= 2 && currentGenSlot <= 3) ? '' : 'none';
+  if (mergeBtn) mergeBtn.style.display = imageQueue.length >= 2 ? '' : 'none';
   const qcBox = document.getElementById('quickCopyBtns');
   if (!imageQueue.length) {
     section.style.display = 'none';
