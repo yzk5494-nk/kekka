@@ -41,6 +41,7 @@
     .machine-item input[type=checkbox] { accent-color: #f5c518; }
     .m-num { font-weight: bold; color: #555; font-size: 12px; }
     .m-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-name-edit { border: none; background: none; cursor: pointer; font-size: 10px; padding: 0; margin-left: 3px; }
     .m-diff { font-size: 12px; font-weight: bold; text-align: right; white-space: nowrap; }
     .positive { color: #c0392b; }
     .negative { color: #2471a3; }
@@ -100,14 +101,31 @@
   <!-- 左：Excel読み込み + 台一覧 -->
   <div class="col-left" id="pane1">
     <div class="col-left-top">
-      <div class="upload-area" id="uploadArea"
-        onclick="document.getElementById('fileInput').click()"
-        ondragover="event.preventDefault();this.style.borderColor='#f5c518'"
-        ondragleave="this.style.borderColor=''"
-        ondrop="event.preventDefault();this.style.borderColor='';handleFileDrop(event.dataTransfer.files[0])">
-        📂 クリックまたはドロップ
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button id="modeFileBtn" onclick="switchDataMode('file')" style="flex:1;padding:5px;border:1px solid #1e2a3a;border-radius:5px;background:#1e2a3a;color:white;cursor:pointer;font-size:12px;font-family:inherit">📂 ファイル</button>
+        <button id="modePisionBtn" onclick="switchDataMode('pision')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit">🔍 P-PRO</button>
       </div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+      <div id="fileUploadSection">
+        <div class="upload-area" id="uploadArea"
+          onclick="document.getElementById('fileInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='#f5c518'"
+          ondragleave="this.style.borderColor=''"
+          ondrop="event.preventDefault();this.style.borderColor='';handleFileDrop(event.dataTransfer.files[0])">
+          📂 クリックまたはドロップ
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="pisionSection" style="display:none">
+        <input type="text" id="pisionHallInput" placeholder="🏪 店舗名で検索" autocomplete="off"
+          oninput="pisionSearchHall()"
+          style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
+        <div id="pisionHallCandidates" style="display:none;max-height:160px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;margin-top:4px"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <input type="date" id="pisionDateInput" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit">
+          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 P-PROから取得</button>
+        </div>
+        <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
       <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
         <label style="font-size:11px;color:#888">±反転</label>
         <button id="invertBtn" onclick="toggleInvert()" style="font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:4px;background:none;cursor:pointer;font-family:inherit">OFF</button>
@@ -291,6 +309,23 @@ let selectedOrder = [];
 let diffMult = 1;
 const currentUnit = '枚';
 
+// ===== 機種名の表示変換（ニックネーム） =====
+let machineNicknames = JSON.parse(localStorage.getItem('postCreatorNicknames') || '{}');
+function saveNicknames() { localStorage.setItem('postCreatorNicknames', JSON.stringify(machineNicknames)); }
+function getDisplayName(m) { return machineNicknames[m.機種名] || m.表示名; }
+function editNickname(name) {
+  const current = machineNicknames[name] || '';
+  const val = prompt(`「${name}」の表示名を入力してください\n（空欄にすると変換を解除します）`, current);
+  if (val === null) return;
+  const trimmed = val.trim();
+  if (trimmed) machineNicknames[name] = trimmed;
+  else delete machineNicknames[name];
+  saveNicknames();
+  filterMachines();
+  renderSelectedList();
+  generatePost();
+}
+
 // ===== Excel読み込み =====
 function loadFile(file) {
   if (!file) return;
@@ -349,6 +384,86 @@ function parseExcel(raw) {
   renderMachineList(allMachines);
 }
 
+// ===== P-PRO（PISION）連携 =====
+let pisionSelectedHallId = null;
+let pisionSearchTimer = null;
+
+function switchDataMode(mode) {
+  const fileBtn = document.getElementById('modeFileBtn');
+  const pisionBtn = document.getElementById('modePisionBtn');
+  document.getElementById('fileUploadSection').style.display = mode === 'file' ? '' : 'none';
+  document.getElementById('pisionSection').style.display = mode === 'pision' ? '' : 'none';
+  const on  = { background:'#1e2a3a', color:'white', borderColor:'#1e2a3a' };
+  const off = { background:'white', color:'#555', borderColor:'#ccc' };
+  Object.assign(fileBtn.style,   mode === 'file'   ? on : off);
+  Object.assign(pisionBtn.style, mode === 'pision' ? on : off);
+}
+
+function pisionSearchHall() {
+  const q = document.getElementById('pisionHallInput').value.trim();
+  pisionSelectedHallId = null;
+  const box = document.getElementById('pisionHallCandidates');
+  if (pisionSearchTimer) clearTimeout(pisionSearchTimer);
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  pisionSearchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/pision-halls?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const halls = data.halls || [];
+      box.style.display = 'block';
+      if (!halls.length) {
+        box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#aaa">該当する店舗がありません</div>';
+        return;
+      }
+      box.innerHTML = halls.map(h =>
+        `<div style="padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid #eee" onclick="pisionSelectHall(${h.id}, '${h.name.replace(/'/g, "\\'")}')">${h.name}</div>`
+      ).join('');
+    } catch (e) {
+      box.style.display = 'block';
+      box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#e74c3c">検索エラー</div>';
+    }
+  }, 300);
+}
+
+function pisionSelectHall(id, name) {
+  pisionSelectedHallId = id;
+  document.getElementById('pisionHallInput').value = name;
+  document.getElementById('pisionHallCandidates').style.display = 'none';
+}
+
+async function pisionFetchResults() {
+  const status = document.getElementById('pisionStatus');
+  const dateVal = document.getElementById('pisionDateInput').value;
+  if (!pisionSelectedHallId) { status.style.color = '#e74c3c'; status.textContent = '候補一覧から店舗を選択してください'; return; }
+  if (!dateVal) { status.style.color = '#e74c3c'; status.textContent = '日付を指定してください'; return; }
+
+  status.style.color = '#888';
+  status.textContent = '取得中…';
+  try {
+    const res = await fetch(`/api/pision-results?hallId=${pisionSelectedHallId}&date=${dateVal}`);
+    const data = await res.json();
+    if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+
+    allMachines = (data.machines || []).map(d => ({
+      台番: d.台番,
+      機種名: d.機種名 || '',
+      表示名: cleanName(d.機種名 || ''),
+      差: d.差 ?? 0,
+    }));
+    allMachines.sort((a, b) => a.台番 - b.台番);
+    selectedOrder = [];
+    document.getElementById('machineCount').textContent = `${allMachines.length}台`;
+    renderSelectedList();
+    renderMachineList(allMachines);
+
+    status.style.color = '#27ae60';
+    status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
+  } catch (e) {
+    status.style.color = '#e74c3c';
+    status.textContent = '❌ 通信エラー: ' + e.message;
+  }
+}
+
 // ===== 台一覧 =====
 function renderMachineList(list) {
   const el = document.getElementById('machineList');
@@ -358,11 +473,12 @@ function renderMachineList(list) {
     const d = (m.差 * diffMult) || 0;
     const diffStr = d > 0 ? `+${d.toLocaleString()}` : d.toLocaleString();
     const cls = d > 0 ? 'positive' : d < 0 ? 'negative' : 'zero';
+    const escName = m.機種名.replace(/'/g, "\\'");
     return `<div class="machine-item ${sel ? 'selected' : ''}" onclick="toggleMachine(${m.台番})">
       <input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleMachine(${m.台番})">
       <span class="m-num">${m.台番}</span>
       <span style="font-size:11px;color:#aaa;text-align:center">${m.台番 % 10}</span>
-      <span class="m-name">${m.表示名}</span>
+      <span class="m-name">${getDisplayName(m)}<button class="m-name-edit" onclick="event.stopPropagation();editNickname('${escName}')" title="表示名を変換">✏️</button></span>
       <span class="m-diff ${cls}">${diffStr}${currentUnit}</span>
     </div>`;
   }).join('');
@@ -390,7 +506,7 @@ function filterMachines() {
   const { rangeNums, textTerms } = parseNumTokens(document.getElementById('searchNum').value);
   const hasNumFilter = rangeNums.size > 0 || textTerms.length > 0;
   const filtered = allMachines.filter(m => {
-    if (names.length && !names.some(q => m.表示名.toLowerCase().includes(q))) return false;
+    if (names.length && !names.some(q => getDisplayName(m).toLowerCase().includes(q))) return false;
     if (hasNumFilter) {
       if (rangeNums.size > 0 && rangeNums.has(m.台番)) return true;
       if (textTerms.length > 0) return textTerms.some(t => String(m.台番).includes(t));
@@ -459,7 +575,7 @@ function renderSelectedList() {
         <button class="order-btn" onclick="moveDown(${num})">▼</button>
       </div>
       <span class="sel-num">${num}</span>
-      <span class="sel-name">${m.表示名}</span>
+      <span class="sel-name">${getDisplayName(m)}</span>
       <span class="sel-diff ${cls}">${diffStr}</span>
       <span class="sel-remove" onclick="toggleMachine(${num})">✕</span>
     </div>`;
@@ -508,7 +624,7 @@ function buildPostData(machines) {
     minusRows.push(`🔻${m1.台番}番${fmt(m1.差 * diffMult)}${currentUnit}` + (m2 ? `　🔻${m2.台番}番${fmt(m2.差 * diffMult)}${currentUnit}` : ''));
   }
   return {
-    '{機種名始}': first.表示名, '{機種名終}': last.表示名, '{機種名}': first.表示名,
+    '{機種名始}': getDisplayName(first), '{機種名終}': getDisplayName(last), '{機種名}': getDisplayName(first),
     '{台番始}': String(first.台番), '{台番終}': String(last.台番),
     '{台数}': `${count}台`, '{勝ち台数}': `${wins}台`, '{勝率}': `${winRate}%`,
     '{合計差枚}': `${fmt(total)}${currentUnit}`, '{平均差枚}': `${fmt(avg)}${currentUnit}`,
@@ -543,8 +659,9 @@ function generatePost() {
   } else {
     const groups = [], seen = new Map();
     for (const m of selected) {
-      if (!seen.has(m.表示名)) { seen.set(m.表示名, []); groups.push(seen.get(m.表示名)); }
-      seen.get(m.表示名).push(m);
+      const dn = getDisplayName(m);
+      if (!seen.has(dn)) { seen.set(dn, []); groups.push(seen.get(dn)); }
+      seen.get(dn).push(m);
     }
     resultEl.value = groups.map(g => applyTemplate(template, buildPostData(g))).join('\n\n');
   }

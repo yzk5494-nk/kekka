@@ -3070,8 +3070,7 @@ function renderDataTable(machines) {
     const diffStr = diff >= 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
     const cls = diff >= 0 ? 'diff-plus' : 'diff-minus';
     const tr = document.createElement('tr');
-    const escName = m.機種名.replace(/'/g, "\\'");
-    tr.innerHTML = `<td>${m.台番}</td><td title="${m.機種名}">${displayName(m.機種名)}<button class="rank-name-edit" onclick="editMachineNicknameInline('${escName}')" title="表示名を変換" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:4px;padding:0;">✏️</button></td>${hasG ? `<td>${Math.round(m.G||0).toLocaleString()}</td>` : ''}${hasBigReg ? `<td>${m.BIG??0}</td><td>${m.REG??0}</td>${hasG ? `<td>${formatGasso(m)}</td>` : ''}` : ''}<td class="${cls}">${diffStr}枚</td>`;
+    tr.innerHTML = `<td>${m.台番}</td><td title="${m.機種名}">${displayName(m.機種名)}</td>${hasG ? `<td>${Math.round(m.G||0).toLocaleString()}</td>` : ''}${hasBigReg ? `<td>${m.BIG??0}</td><td>${m.REG??0}</td>${hasG ? `<td>${formatGasso(m)}</td>` : ''}` : ''}<td class="${cls}">${diffStr}枚</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('data-table-wrap').style.display = 'block';
@@ -3922,22 +3921,6 @@ async function deleteMachineImg(name) {
 
 async function saveMachineImages() {
   await saveLibrary();
-}
-
-// 台一覧から直接、機種名の表示変換（ニックネーム）を登録
-async function editMachineNicknameInline(name) {
-  const current = libraryImages[name]?.nickname || '';
-  const val = prompt(`「${name}」の表示名を入力してください\n（空欄にすると変換を解除します）`, current);
-  if (val === null) return;
-  const trimmed = val.trim();
-  const existing = libraryImages[name] || {};
-  libraryImages[name] = { ...existing };
-  if (trimmed) libraryImages[name].nickname = trimmed;
-  else delete libraryImages[name].nickname;
-  await saveMachineImages();
-  renderDataTable(allMachineData);
-  renderMachineImgList();
-  showToast(trimmed ? `「${name}」→「${trimmed}」に変換登録しました` : `「${name}」の変換を解除しました`);
 }
 
 async function deleteNonTargetMachines() {
