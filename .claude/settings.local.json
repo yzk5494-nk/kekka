@@ -8,7 +8,8 @@
       "Bash(grep -E \"\\\\.\\(jpg|jpeg|png|gif|bmp|webp\\)$\")",
       "Bash(grep -E \"\\\\.\\(pptx|ppt\\)$\")",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "WebFetch(domain:swagger.pision.io)"
     ]
   }
 }
