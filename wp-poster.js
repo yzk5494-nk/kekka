@@ -177,6 +177,20 @@ function hbRequest(method, endpoint, body, extraHeaders) {
   });
 }
 
+// hisshobon-hall.info の全ページを取得（1ページ目で総ページ数を確認後、残りを並列取得）
+async function hbFetchAllPages(endpoint) {
+  const first = await hbRequest('GET', `${endpoint}?per_page=100&page=1`);
+  const totalPages = parseInt(first.headers?.['x-wp-totalpages'] || '1', 10);
+  let all = Array.isArray(first.data) ? first.data : [];
+  if (totalPages > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) => hbRequest('GET', `${endpoint}?per_page=100&page=${i + 2}`))
+    );
+    rest.forEach(r => { if (Array.isArray(r.data)) all = all.concat(r.data); });
+  }
+  return all;
+}
+
 // yg-blog.com REST API リクエスト
 function ygRequest(method, endpoint, body, extraHeaders) {
   return new Promise((resolve, reject) => {
@@ -951,13 +965,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── hisshobon カテゴリー一覧（全件） ───────────────────────
     if (req.method === 'GET' && parsed.pathname === '/api/hb-categories') {
-      const first = await hbRequest('GET', 'categories?per_page=100&page=1');
-      const totalPages = parseInt(first.headers?.['x-wp-totalpages'] || '1', 10);
-      let all = Array.isArray(first.data) ? first.data : [];
-      for (let p = 2; p <= totalPages; p++) {
-        const r = await hbRequest('GET', `categories?per_page=100&page=${p}`);
-        if (Array.isArray(r.data)) all = all.concat(r.data);
-      }
+      const all = await hbFetchAllPages('categories');
       return sendJson(200, all);
     }
 
@@ -977,13 +985,7 @@ const server = http.createServer(async (req, res) => {
         fukuoka:'福岡県',saga:'佐賀県',nagasaki:'長崎県',kumamoto:'熊本県',
         oita:'大分県',miyazaki:'宮崎県',kagoshima:'鹿児島県',okinawa:'沖縄県',
       };
-      const first = await hbRequest('GET', 'categories?per_page=100&page=1');
-      const totalPages = parseInt(first.headers?.['x-wp-totalpages'] || '1', 10);
-      let all = Array.isArray(first.data) ? first.data : [];
-      for (let p = 2; p <= totalPages; p++) {
-        const r = await hbRequest('GET', `categories?per_page=100&page=${p}`);
-        if (Array.isArray(r.data)) all = all.concat(r.data);
-      }
+      const all = await hbFetchAllPages('categories');
       // 子を持つカテゴリーIDのセット（地域・都道府県）を除外し、葉ノード＝店舗のみ抽出
       const parentIds = new Set(all.map(c => c.parent).filter(Boolean));
       const halls = all.filter(c => !parentIds.has(c.id) && c.parent !== 0).map(c => {
@@ -997,13 +999,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── hisshobon タグ一覧（全件） ──────────────────────────────
     if (req.method === 'GET' && parsed.pathname === '/api/hb-tags') {
-      const first = await hbRequest('GET', 'tags?per_page=100&page=1');
-      const totalPages = parseInt(first.headers?.['x-wp-totalpages'] || '1', 10);
-      let all = Array.isArray(first.data) ? first.data : [];
-      for (let p = 2; p <= totalPages; p++) {
-        const r = await hbRequest('GET', `tags?per_page=100&page=${p}`);
-        if (Array.isArray(r.data)) all = all.concat(r.data);
-      }
+      const all = await hbFetchAllPages('tags');
       return sendJson(200, all);
     }
 
