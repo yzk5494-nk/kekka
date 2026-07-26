@@ -807,19 +807,38 @@
           document.getElementById('col-summary-arrow').style.transform = this.open ? 'rotate(90deg)' : '';
         });
       </script>
+      <!-- データ取得モード切替 -->
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button id="mode-file-btn" onclick="switchDataMode('file')" style="flex:1;padding:5px;border:1px solid #3a8a20;border-radius:5px;background:#3a8a20;color:white;cursor:pointer;font-size:12px;font-family:inherit;">📂 ファイル</button>
+        <button id="mode-pision-btn" onclick="switchDataMode('pision')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit;">🔍 P-PRO</button>
+      </div>
       <!-- ファイル選択 -->
-      <div style="display:flex;gap:6px;align-items:stretch;">
-        <div class="data-upload-area" style="flex:1;">
-          <input type="file" id="data-file-input" accept=".xlsx,.xls,.txt,.csv" onchange="loadDataFile(event)">
-          <div class="data-upload-label" id="data-upload-label">
-            📂 クリックしてファイルを選択<br>
-            <b>Excel（.xlsx）またはテキスト（.txt）</b>
+      <div id="file-upload-section">
+        <div style="display:flex;gap:6px;align-items:stretch;">
+          <div class="data-upload-area" style="flex:1;">
+            <input type="file" id="data-file-input" accept=".xlsx,.xls,.txt,.csv" onchange="loadDataFile(event)">
+            <div class="data-upload-label" id="data-upload-label">
+              📂 クリックしてファイルを選択<br>
+              <b>Excel（.xlsx）またはテキスト（.txt）</b>
+            </div>
           </div>
+          <button id="reload-data-btn" onclick="reloadDataFile()" disabled
+            style="padding:8px 12px;background:#3a8a20;color:white;border:none;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;opacity:0.4;">
+            🔄 再読み込み
+          </button>
         </div>
-        <button id="reload-data-btn" onclick="reloadDataFile()" disabled
-          style="padding:8px 12px;background:#3a8a20;color:white;border:none;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;opacity:0.4;">
-          🔄 再読み込み
-        </button>
+      </div>
+      <!-- P-PRO取得 -->
+      <div id="pision-upload-section" style="display:none;">
+        <input type="text" id="pision-hall-input" placeholder="🏪 店舗名で検索" autocomplete="off"
+          oninput="pisionSearchHall()"
+          style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+        <div id="pision-hall-candidates" style="display:none;max-height:160px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;margin-top:4px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
+          <input type="date" id="pision-date-input" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;">
+          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#3a8a20;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap;">🔍 P-PROから取得</button>
+        </div>
+        <div id="pision-status" style="font-size:11px;color:#888;margin-top:4px;"></div>
       </div>
       <div style="margin-top:6px;">
         <label style="font-size:12px;color:#444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
@@ -2795,6 +2814,123 @@ function saveJugglerExcludeList() {
   if (saved && el) el.value = saved;
 })();
 
+// Excel/P-PROどちらから読み込んだ機種データにも共通のフィルタ・反映処理を適用する
+function finishMachinesLoad(machines, sourceLabel) {
+  if (document.getElementById('juggler-only-filter')?.checked) {
+    machines = machines.filter(m => m.機種名.normalize('NFKC').includes('ジャグラー'));
+  }
+
+  const excludeList = getJugglerExcludeList();
+  if (excludeList.length) {
+    machines = machines.filter(m => !excludeList.some(ex => m.機種名.normalize('NFKC') === ex.normalize('NFKC')));
+  }
+
+  const allowedMachines = SERIES_CONFIG[currentSeries]?.allowedMachines;
+  if (allowedMachines && allowedMachines.length) {
+    machines = machines.filter(m => allowedMachines.some(a => m.機種名.normalize('NFKC').includes(a.normalize('NFKC'))));
+  }
+
+  machines.sort((a, b) => b.差 - a.差);
+  allMachineData = machines;
+  renderDataTable(machines);
+  document.getElementById('data-total-label').textContent = `全${machines.length}台`;
+
+  // 機種ごとの台数を集計してジャグ系設置台数に自動反映
+  const countMap = {};
+  machines.forEach(m => {
+    const name = displayName(m.機種名);
+    countMap[name] = (countMap[name] || 0) + 1;
+  });
+  const sorted = Object.entries(countMap).sort((a, b) => b[1] - a[1]);
+  document.getElementById('machine-rows').innerHTML = '';
+  sorted.forEach(([name, count]) => addMachineRow(name, count));
+  initPreview();
+
+  showToast(`${machines.length}台のデータを読み込みました${sourceLabel ? '（' + sourceLabel + '）' : ''}`);
+  renderMachineFromData();
+  return machines;
+}
+
+// ===== P-PRO（PISION）連携 =====
+let pisionSelectedHallId = null;
+let pisionSearchTimer = null;
+
+function switchDataMode(mode) {
+  const fileBtn = document.getElementById('mode-file-btn');
+  const pisionBtn = document.getElementById('mode-pision-btn');
+  document.getElementById('file-upload-section').style.display = mode === 'file' ? '' : 'none';
+  document.getElementById('pision-upload-section').style.display = mode === 'pision' ? '' : 'none';
+  const on  = { background:'#3a8a20', color:'white', borderColor:'#3a8a20' };
+  const off = { background:'white', color:'#555', borderColor:'#ccc' };
+  Object.assign(fileBtn.style,   mode === 'file'   ? on : off);
+  Object.assign(pisionBtn.style, mode === 'pision' ? on : off);
+}
+
+function pisionSearchHall() {
+  const q = document.getElementById('pision-hall-input').value.trim();
+  pisionSelectedHallId = null;
+  const box = document.getElementById('pision-hall-candidates');
+  if (pisionSearchTimer) clearTimeout(pisionSearchTimer);
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  pisionSearchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/pision-halls?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const halls = data.halls || [];
+      box.style.display = 'block';
+      if (!halls.length) {
+        box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#aaa">該当する店舗がありません</div>';
+        return;
+      }
+      box.innerHTML = halls.map(h =>
+        `<div style="padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid #eee" onclick="pisionSelectHall(${h.id}, '${h.name.replace(/'/g, "\\'")}')">${h.name}</div>`
+      ).join('');
+    } catch (e) {
+      box.style.display = 'block';
+      box.innerHTML = '<div style="padding:6px 8px;font-size:12px;color:#e74c3c">検索エラー</div>';
+    }
+  }, 300);
+}
+
+function pisionSelectHall(id, name) {
+  pisionSelectedHallId = id;
+  document.getElementById('pision-hall-input').value = name;
+  document.getElementById('pision-hall-candidates').style.display = 'none';
+}
+
+async function pisionFetchResults() {
+  const status = document.getElementById('pision-status');
+  const dateVal = document.getElementById('pision-date-input').value;
+  if (!pisionSelectedHallId) { status.style.color = '#e74c3c'; status.textContent = '候補一覧から店舗を選択してください'; return; }
+  if (!dateVal) { status.style.color = '#e74c3c'; status.textContent = '日付を指定してください'; return; }
+
+  status.style.color = '#888';
+  status.textContent = '取得中…';
+  try {
+    const res = await fetch(`/api/pision-results?hallId=${pisionSelectedHallId}&date=${dateVal}`);
+    const data = await res.json();
+    if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
+
+    let machines = (data.machines || []).map(m => ({
+      台番:   m.台番,
+      機種名: cleanName(m.機種名 || ''),
+      G:      m.G数 ?? 0,
+      BIG:    m.BB ?? null,
+      REG:    m.RB ?? null,
+      差:      roundUp50(m.差 ?? 0),
+    }));
+    hasBigReg = machines.some(m => m.BIG !== null && m.REG !== null);
+    hasG = machines.some(m => m.G);
+
+    const loaded = finishMachinesLoad(machines, 'P-PRO');
+    status.style.color = '#27ae60';
+    status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${loaded.length}台を取得しました`;
+  } catch (e) {
+    status.style.color = '#e74c3c';
+    status.textContent = '❌ 通信エラー: ' + e.message;
+  }
+}
+
 function loadDataFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -2884,43 +3020,12 @@ function processDataFile(file) {
       }
     }
 
-    if (document.getElementById('juggler-only-filter')?.checked) {
-      machines = machines.filter(m => m.機種名.normalize('NFKC').includes('ジャグラー'));
-    }
-
-    const excludeList = getJugglerExcludeList();
-    if (excludeList.length) {
-      machines = machines.filter(m => !excludeList.some(ex => m.機種名.normalize('NFKC') === ex.normalize('NFKC')));
-    }
-
-    const allowedMachines = SERIES_CONFIG[currentSeries]?.allowedMachines;
-    if (allowedMachines && allowedMachines.length) {
-      machines = machines.filter(m => allowedMachines.some(a => m.機種名.normalize('NFKC').includes(a.normalize('NFKC'))));
-    }
-
-    machines.sort((a, b) => b.差 - a.差);
-    allMachineData = machines;
-    renderDataTable(machines);
-    document.getElementById('data-total-label').textContent = `全${machines.length}台`;
-
-    // 機種ごとの台数を集計してジャグ系設置台数に自動反映
-    const countMap = {};
-    machines.forEach(m => {
-      const name = displayName(m.機種名);
-      countMap[name] = (countMap[name] || 0) + 1;
-    });
-    const sorted = Object.entries(countMap).sort((a, b) => b[1] - a[1]);
-    document.getElementById('machine-rows').innerHTML = '';
-    sorted.forEach(([name, count]) => addMachineRow(name, count));
-    initPreview();
-
-    showToast(`${machines.length}台のデータを読み込みました`);
-    renderMachineFromData();
+    const loaded = finishMachinesLoad(machines);
 
     const uploadArea = document.querySelector('.data-upload-area');
     const uploadLabel = document.getElementById('data-upload-label');
     if (uploadArea) uploadArea.classList.add('loaded');
-    if (uploadLabel) uploadLabel.innerHTML = `✅ <b>${file.name}</b><br><span style="color:#2a7a10">${machines.length}台 読み込み済み</span>`;
+    if (uploadLabel) uploadLabel.innerHTML = `✅ <b>${file.name}</b><br><span style="color:#2a7a10">${loaded.length}台 読み込み済み</span>`;
   };
 
   if (isText) reader.readAsText(file, 'Shift-JIS');
