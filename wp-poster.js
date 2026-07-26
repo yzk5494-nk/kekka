@@ -138,6 +138,15 @@ function writeStoreMemory(data) {
 const HB = config.hisshobon;
 const HB_AUTH = Buffer.from(`${HB.username}:${HB.password}`).toString('base64');
 
+// hisshobonカテゴリー・タグのキャッシュ（毎回WPへ取りに行かず、手動更新ボタンで再取得するまで使い回す）
+const HB_CACHE_FILE = path.join(DATA_DIR, 'hb-cache.json');
+function readHbCache() {
+  try { return JSON.parse(fs.readFileSync(HB_CACHE_FILE, 'utf8')); } catch { return {}; }
+}
+function writeHbCache(data) {
+  fs.writeFileSync(HB_CACHE_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
 // yg-blog.com 設定
 const YG = config.yg;
 const YG_AUTH = Buffer.from(`${YG.username}:${YG.password}`).toString('base64');
@@ -188,6 +197,22 @@ async function hbFetchAllPages(endpoint) {
     );
     rest.forEach(r => { if (Array.isArray(r.data)) all = all.concat(r.data); });
   }
+  return all;
+}
+
+// カテゴリー・タグはキャッシュ（hb-cache.json）があればそれを返し、無ければWPから取得して保存する
+async function getHbCategories() {
+  const cache = readHbCache();
+  if (Array.isArray(cache.categories)) return cache.categories;
+  const all = await hbFetchAllPages('categories');
+  writeHbCache({ ...readHbCache(), categories: all });
+  return all;
+}
+async function getHbTags() {
+  const cache = readHbCache();
+  if (Array.isArray(cache.tags)) return cache.tags;
+  const all = await hbFetchAllPages('tags');
+  writeHbCache({ ...readHbCache(), tags: all });
   return all;
 }
 
@@ -963,10 +988,17 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ── hisshobon カテゴリー一覧（全件） ───────────────────────
+    // ── hisshobon カテゴリー一覧（全件・キャッシュ優先） ───────────
     if (req.method === 'GET' && parsed.pathname === '/api/hb-categories') {
-      const all = await hbFetchAllPages('categories');
+      const all = await getHbCategories();
       return sendJson(200, all);
+    }
+
+    // ── hisshobonカテゴリー・タグキャッシュの手動更新 ───────────────
+    if (req.method === 'POST' && parsed.pathname === '/api/hb-cache-refresh') {
+      const [categories, tags] = await Promise.all([hbFetchAllPages('categories'), hbFetchAllPages('tags')]);
+      writeHbCache({ categories, tags });
+      return sendJson(200, { categories: categories.length, tags: tags.length });
     }
 
     // ── hisshobon ホール一覧（店舗カテゴリーのみ抽出） ─────────────
@@ -997,9 +1029,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(200, halls);
     }
 
-    // ── hisshobon タグ一覧（全件） ──────────────────────────────
+    // ── hisshobon タグ一覧（全件・キャッシュ優先） ──────────────────
     if (req.method === 'GET' && parsed.pathname === '/api/hb-tags') {
-      const all = await hbFetchAllPages('tags');
+      const all = await getHbTags();
       return sendJson(200, all);
     }
 

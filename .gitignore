@@ -1,3 +1,4 @@
 node_modules/
 machine-images/
 library-backup/
+hb-cache.json

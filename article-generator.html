@@ -1159,7 +1159,10 @@
   <div style="background:#fff;width:100%;max-width:900px;height:90vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eee;flex-shrink:0;">
       <h3 style="margin:0;font-size:15px;">カテゴリー・タグを選択</h3>
-      <button onclick="closeCatTagModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="refreshHbCache()" id="hb-cache-refresh-btn" title="WPから最新のカテゴリー・タグを再取得します" style="font-size:11px;padding:4px 10px;border:1px solid #ddd;border-radius:5px;background:#f5f5f5;cursor:pointer;font-family:inherit;">🔄 WPから更新</button>
+        <button onclick="closeCatTagModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
+      </div>
     </div>
     <div style="display:flex;flex:1;overflow:hidden;gap:0;">
       <!-- カテゴリー -->
@@ -2389,6 +2392,27 @@ async function loadHbCatsAndTags() {
       });
     } catch(e) { tagList.textContent = '取得失敗'; }
     tagLoading.style.display = 'none';
+  }
+}
+
+async function refreshHbCache() {
+  const btn = document.getElementById('hb-cache-refresh-btn');
+  const original = btn.textContent;
+  btn.textContent = '🔄 更新中…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/hb-cache-refresh', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '更新失敗');
+    delete document.getElementById('wp-cat-list').dataset.loaded;
+    delete document.getElementById('wp-tag-list').dataset.loaded;
+    await loadHbCatsAndTags();
+    showToast(`✅ 更新完了：カテゴリー${data.categories}件・タグ${data.tags}件`);
+  } catch(e) {
+    showToast('❌ 更新失敗: ' + e.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
   }
 }
 
