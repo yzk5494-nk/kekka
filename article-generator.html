@@ -1710,7 +1710,7 @@ async function generateWithAI() {
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff, adjMultiplier: SERIES_CONFIG[currentSeries]?.adjMultiplier || 1, bodyUnit: SERIES_CONFIG[currentSeries]?.bodyUnit || '枚' }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
