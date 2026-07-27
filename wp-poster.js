@@ -1111,7 +1111,7 @@ const server = http.createServer(async (req, res) => {
 
       let b5Section;
       if (series === 'tokyoghoul') {
-        const openCount = pastArticles.length + 1; // 保存上限3件のため概算
+        const openCount = data.openCount || (pastArticles.length + 1); // openCountは通算回数（store-memoryに記録）。無ければ保存上限3件からの概算にフォールバック
         let prevMonth = '';
         if (prevArticle?.date) {
           const m = prevArticle.date.split('/')[1];
@@ -1175,9 +1175,9 @@ ${prevArticle?.texts?.b13 ? `前回のB13参考: "${prevArticle.texts.b13}"` : '
 - 「前回の${data.prev}旋風からどう変わるのか⁉️今回のランキングも目が離せませんよ🔥」
 - 「前回は${data.prev}が頭一つ抜け出していましたが、今回はその流れを受け継ぐ機種が現れるのか注目ですっ✨」
 - 「${data.prev}が躍動した前回の余韻も冷めやらぬ中、今回はいったいどの機種から優秀台が飛び出すのか⁉️楽しみですね～🎉」
-- 「こちらは【戦極】取材の常連店🌺\n毎回ド派手な出玉で我々を魅了してくれていますので、今回の結果も非常に楽しみですっ💥」
+${(data.openCount || 0) >= 5 ? `- 「こちらは【戦極】取材の常連店🌺\n毎回ド派手な出玉で我々を魅了してくれていますので、今回の結果も非常に楽しみですっ💥」` : ''}
 ${prevArticle?.over10000Count >= 2 ? `- 「前回は万枚オーバーが${prevArticle.over10000Count}件と、かなりの盛り上がりを見せていました🎉今回も期待が高まりますねっ🔥」` : ''}
-→ 前回機種(${data.prev})に触れて今回への期待を出すか、または「常連店」として毎回の実績を称える切り口でもよい。${prevArticle?.over10000Count >= 2 ? `前回は万枚オーバーが${prevArticle.over10000Count}件あったので、その実績に触れてもよい。` : ''}1〜2文。上記のどれかをベースにバリエーションを出すこと。`);
+→ 前回機種(${data.prev})に触れて今回への期待を出すこと。${(data.openCount || 0) >= 5 ? `今回で通算${data.openCount}回目の開催という実績があるので、「常連店」として毎回の実績を称える切り口でもよい。` : '今回の開催は通算数回程度のため「常連店」という表現は使わないこと。'}${prevArticle?.over10000Count >= 2 ? `前回は万枚オーバーが${prevArticle.over10000Count}件あったので、その実績に触れてもよい。` : ''}1〜2文。上記のどれかをベースにバリエーションを出すこと。`);
 
       const b8Section = series === 'hyakkaryoran' ? `■ b8（設置台数アピール。設置台数テーブルの直前に入る）
 今回の設置情報: ${data.machineList}（${data.cnt}機種 合計${data.total}台）
@@ -1309,11 +1309,15 @@ ${data.plusCount != null ? `今回のデータ: ${data.total}台設置で${data.
 
 ■ b14（締めコメント）
 ${data.achieved10000 === true ? '※今回は万枚オーバー達成台があるので、盛り上がりを強調すること。' : data.achieved10000 === false ? '※今回は万枚オーバー未達成なので、煽りすぎず「次回リベンジに期待」のようなフォローを入れること。' : ''}
+${data.firstTime ? '※同店では今回が初開催のため、「今回も」など継続開催を前提とした表現は使わないこと。「初回から」「初開催から」など初めてであることが分かる表現にすること。' : ''}
 実例:
-- 「今回もガッツリと盛り上がっていましたね〜👍同店での${eventName}開催時はかなり期待できそうです！」
+${data.firstTime ? `- 「初回から大いに盛り上がりを見せてくれましたね〜👍${eventName}の次回開催もかなり期待できそうです！」
+- 「ランキングを見る感じ、やはり設置台数が多い機種が多くランクインしている傾向に🤔次回の立ち回りの参考にしてみてくださいね☝️」
+- 「初開催から多台数設置機種が優勢ではありましたが、全体的にチャンスがあった取材となりましたね☺️」
+- 「初回は惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍次回のリベンジにも期待したいですね！」` : `- 「今回もガッツリと盛り上がっていましたね〜👍同店での${eventName}開催時はかなり期待できそうです！」
 - 「ランキングを見る感じ、やはり設置台数が多い機種が多くランクインしている傾向に🤔次回の立ち回りの参考にしてみてくださいね☝️」
 - 「やはり多台数設置機種が優勢ではありましたが、全体的にチャンスがあった取材となりましたね☺️」
-- 「惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍次回のリベンジにも期待したいですね！」
+- 「惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍次回のリベンジにも期待したいですね！」`}
 ${series === 'shishifunjin' ? `今回のデータ:
 ${data.over10000Count ? `万枚オーバー×${data.over10000Count}件` : ''}
 ${data.over5000Count ? `5,000枚以上×${data.over5000Count}件` : ''}
@@ -1522,9 +1526,13 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const memory = readStoreMemory();
       const bucket = memory[hall];
       // シリーズ別に記憶していない旧形式（配列）は他シリーズの文章が混ざる原因になるため参照しない
-      const past = (bucket && !Array.isArray(bucket) ? bucket[series] : null) || [];
+      const raw = (bucket && !Array.isArray(bucket) ? bucket[series] : null);
+      // 直近3件のみ保存する旧形式（配列）と、通算回数も持つ新形式（{count, items}）の両方に対応
+      const items = Array.isArray(raw) ? raw : (raw?.items || []);
+      const count = Array.isArray(raw) ? items.length : (raw?.count ?? items.length);
+      const past = items.slice(0, 3);
       const prevTop1 = past.length > 0 ? (past[0].top1 || '') : '';
-      return sendJson(200, { past: past.slice(0, 3), prevTop1 });
+      return sendJson(200, { past, prevTop1, count });
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/store-memory') {
@@ -1533,9 +1541,11 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const seriesKey = series || 'denkoisseki';
       const memory = readStoreMemory();
       if (!memory[hall] || Array.isArray(memory[hall])) memory[hall] = {};
-      if (!memory[hall][seriesKey]) memory[hall][seriesKey] = [];
-      memory[hall][seriesKey].unshift({ date, texts, top1: top1 || '', over10000Count: over10000Count || 0 });
-      if (memory[hall][seriesKey].length > 3) memory[hall][seriesKey] = memory[hall][seriesKey].slice(0, 3);
+      const existing = memory[hall][seriesKey];
+      const prevItems = Array.isArray(existing) ? existing : (existing?.items || []);
+      const prevCount = Array.isArray(existing) ? prevItems.length : (existing?.count ?? prevItems.length);
+      const items = [{ date, texts, top1: top1 || '', over10000Count: over10000Count || 0 }, ...prevItems].slice(0, 3);
+      memory[hall][seriesKey] = { count: prevCount + 1, items };
       writeStoreMemory(memory);
       return sendJson(200, { ok: true });
     }

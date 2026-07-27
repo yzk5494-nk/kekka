@@ -1708,9 +1708,10 @@ async function generateWithAI() {
   try {
     // この店舗の過去記事を取得
     let pastArticles = [];
+    let openCount = 1;
     try {
       const memRes = await fetch(`/api/store-memory?hall=${encodeURIComponent(hall)}&series=${encodeURIComponent(currentSeries)}`);
-      if (memRes.ok) { const memData = await memRes.json(); pastArticles = memData.past || []; }
+      if (memRes.ok) { const memData = await memRes.json(); pastArticles = memData.past || []; openCount = (memData.count || 0) + 1; }
     } catch {}
 
     const eventName = SERIES_CONFIG[currentSeries]?.name || '戦極～電光石火～';
@@ -1732,7 +1733,7 @@ async function generateWithAI() {
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff, adjMultiplier: SERIES_CONFIG[currentSeries]?.adjMultiplier || 1, bodyUnit: SERIES_CONFIG[currentSeries]?.bodyUnit || '枚' }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, openCount, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff, adjMultiplier: SERIES_CONFIG[currentSeries]?.adjMultiplier || 1, bodyUnit: SERIES_CONFIG[currentSeries]?.bodyUnit || '枚' }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
