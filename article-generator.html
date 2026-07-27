@@ -3095,7 +3095,9 @@ async function generateRankingImage() {
   const TOTAL_W   = W + OUTER_PAD * 2;
   const SUB_H     = subtitle ? 28 : 0;
   const rank1Name    = machines[0]?.機種名;
-  const rank2Name    = machines[1]?.機種名;
+  // 2位が1位と同一機種の場合、バナーが重複しないよう1位と異なる機種が現れる順位まで繰り下げる
+  const rank2Idx = machines.findIndex((m, i) => i > 0 && m.機種名 !== rank1Name);
+  const rank2Name    = rank2Idx >= 0 ? machines[rank2Idx].機種名 : machines[1]?.機種名;
   const autoBannerUrl = rank1Name && libraryImages[rank1Name]?.url;
   const rank2BannerUrl = rank2Name && libraryImages[rank2Name]?.url;
   const effectiveBanner = bannerDataUrl || autoBannerUrl || null;
@@ -3221,7 +3223,7 @@ async function generateRankingImage() {
       img.src = src;
     })));
     bannerEndY = TITLE_H + BANNER_H;
-    showToast(`RANK1「${rank1Name}」・RANK2「${rank2Name}」の画像をバナーに自動設定しました`);
+    showToast(`RANK1「${rank1Name}」・RANK${rank2Idx >= 0 ? rank2Idx + 1 : 2}「${rank2Name}」の画像をバナーに自動設定しました`);
   } else if (effectiveBanner) {
     await new Promise(resolve => {
       const img = new Image();
