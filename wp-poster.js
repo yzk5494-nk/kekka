@@ -843,6 +843,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(200, detail);
     }
 
+    // ── ホール分析：直接インポート（WP投稿を経由せず、別環境で記録したデータを移すための手動用） ──
+    if (req.method === 'POST' && parsed.pathname === '/api/hall-analytics/import') {
+      const buf = await collectBody(req);
+      const body = JSON.parse(buf.toString('utf8'));
+      try {
+        hallAnalyticsDb.upsertArticleAndGroups(body);
+        return sendJson(200, { ok: true });
+      } catch (e) {
+        return sendJson(500, { error: e.message });
+      }
+    }
+
     // ── p-world 台数スクレイピング ───────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/scrape-pworld') {
       const buf = await collectBody(req);

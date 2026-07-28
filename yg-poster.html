@@ -3000,7 +3000,14 @@ function setUnit(unit) {
   drawAllDataCanvas();
 }
 let selectedOrder = []; // 台番の配列（選択順）
-let hallAnalyticsGroups = []; // ホール分析DB用：WP投稿ボタンを押すたびに、その時点のselectedOrder由来の台を1グループとして積み上げる
+let hallAnalyticsGroups = []; // ホール分析DB用：画像をエディターに挿入するたびに、その台番号を1グループとして積み上げる
+// 台番号の配列（例：selectedOrderやimageQueueの各itemのmachineNums）から、allMachines由来の詳細データを持つグループを記録する
+function recordHallAnalyticsGroup(unitNums) {
+  if (!unitNums || !unitNums.length) return;
+  const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
+  const group = unitNums.map(num => machineMap[num]).filter(Boolean);
+  if (group.length) hallAnalyticsGroups.push(group);
+}
 const cardImages = [null, null, null, null];
 let sortKey = '台番';
 let sortAsc = true;
@@ -5715,11 +5722,7 @@ function sendCanvasToWP() {
   gbRender();
 
   // ホール分析DB用：この瞬間に選択されている台を1グループとして記録に積み上げる
-  if (selectedOrder.length) {
-    const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
-    const group = selectedOrder.map(num => machineMap[num]).filter(Boolean);
-    if (group.length) hallAnalyticsGroups.push(group);
-  }
+  recordHallAnalyticsGroup(selectedOrder);
 
   const sendBtn = document.getElementById('sendToWpBtn');
   const orig = sendBtn.textContent;
@@ -5953,6 +5956,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
+        recordHallAnalyticsGroup(item.machineNums);
       });
       gbRender();
       // WP投稿タブに切り替え
@@ -5995,6 +5999,7 @@ function sendAllQueueToWP() {
       b.base64 = base64;
       b.filename = (item.label || '画像') + '.png';
       b.src = item.dataUrl;
+      recordHallAnalyticsGroup(item.machineNums);
     });
     gbRender();
     ygSwitchMainTab('editor');
@@ -6051,6 +6056,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
+        recordHallAnalyticsGroup(item.machineNums);
       });
       gbRender();
       ygSwitchMainTab('editor');
