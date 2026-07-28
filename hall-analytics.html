@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ホール分析</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Yu Gothic", "Meiryo", sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+  header {
+    background: #1e2a3a; color: white;
+    padding: 10px 18px; font-size: 15px; font-weight: bold;
+    display: flex; align-items: center; gap: 12px;
+  }
+  header a { color: #aaa; font-size: 12px; text-decoration: none; margin-left: auto; }
+  header a:hover { color: white; }
+
+  .container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+
+  .top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .top-bar h2 { font-size: 16px; color: #333; margin-right: 8px; }
+  select {
+    padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;
+    font-family: inherit; background: white; min-width: 220px;
+  }
+
+  .card {
+    background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    padding: 16px 18px; margin-bottom: 16px;
+  }
+  .summary-row { display: flex; gap: 28px; flex-wrap: wrap; }
+  .summary-item .label { font-size: 12px; color: #888; }
+  .summary-item .value { font-size: 20px; font-weight: bold; color: #1e2a3a; margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #eee; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: #888; font-weight: normal; font-size: 12px; }
+  tr:hover td { background: #fafafa; }
+  .diff-pos { color: #d4342c; font-weight: bold; }
+  .diff-neg { color: #2a6fc9; }
+
+  .empty { color: #999; font-size: 13px; padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  ホール分析
+  <a href="/">戻る</a>
+</header>
+
+<div class="container">
+  <div class="top-bar">
+    <h2>店舗</h2>
+    <select id="storeSelect" onchange="onStoreChange()">
+      <option value="">-- 店舗を選択 --</option>
+    </select>
+    <h2>取材名</h2>
+    <select id="coverageSelect" onchange="onCoverageChange()" disabled>
+      <option value="">-- 取材名を選択 --</option>
+    </select>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+async function loadStores() {
+  const res = await fetch('/api/hall-analytics/stores');
+  const data = await res.json();
+  const sel = document.getElementById('storeSelect');
+  (data.stores || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = `${s.name}（${s.articleCount}件）`;
+    sel.appendChild(opt);
+  });
+  if (!data.stores || !data.stores.length) {
+    document.getElementById('content').innerHTML = '<div class="empty">まだ蓄積されたデータがありません。YGブログへ記事を投稿すると、ここに集計が表示されます。</div>';
+  }
+}
+
+function fmtDiff(n) {
+  if (n === null || n === undefined) return '-';
+  const sign = n > 0 ? '+' : '';
+  return `<span class="${n > 0 ? 'diff-pos' : (n < 0 ? 'diff-neg' : '')}">${sign}${n.toLocaleString()}枚</span>`;
+}
+
+async function onStoreChange() {
+  const storeName = document.getElementById('storeSelect').value;
+  const coverageSel = document.getElementById('coverageSelect');
+  coverageSel.innerHTML = '<option value="">-- 取材名を選択 --</option>';
+  coverageSel.disabled = true;
+  document.getElementById('content').innerHTML = '';
+  if (!storeName) return;
+
+  const res = await fetch(`/api/hall-analytics/coverage-names?store=${encodeURIComponent(storeName)}`);
+  const data = await res.json();
+  (data.coverageNames || []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.coverageName;
+    opt.textContent = `${c.coverageName}（${c.articleCount}件）`;
+    coverageSel.appendChild(opt);
+  });
+  coverageSel.disabled = false;
+}
+
+async function onCoverageChange() {
+  const storeName = document.getElementById('storeSelect').value;
+  const coverageName = document.getElementById('coverageSelect').value;
+  const content = document.getElementById('content');
+  if (!storeName || !coverageName) { content.innerHTML = ''; return; }
+
+  content.innerHTML = '<div class="empty">読み込み中…</div>';
+  const res = await fetch(`/api/hall-analytics/detail?store=${encodeURIComponent(storeName)}&coverage=${encodeURIComponent(coverageName)}`);
+  const data = await res.json();
+  if (!res.ok) { content.innerHTML = `<div class="empty">❌ ${data.error || '取得エラー'}</div>`; return; }
+
+  const { summary, machines } = data;
+  let html = `
+    <div class="card">
+      <div class="summary-row">
+        <div class="summary-item"><div class="label">掲載記事数</div><div class="value">${summary.articleCount}件</div></div>
+        <div class="summary-item"><div class="label">掲載期間</div><div class="value" style="font-size:15px">${summary.firstDate} 〜 ${summary.lastDate}</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>機種名</th><th>ピックアップ回数</th><th>ピックアップ率</th><th>平均差枚</th><th>合計差枚</th><th>最高差枚</th></tr></thead>
+        <tbody>
+  `;
+  if (!machines.length) {
+    html += `<tr><td colspan="6" class="empty">機種別データがありません</td></tr>`;
+  } else {
+    for (const m of machines) {
+      html += `<tr>
+        <td>${m.displayName}</td>
+        <td>${m.appearances}回</td>
+        <td>${Math.round(m.pickupRate * 100)}%</td>
+        <td>${fmtDiff(m.avgDiff)}</td>
+        <td>${fmtDiff(m.totalDiff)}</td>
+        <td>${fmtDiff(m.maxDiff)}</td>
+      </tr>`;
+    }
+  }
+  html += `</tbody></table></div>`;
+  content.innerHTML = html;
+}
+
+loadStores();
+</script>
+</body>
+</html>

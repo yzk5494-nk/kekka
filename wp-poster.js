@@ -6,6 +6,7 @@ const url = require('url');
 let puppeteer;
 try { puppeteer = require('puppeteer'); } catch { puppeteer = require('puppeteer-core'); }
 const { convertImagesTree, LIB_IMAGES_DIR } = require('./lib-image-store');
+const hallAnalyticsDb = require('./hall-analytics-db');
 
 // 設定読み込み
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'wp-config.json'), 'utf8'));
@@ -393,6 +394,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && parsed.pathname === '/yg-poster') {
       const html = fs.readFileSync(path.join(__dirname, 'yg-poster.html'), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
+    if (req.method === 'GET' && parsed.pathname === '/hall-analytics') {
+      const html = fs.readFileSync(path.join(__dirname, 'hall-analytics.html'), 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(html);
     }
@@ -793,10 +800,47 @@ const server = http.createServer(async (req, res) => {
     // ── YG 記事投稿 ──────────────────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/create-yg-post') {
       const buf = await collectBody(req);
-      const postData = JSON.parse(buf.toString('utf8'));
+      const { _hallAnalytics, ...postData } = JSON.parse(buf.toString('utf8'));
       const r = await ygRequest('POST', 'posts', postData);
       console.log(`[yg-post] status=${r.status} title="${postData.title}"`);
+      if (r.status < 300 && _hallAnalytics?.storeName && _hallAnalytics?.coverageName && _hallAnalytics?.date) {
+        try {
+          hallAnalyticsDb.upsertArticleAndGroups({
+            storeName: _hallAnalytics.storeName,
+            pisionHallId: _hallAnalytics.pisionHallId || null,
+            coverageName: _hallAnalytics.coverageName,
+            date: _hallAnalytics.date,
+            wpPostId: r.data.id,
+            link: r.data.link,
+            groups: _hallAnalytics.groups || [],
+          });
+        } catch (e) { console.error('[hall-analytics] 保存失敗:', e.message); }
+      }
       return sendJson(r.status, r.data);
+    }
+
+    // ── ホール分析：店舗一覧 ──────────────────────────────────────
+    // （CORSは共通のsendJsonヘルパーが Access-Control-Allow-Origin: * を付与済みなので、
+    //   yg-blog.com上の埋め込みウィジェットから直接fetchできる。個別設定は不要）
+    if (req.method === 'GET' && parsed.pathname === '/api/hall-analytics/stores') {
+      return sendJson(200, { stores: hallAnalyticsDb.listStores() });
+    }
+
+    // ── ホール分析：店舗の取材名一覧 ────────────────────────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/hall-analytics/coverage-names') {
+      const storeName = parsed.searchParams.get('store');
+      if (!storeName) return sendJson(400, { error: 'store（店舗名）が必要です' });
+      return sendJson(200, { coverageNames: hallAnalyticsDb.listCoverageNames(storeName) });
+    }
+
+    // ── ホール分析：店舗×取材名の詳細集計 ─────────────────────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/hall-analytics/detail') {
+      const storeName = parsed.searchParams.get('store');
+      const coverageName = parsed.searchParams.get('coverage');
+      if (!storeName || !coverageName) return sendJson(400, { error: 'store・coverageが必要です' });
+      const detail = hallAnalyticsDb.getDetail(storeName, coverageName);
+      if (!detail) return sendJson(400, { error: '該当するデータが見つかりません' });
+      return sendJson(200, detail);
     }
 
     // ── p-world 台数スクレイピング ───────────────────────────────

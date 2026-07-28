@@ -1,0 +1,140 @@
+<!--
+  yg-blog.com の固定ページ／投稿に「カスタムHTML」ブロックとしてそのまま貼り付ける用のコード。
+  WordPress側の作業はこのファイルの中身を丸ごとコピーして貼るだけ。
+  データ取得元は Railway にデプロイ済みの wp-poster.js（https://kekka-production.up.railway.app）。
+  URLが変わった場合は API_BASE の値だけ書き換えればよい。
+-->
+<div id="hallAnalyticsWidget" style="font-family:'Yu Gothic','Meiryo',sans-serif;max-width:100%;margin:20px 0;">
+  <style>
+    #hallAnalyticsWidget * { box-sizing: border-box; }
+    #hallAnalyticsWidget .ha-bar { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+    #hallAnalyticsWidget .ha-bar label { font-size:13px; color:#555; font-weight:bold; }
+    #hallAnalyticsWidget select {
+      padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;
+      font-family:inherit; background:#fff; min-width:200px; max-width:100%;
+    }
+    #hallAnalyticsWidget .ha-card {
+      background:#fff; border:1px solid #eee; border-radius:10px;
+      box-shadow:0 1px 4px rgba(0,0,0,0.06); padding:14px 16px; margin-bottom:14px;
+    }
+    #hallAnalyticsWidget .ha-summary { display:flex; gap:24px; flex-wrap:wrap; }
+    #hallAnalyticsWidget .ha-summary .ha-label { font-size:12px; color:#888; }
+    #hallAnalyticsWidget .ha-summary .ha-value { font-size:18px; font-weight:bold; color:#1e2a3a; margin-top:2px; }
+    #hallAnalyticsWidget .ha-table-scroll { overflow-x:auto; }
+    #hallAnalyticsWidget table { width:100%; border-collapse:collapse; font-size:13px; min-width:480px; }
+    #hallAnalyticsWidget th, #hallAnalyticsWidget td { padding:8px 10px; text-align:right; border-bottom:1px solid #f0f0f0; }
+    #hallAnalyticsWidget th:first-child, #hallAnalyticsWidget td:first-child { text-align:left; }
+    #hallAnalyticsWidget th { color:#888; font-weight:normal; font-size:12px; }
+    #hallAnalyticsWidget .ha-diff-pos { color:#d4342c; font-weight:bold; }
+    #hallAnalyticsWidget .ha-diff-neg { color:#2a6fc9; }
+    #hallAnalyticsWidget .ha-empty { color:#999; font-size:13px; padding:24px 0; text-align:center; }
+  </style>
+
+  <div class="ha-bar">
+    <label>店舗</label>
+    <select id="haStoreSelect"><option value="">-- 店舗を選択 --</option></select>
+    <label>取材名</label>
+    <select id="haCoverageSelect" disabled><option value="">-- 取材名を選択 --</option></select>
+  </div>
+
+  <div id="haContent"></div>
+</div>
+
+<script>
+(function () {
+  const API_BASE = 'https://kekka-production.up.railway.app';
+
+  const storeSelect = document.getElementById('haStoreSelect');
+  const coverageSelect = document.getElementById('haCoverageSelect');
+  const content = document.getElementById('haContent');
+
+  function fmtDiff(n) {
+    if (n === null || n === undefined) return '-';
+    const sign = n > 0 ? '+' : '';
+    const cls = n > 0 ? 'ha-diff-pos' : (n < 0 ? 'ha-diff-neg' : '');
+    return `<span class="${cls}">${sign}${n.toLocaleString()}枚</span>`;
+  }
+
+  async function loadStores() {
+    try {
+      const res = await fetch(`${API_BASE}/api/hall-analytics/stores`);
+      const data = await res.json();
+      (data.stores || []).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        opt.textContent = `${s.name}（${s.articleCount}件）`;
+        storeSelect.appendChild(opt);
+      });
+      if (!data.stores || !data.stores.length) {
+        content.innerHTML = '<div class="ha-empty">まだ蓄積されたデータがありません。</div>';
+      }
+    } catch (e) {
+      content.innerHTML = '<div class="ha-empty">読み込みに失敗しました</div>';
+    }
+  }
+
+  async function onStoreChange() {
+    const storeName = storeSelect.value;
+    coverageSelect.innerHTML = '<option value="">-- 取材名を選択 --</option>';
+    coverageSelect.disabled = true;
+    content.innerHTML = '';
+    if (!storeName) return;
+
+    const res = await fetch(`${API_BASE}/api/hall-analytics/coverage-names?store=${encodeURIComponent(storeName)}`);
+    const data = await res.json();
+    (data.coverageNames || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.coverageName;
+      opt.textContent = `${c.coverageName}（${c.articleCount}件）`;
+      coverageSelect.appendChild(opt);
+    });
+    coverageSelect.disabled = false;
+  }
+
+  async function onCoverageChange() {
+    const storeName = storeSelect.value;
+    const coverageName = coverageSelect.value;
+    if (!storeName || !coverageName) { content.innerHTML = ''; return; }
+
+    content.innerHTML = '<div class="ha-empty">読み込み中…</div>';
+    const res = await fetch(`${API_BASE}/api/hall-analytics/detail?store=${encodeURIComponent(storeName)}&coverage=${encodeURIComponent(coverageName)}`);
+    const data = await res.json();
+    if (!res.ok) { content.innerHTML = `<div class="ha-empty">❌ ${data.error || '取得エラー'}</div>`; return; }
+
+    const { summary, machines } = data;
+    let html = `
+      <div class="ha-card">
+        <div class="ha-summary">
+          <div><div class="ha-label">掲載記事数</div><div class="ha-value">${summary.articleCount}件</div></div>
+          <div><div class="ha-label">掲載期間</div><div class="ha-value" style="font-size:14px">${summary.firstDate} 〜 ${summary.lastDate}</div></div>
+        </div>
+      </div>
+      <div class="ha-card">
+        <div class="ha-table-scroll">
+        <table>
+          <thead><tr><th>機種名</th><th>ピックアップ回数</th><th>ピックアップ率</th><th>平均差枚</th><th>合計差枚</th><th>最高差枚</th></tr></thead>
+          <tbody>
+    `;
+    if (!machines.length) {
+      html += `<tr><td colspan="6" class="ha-empty">機種別データがありません</td></tr>`;
+    } else {
+      for (const m of machines) {
+        html += `<tr>
+          <td>${m.displayName}</td>
+          <td>${m.appearances}回</td>
+          <td>${Math.round(m.pickupRate * 100)}%</td>
+          <td>${fmtDiff(m.avgDiff)}</td>
+          <td>${fmtDiff(m.totalDiff)}</td>
+          <td>${fmtDiff(m.maxDiff)}</td>
+        </tr>`;
+      }
+    }
+    html += `</tbody></table></div></div>`;
+    content.innerHTML = html;
+  }
+
+  storeSelect.addEventListener('change', onStoreChange);
+  coverageSelect.addEventListener('change', onCoverageChange);
+  loadStores();
+})();
+</script>

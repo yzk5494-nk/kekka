@@ -2365,6 +2365,37 @@ function gbEscHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ===== ホール分析DB用：店舗名・取材名・日付の導出 =====
+// タイトル「7/3(金)ガイア西船橋　蓮くん　スロット結果」（日付／店舗名／取材名／固定文言）から復元する。
+// 取得できない場合はnullを返し、呼び出し側は集計データなしで投稿のみ行う。
+function deriveHallAnalyticsMeta() {
+  const titleEl = document.getElementById('gbTitle');
+  const title = titleEl ? titleEl.innerText.trim() : '';
+  const m = title.match(/^(\d{1,2})\/(\d{1,2})\([日月火水木金土]\)(\S+)\s+(\S+)\s*スロット結果\s*$/);
+  if (!m) return null;
+  const [, mo1, da1, store, coverageName] = m;
+
+  const mo = Number(mo1), da = Number(da1);
+  const now = new Date();
+  let year = now.getFullYear();
+  const candidate = new Date(year, mo - 1, da);
+  // 未来方向に大きくずれる場合のみ前年扱い（他箇所の曜日計算と同じ簡易ルール）
+  if (candidate - now > 1000 * 60 * 60 * 24 * 60) year -= 1;
+  const iso = `${year}-${String(mo).padStart(2, '0')}-${String(da).padStart(2, '0')}`;
+
+  // DBに保存するのは「ピックアップされた機種」のみ（全台データではなく、記事で実際に取り上げた台）。
+  // WP投稿ボタンを押すたびに積み上げたグループ（hallAnalyticsGroups）をそのまま使う。
+  if (!hallAnalyticsGroups.length) return null;
+
+  return {
+    storeName: store,
+    coverageName,
+    date: iso,
+    pisionHallId: pisionSelectedHallId || null,
+    groups: hallAnalyticsGroups,
+  };
+}
+
 // ===== 投稿 =====
 async function gbSubmitPost(status = 'draft') {
   const titleEl = document.getElementById('gbTitle');
@@ -2434,6 +2465,8 @@ async function gbSubmitPost(status = 'draft') {
     const catVal = document.getElementById('wpCategory').value;
     if (catVal) postData.categories = [parseInt(catVal, 10)];
     if (featuredMediaId) postData.featured_media = featuredMediaId;
+    const hallAnalyticsMeta = deriveHallAnalyticsMeta();
+    if (hallAnalyticsMeta) postData._hallAnalytics = hallAnalyticsMeta;
 
     const r = await fetch('/api/create-yg-post', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2446,6 +2479,8 @@ async function gbSubmitPost(status = 'draft') {
     const label = status === 'draft' ? '下書き保存' : '公開';
     gbShowStatus('success', `✓ ${label}しました！ <a href="${post.link}" target="_blank" style="color:inherit;font-weight:bold">記事を確認</a>`);
     document.getElementById('gbSaveIndicator').textContent = status === 'draft' ? '下書き保存済み' : '公開済み';
+    // 公開時のみ、ホール分析DB用の積み上げをリセット（次の記事作成に備える）
+    if (status !== 'draft') hallAnalyticsGroups = [];
 
   } catch(e) {
     gbShowStatus('error', '❌ エラー: ' + e.message);
@@ -2965,6 +3000,7 @@ function setUnit(unit) {
   drawAllDataCanvas();
 }
 let selectedOrder = []; // 台番の配列（選択順）
+let hallAnalyticsGroups = []; // ホール分析DB用：WP投稿ボタンを押すたびに、その時点のselectedOrder由来の台を1グループとして積み上げる
 const cardImages = [null, null, null, null];
 let sortKey = '台番';
 let sortAsc = true;
@@ -5677,6 +5713,14 @@ function sendCanvasToWP() {
   b.filename = filename;
   b.src = 'data:image/png;base64,' + base64;
   gbRender();
+
+  // ホール分析DB用：この瞬間に選択されている台を1グループとして記録に積み上げる
+  if (selectedOrder.length) {
+    const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
+    const group = selectedOrder.map(num => machineMap[num]).filter(Boolean);
+    if (group.length) hallAnalyticsGroups.push(group);
+  }
+
   const sendBtn = document.getElementById('sendToWpBtn');
   const orig = sendBtn.textContent;
   sendBtn.textContent = '✓ 送りました';
