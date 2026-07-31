@@ -2066,10 +2066,15 @@ function lineGenerateAndInsert() {
   if (!lineParsed) return;
   const { date, store, event } = lineParsed;
 
-  // タイトルをセット（空の場合のみ）
+  // タイトルをセット：空の場合、または「イベント名なし」の自動生成パターンのままの場合に上書きする
+  // （P-PRO取得直後はイベント名が空で一度セットされ、後から手入力されるとここで更新される。
+  //   ユーザーが手でタイトルを書き換えていた場合は上書きしない）
   const titleEl = document.getElementById('gbTitle');
-  if (titleEl && !titleEl.textContent.trim()) {
-    titleEl.textContent = `${date}${store}　スロット結果`;
+  if (titleEl) {
+    const withoutEvent = `${date}${store}　スロット結果`;
+    const withEvent = event ? `${date}${store}　${event}　スロット結果` : withoutEvent;
+    const current = titleEl.textContent.trim();
+    if (!current || current === withoutEvent) titleEl.textContent = withEvent;
   }
 
   // イベント画像ライブラリから画像を取得
