@@ -549,7 +549,8 @@ const server = http.createServer(async (req, res) => {
       if (fs.existsSync(filePath)) {
         const ext = path.extname(filePath).toLowerCase();
         const mime = { '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif', '.webp':'image/webp' }[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': mime });
+        // yg-poster.html（localhost含む）からfetchでこの画像を取得しbase64化する処理があるため、CORSを許可する
+        res.writeHead(200, { 'Content-Type': mime, 'Access-Control-Allow-Origin': '*' });
         return res.end(fs.readFileSync(filePath));
       }
       res.writeHead(404); return res.end('Not found');

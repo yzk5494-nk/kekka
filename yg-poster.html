@@ -2072,14 +2072,19 @@ function libImageUrl(value) {
 async function libImageToBase64(value) {
   if (!value) return null;
   if (value.startsWith('data:')) return value.split(',')[1];
-  const res = await fetch(libImageUrl(value));
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  try {
+    const res = await fetch(libImageUrl(value));
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null; // 画像取得に失敗しても、呼び出し元（タイトル自動セット等）は止めない
+  }
 }
 
 async function lineGenerateAndInsert() {
