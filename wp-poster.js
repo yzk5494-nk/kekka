@@ -372,6 +372,17 @@ const server = http.createServer(async (req, res) => {
     res.end(body);
   };
 
+  // クロスオリジンでのJSON POST（yg-poster.htmlからRailway本番への直接送信等）は、
+  // ブラウザがまずOPTIONSでプリフライト確認を行う。これに応答しないとブロックされる
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    return res.end();
+  }
+
   try {
     // ── UI ──────────────────────────────────────────────────────────
     if (req.method === 'GET' && parsed.pathname === '/') {
