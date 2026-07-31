@@ -340,7 +340,7 @@
     }
     .machine-item {
       display: grid;
-      grid-template-columns: 28px 44px 30px 1fr 80px;
+      grid-template-columns: 28px 44px 30px 1fr 22px 80px;
       align-items: center;
       padding: 8px 8px;
       border-radius: 6px;
@@ -3315,6 +3315,19 @@ function getDisplayName(表示名) {
   return machineNicknames[表示名] || 表示名;
 }
 
+// 台一覧の鉛筆アイコンから機種名（ニックネーム）を変換する
+function renameFromMachineList(name) {
+  const current = machineNicknames[name] || '';
+  const val = prompt(`「${name}」の表示名を入力してください（空にすると解除）`, current);
+  if (val === null) return;
+  const trimmed = val.trim();
+  if (trimmed) machineNicknames[name] = trimmed;
+  else delete machineNicknames[name];
+  saveNicknamesToStorage();
+  filterMachines();
+  updatePreview();
+}
+
 document.getElementById('libImgInput').addEventListener('change', function() {
   const file = this.files[0];
   if (!file || !libTargetName) return;
@@ -3583,11 +3596,13 @@ function renderMachineList(list) {
     const slot2Sub = hasSlot2
       ? `<div style="grid-column:1/-1;font-size:11px;color:#777;padding-left:30px;margin-top:-4px;padding-bottom:3px">G:${m.G数.toLocaleString()} &nbsp;BB:${m.BB ?? '-'} &nbsp;RB:${m.RB ?? '-'}</div>`
       : '';
+    const nameEsc = m.表示名.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div class="machine-item ${sel ? 'selected' : ''}" onclick="toggleMachine(${m.台番})" style="${hasSlot2 ? 'padding-bottom:2px' : ''}">
       <input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleMachine(${m.台番})">
       <span class="m-num">${m.台番}</span>
       <span style="font-size:12px;color:#aaa;text-align:center">${m.台番 % 10}</span>
       <span class="m-name">${getDisplayName(m.表示名)}</span>
+      <button onclick="event.stopPropagation();renameFromMachineList('${nameEsc}')" title="機種名変換" style="border:none;background:none;cursor:pointer;font-size:12px;color:#999;padding:0">✏️</button>
       <span class="m-diff ${cls}">${diffStr}${u}</span>
       ${slot2Sub}
     </div>`;
