@@ -2124,12 +2124,33 @@ function lineGenerateAndInsert() {
   }
 }
 
-// ===== イベント画像ライブラリ =====
-const EVENT_LIB_KEY = 'yg_event_lib';
-function eventLibLoad() {
-  try { return JSON.parse(localStorage.getItem(EVENT_LIB_KEY) || '{}'); } catch { return {}; }
+// ===== イベント画像ライブラリ（サーバー保存。以前はlocalStorageのみで、localhostとRailwayでデータが分断されていた） =====
+const EVENT_LIB_KEY = 'yg_event_lib'; // 旧localStorageキー。ブラウザに残っている過去データの一度きりの移行にのみ使う
+let eventLibCache = {};
+async function eventLibInit() {
+  try {
+    const res = await fetch('/api/event-library');
+    if (res.ok) eventLibCache = await res.json();
+  } catch {}
+  // 一度きりの移行：このブラウザのlocalStorageに残っている旧データのうち、サーバーにまだ無いイベント名だけをマージする
+  try {
+    const legacy = JSON.parse(localStorage.getItem(EVENT_LIB_KEY) || '{}');
+    let changed = false;
+    for (const [name, entry] of Object.entries(legacy)) {
+      if (!(name in eventLibCache)) { eventLibCache[name] = entry; changed = true; }
+    }
+    if (changed) await eventLibSave(eventLibCache);
+    localStorage.removeItem(EVENT_LIB_KEY);
+  } catch {}
+  renderEventLibList();
 }
-function eventLibSave(lib) { localStorage.setItem(EVENT_LIB_KEY, JSON.stringify(lib)); }
+function eventLibLoad() { return eventLibCache; }
+async function eventLibSave(lib) {
+  eventLibCache = lib;
+  try {
+    await fetch('/api/event-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
+  } catch {}
+}
 
 async function eventLibAddImage(input) {
   const name = document.getElementById('eventLibNameInput').value.trim();
@@ -2265,14 +2286,30 @@ function openEventLibModal() {
 }
 function closeEventLibModal() { document.getElementById('eventLibModal').style.display = 'none'; }
 
-// ===== アイキャッチライブラリ =====
-const FEATURED_LIB_KEY = 'yg_featured_lib';
-
-function featuredLibLoad() {
-  try { return JSON.parse(localStorage.getItem(FEATURED_LIB_KEY) || '[]'); } catch { return []; }
+// ===== アイキャッチライブラリ（サーバー保存。イベント画像ライブラリと同じ理由でlocalStorageから移行） =====
+const FEATURED_LIB_KEY = 'yg_featured_lib'; // 旧localStorageキー。ブラウザに残っている過去データの一度きりの移行にのみ使う
+let featuredLibCache = [];
+async function featuredLibInit() {
+  try {
+    const res = await fetch('/api/featured-library');
+    if (res.ok) featuredLibCache = await res.json();
+  } catch {}
+  // 一度きりの移行：このブラウザのlocalStorageに残っている旧データのうち、サーバーに無いidだけをマージする
+  try {
+    const legacy = JSON.parse(localStorage.getItem(FEATURED_LIB_KEY) || '[]');
+    const existingIds = new Set(featuredLibCache.map(item => item.id));
+    const toAdd = legacy.filter(item => !existingIds.has(item.id));
+    if (toAdd.length) { featuredLibCache = featuredLibCache.concat(toAdd); await featuredLibSave(featuredLibCache); }
+    localStorage.removeItem(FEATURED_LIB_KEY);
+  } catch {}
+  renderFeaturedLibGrid();
 }
-function featuredLibSave(lib) {
-  localStorage.setItem(FEATURED_LIB_KEY, JSON.stringify(lib));
+function featuredLibLoad() { return featuredLibCache; }
+async function featuredLibSave(lib) {
+  featuredLibCache = lib;
+  try {
+    await fetch('/api/featured-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
+  } catch {}
 }
 
 async function featuredLibSaveCurrent() {
@@ -3489,6 +3526,8 @@ if (_isServer) {
     renderLibGrid();
     renderLibList();
   }).catch(() => {});
+  eventLibInit();
+  featuredLibInit();
 }
 
 function saveLibToStorage() {

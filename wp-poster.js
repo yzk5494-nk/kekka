@@ -5,7 +5,7 @@ const path = require('path');
 const url = require('url');
 let puppeteer;
 try { puppeteer = require('puppeteer'); } catch { puppeteer = require('puppeteer-core'); }
-const { convertImagesTree, LIB_IMAGES_DIR } = require('./lib-image-store');
+const { convertImagesTree, persistImageValue, LIB_IMAGES_DIR } = require('./lib-image-store');
 const hallAnalyticsDb = require('./hall-analytics-db');
 
 // 設定読み込み
@@ -718,6 +718,52 @@ const server = http.createServer(async (req, res) => {
       const data = JSON.parse(buf.toString('utf8'));
       // 新しく登録された画像（base64埋め込み）はファイルに保存し、JSONには参照だけ残す
       convertImagesTree(data.images, 'pickup', false);
+      fs.mkdirSync(path.dirname(libPath), { recursive: true });
+      fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
+      return sendJson(200, { ok: true });
+    }
+
+    // ── yg-poster.html：イベント画像ライブラリ（旧localStorage yg_event_lib から移行） ──
+    if (req.method === 'GET' && parsed.pathname === '/api/event-library') {
+      const libPath = path.join(DATA_DIR, 'event-data', 'library.json');
+      if (fs.existsSync(libPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(fs.readFileSync(libPath, 'utf8'));
+      }
+      return sendJson(200, {});
+    }
+    if (req.method === 'POST' && parsed.pathname === '/api/event-library') {
+      const buf = await collectBody(req);
+      const data = JSON.parse(buf.toString('utf8'));
+      for (const name of Object.keys(data)) {
+        const entry = data[name];
+        if (entry && typeof entry === 'object') {
+          if (entry.image) entry.image = persistImageValue('event', entry.image);
+          if (entry.ruleImage) entry.ruleImage = persistImageValue('event', entry.ruleImage);
+        }
+      }
+      const libPath = path.join(DATA_DIR, 'event-data', 'library.json');
+      fs.mkdirSync(path.dirname(libPath), { recursive: true });
+      fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
+      return sendJson(200, { ok: true });
+    }
+
+    // ── yg-poster.html：アイキャッチ画像ライブラリ（旧localStorage yg_featured_lib から移行） ──
+    if (req.method === 'GET' && parsed.pathname === '/api/featured-library') {
+      const libPath = path.join(DATA_DIR, 'featured-data', 'library.json');
+      if (fs.existsSync(libPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(fs.readFileSync(libPath, 'utf8'));
+      }
+      return sendJson(200, []);
+    }
+    if (req.method === 'POST' && parsed.pathname === '/api/featured-library') {
+      const buf = await collectBody(req);
+      const data = JSON.parse(buf.toString('utf8'));
+      for (const item of data) {
+        if (item && typeof item === 'object' && item.data) item.data = persistImageValue('featured', item.data);
+      }
+      const libPath = path.join(DATA_DIR, 'featured-data', 'library.json');
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
       fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
       return sendJson(200, { ok: true });
