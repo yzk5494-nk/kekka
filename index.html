@@ -5296,12 +5296,14 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
       fillTextBold('差枚数', 970, y + THEAD_H / 2);
     } else if (useSlot2Cols) {
       // 台番(0-140) 機種名(140-420) G数(420-590) BB(590-730) RB(730-860) 差枚数(860-1080)
+      // 画像生成YG（スロット3）のみヘッダー表記をゲーム数/BIG/REGにする
+      const isYGCols = currentGenSlot === 3;
       ctx.font = '26px "Yu Gothic","Meiryo",sans-serif';
       ctx.fillText('台番',   70,  y + THEAD_H / 2);
       ctx.fillText('機種名', 280, y + THEAD_H / 2);
-      ctx.fillText('G数',   505, y + THEAD_H / 2);
-      ctx.fillText('BB',    660, y + THEAD_H / 2);
-      ctx.fillText('RB',    795, y + THEAD_H / 2);
+      ctx.fillText(isYGCols ? 'ゲーム数' : 'G数', 505, y + THEAD_H / 2);
+      ctx.fillText(isYGCols ? 'BIG' : 'BB',       660, y + THEAD_H / 2);
+      ctx.fillText(isYGCols ? 'REG' : 'RB',       795, y + THEAD_H / 2);
       ctx.fillText('差枚数', 970, y + THEAD_H / 2);
     } else {
       ctx.font = '30px "Yu Gothic","Meiryo",sans-serif';
