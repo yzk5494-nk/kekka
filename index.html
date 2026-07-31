@@ -2580,7 +2580,10 @@ function genSaveState(slot) {
 
 function genLoadState(slot) {
   const raw = localStorage.getItem(`genSlot${slot}`);
-  if (!raw) return;
+  if (!raw) {
+    if (slot === 3) applyTheme('#fff200', '#c1121f', '#ff1e1e', '#023e8a'); // 画像生成YGのデフォルトテーマは激アツ
+    return;
+  }
   try {
     const s = JSON.parse(raw);
     if (s.colorTitle)  document.getElementById('colorTitle').value  = s.colorTitle;
