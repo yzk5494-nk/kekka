@@ -2062,7 +2062,27 @@ function parseLineMessage() {
   lineGenerateAndInsert();
 }
 
-function lineGenerateAndInsert() {
+// イベント/アイキャッチライブラリの画像値（data URIまたはサーバー相対パス）を、
+// アップロード用のbase64文字列に変換する。パスの場合はRailway本番から取得する
+// （このページがlocalhostから開かれていても、画像の実体はRailway側にしか無いため）。
+function libImageUrl(value) {
+  if (!value) return value;
+  return value.startsWith('/') ? `${HALL_ANALYTICS_BASE}${value}` : value;
+}
+async function libImageToBase64(value) {
+  if (!value) return null;
+  if (value.startsWith('data:')) return value.split(',')[1];
+  const res = await fetch(libImageUrl(value));
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function lineGenerateAndInsert() {
   if (!lineParsed) return;
   const { date, store, event } = lineParsed;
 
@@ -2084,19 +2104,19 @@ function lineGenerateAndInsert() {
     const eventData = (entry && typeof entry === 'object') ? entry : { image: typeof entry === 'string' ? entry : null };
 
     if (eventData.image) {
-      const dataUrl = eventData.image;
-      const base64 = dataUrl.split(',')[1];
       const filename = `event_${event}.png`;
+      const base64 = await libImageToBase64(eventData.image);
 
-      // アイキャッチにセット
-      gbFeaturedBase64 = base64;
-      gbFeaturedName   = filename;
-      document.getElementById('gbFeaturedLabel').textContent = '✓ ' + event;
-      const prev = document.getElementById('gbFeaturedPreview');
-      prev.src = dataUrl; prev.style.display = 'block';
-      document.getElementById('gbFeaturedRemoveWrap').style.display = 'block';
-      document.getElementById('gbFeaturedSaveBtn').style.display = 'none';
-
+      if (base64) {
+        // アイキャッチにセット
+        gbFeaturedBase64 = base64;
+        gbFeaturedName   = filename;
+        document.getElementById('gbFeaturedLabel').textContent = '✓ ' + event;
+        const prev = document.getElementById('gbFeaturedPreview');
+        prev.src = libImageUrl(eventData.image); prev.style.display = 'block';
+        document.getElementById('gbFeaturedRemoveWrap').style.display = 'block';
+        document.getElementById('gbFeaturedSaveBtn').style.display = 'none';
+      }
     }
 
     // 公約をカラーボックスとして「事前情報」見出しの手前に追加
@@ -2262,7 +2282,7 @@ function renderEventLibList() {
     return `
     <div style="border:1px solid #eee;border-radius:10px;padding:14px;background:#fff;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-        ${imgSrc ? `<img src="${imgSrc}" style="width:130px;height:75px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : '<div style="width:130px;height:75px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;">画像なし</div>'}
+        ${imgSrc ? `<img src="${libImageUrl(imgSrc)}" style="width:130px;height:75px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : '<div style="width:130px;height:75px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;">画像なし</div>'}
         <div style="flex:1;">
           <div style="font-size:15px;font-weight:bold;margin-bottom:6px;">${name}</div>
           <label style="padding:5px 12px;background:#e8830a;color:#fff;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">
@@ -2280,7 +2300,7 @@ function renderEventLibList() {
           <button id="ruleBtn_${cssId}" onclick="eventLibSaveRule('${esc}')"
             style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;">💾 保存</button>
         </div>
-        ${ruleImg ? `<img src="${ruleImg}" style="width:100%;margin-top:8px;border-radius:5px;border:1px solid #eee;">` : ''}
+        ${ruleImg ? `<img src="${libImageUrl(ruleImg)}" style="width:100%;margin-top:8px;border-radius:5px;border:1px solid #eee;">` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2349,15 +2369,15 @@ async function featuredLibAddFiles(input) {
   input.value = '';
 }
 
-function featuredLibSelect(id) {
+async function featuredLibSelect(id) {
   const lib = featuredLibLoad();
   const item = lib.find(x => x.id === id);
   if (!item) return;
-  gbFeaturedBase64 = item.data.split(',')[1];
+  gbFeaturedBase64 = await libImageToBase64(item.data);
   gbFeaturedName = item.name;
   document.getElementById('gbFeaturedLabel').textContent = '✓ ' + item.name;
   const prev = document.getElementById('gbFeaturedPreview');
-  prev.src = item.data; prev.style.display = 'block';
+  prev.src = libImageUrl(item.data); prev.style.display = 'block';
   document.getElementById('gbFeaturedRemoveWrap').style.display = 'block';
   document.getElementById('gbFeaturedSaveBtn').style.display = 'none';
   closeFeaturedLibModal();
@@ -2378,7 +2398,7 @@ function renderFeaturedLibGrid() {
   }
   grid.innerHTML = lib.map(item => `
     <div style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-      <img src="${item.data}" style="width:100%;height:110px;object-fit:cover;display:block;cursor:pointer;" onclick="featuredLibSelect(${item.id})">
+      <img src="${libImageUrl(item.data)}" style="width:100%;height:110px;object-fit:cover;display:block;cursor:pointer;" onclick="featuredLibSelect(${item.id})">
       <div style="padding:6px 8px;">
         <div style="font-size:11px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;" title="${item.name}">${item.name}</div>
         <div style="display:flex;gap:4px;">
