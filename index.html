@@ -5938,7 +5938,7 @@ async function mergeQueueImages() {
   const imgs = (await Promise.all(imageQueue.map(q => loadImage(q.dataUrl)))).filter(Boolean);
   if (!imgs.length) { btn.disabled = false; btn.textContent = '🖼 1枚に結合'; return; }
 
-  const COLS = 2;
+  const COLS = imgs.length === 2 ? 1 : 2; // 2枚の時だけ縦に並べる
   const COL_W = 540;
   const W = COL_W * COLS;
   const rows = [];
