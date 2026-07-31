@@ -3,3 +3,7 @@ machine-images/
 library-backup/
 hb-cache.json
 hall-analytics.db
+event-data/
+featured-data/
+library-images/event/
+library-images/featured/
