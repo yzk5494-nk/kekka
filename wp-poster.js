@@ -844,24 +844,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── YG 記事投稿 ──────────────────────────────────────────────
+    // yg-blog.comへの投稿。ホール分析データはここでは保存しない（yg-poster.html側からRailway本番の
+    // /api/hall-analytics/import へ直接送る設計。yg-blog.com自体がXSERVER側の制限でRailwayからの
+    // 書き込みを拒否するため、投稿はローカル端末から行い、分析データだけ本番に一元化するための構成）
     if (req.method === 'POST' && parsed.pathname === '/api/create-yg-post') {
       const buf = await collectBody(req);
-      const { _hallAnalytics, ...postData } = JSON.parse(buf.toString('utf8'));
+      const postData = JSON.parse(buf.toString('utf8'));
       const r = await ygRequest('POST', 'posts', postData);
       console.log(`[yg-post] status=${r.status} title="${postData.title}"`);
-      if (r.status < 300 && _hallAnalytics?.storeName && _hallAnalytics?.coverageName && _hallAnalytics?.date) {
-        try {
-          hallAnalyticsDb.upsertArticleAndGroups({
-            storeName: _hallAnalytics.storeName,
-            pisionHallId: _hallAnalytics.pisionHallId || null,
-            coverageName: _hallAnalytics.coverageName,
-            date: _hallAnalytics.date,
-            wpPostId: r.data.id,
-            link: r.data.link,
-            groups: _hallAnalytics.groups || [],
-          });
-        } catch (e) { console.error('[hall-analytics] 保存失敗:', e.message); }
-      }
       return sendJson(r.status, r.data);
     }
 

@@ -1394,6 +1394,10 @@ let gbInserterTargetIdx = null;
 let gbFeaturedBase64 = null;
 let gbFeaturedName = null;
 
+// yg-blog.comへの書き込みはXSERVER側の制限でRailwayから行えないため、投稿自体はこの端末から行う一方、
+// ホール分析DB・イベント/アイキャッチライブラリなど「自前データ」は常にこのRailway本番へ直接送って一元化する
+const HALL_ANALYTICS_BASE = 'https://kekka-production.up.railway.app';
+
 // ===== 自動保存（localStorage）=====
 const DRAFT_KEY = 'yg_draft';
 let gbDraftTimer = null;
@@ -2129,7 +2133,7 @@ const EVENT_LIB_KEY = 'yg_event_lib'; // 旧localStorageキー。ブラウザに
 let eventLibCache = {};
 async function eventLibInit() {
   try {
-    const res = await fetch('/api/event-library');
+    const res = await fetch(`${HALL_ANALYTICS_BASE}/api/event-library`);
     if (res.ok) eventLibCache = await res.json();
   } catch {}
   // 一度きりの移行：このブラウザのlocalStorageに残っている旧データのうち、サーバーにまだ無いイベント名だけをマージする
@@ -2148,7 +2152,7 @@ function eventLibLoad() { return eventLibCache; }
 async function eventLibSave(lib) {
   eventLibCache = lib;
   try {
-    await fetch('/api/event-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
+    await fetch(`${HALL_ANALYTICS_BASE}/api/event-library`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
   } catch {}
 }
 
@@ -2291,7 +2295,7 @@ const FEATURED_LIB_KEY = 'yg_featured_lib'; // 旧localStorageキー。ブラウ
 let featuredLibCache = [];
 async function featuredLibInit() {
   try {
-    const res = await fetch('/api/featured-library');
+    const res = await fetch(`${HALL_ANALYTICS_BASE}/api/featured-library`);
     if (res.ok) featuredLibCache = await res.json();
   } catch {}
   // 一度きりの移行：このブラウザのlocalStorageに残っている旧データのうち、サーバーに無いidだけをマージする
@@ -2308,7 +2312,7 @@ function featuredLibLoad() { return featuredLibCache; }
 async function featuredLibSave(lib) {
   featuredLibCache = lib;
   try {
-    await fetch('/api/featured-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
+    await fetch(`${HALL_ANALYTICS_BASE}/api/featured-library`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lib) });
   } catch {}
 }
 
@@ -2503,7 +2507,6 @@ async function gbSubmitPost(status = 'draft') {
     if (catVal) postData.categories = [parseInt(catVal, 10)];
     if (featuredMediaId) postData.featured_media = featuredMediaId;
     const hallAnalyticsMeta = deriveHallAnalyticsMeta();
-    if (hallAnalyticsMeta) postData._hallAnalytics = hallAnalyticsMeta;
 
     const r = await fetch('/api/create-yg-post', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2511,6 +2514,16 @@ async function gbSubmitPost(status = 'draft') {
     });
     const post = await r.json();
     if (!r.ok) throw new Error('記事作成失敗: ' + (post.message || r.status));
+
+    // ホール分析DBへの記録は、投稿サーバー(localhost含む)がどこであってもRailway本番へ直接送る
+    // （yg-blog.com自体はXSERVER側の制限でRailwayからの書き込みができないため、
+    //   WP投稿はこの端末のIPで行い、分析データだけ本番に一元化する）
+    if (hallAnalyticsMeta) {
+      fetch(`${HALL_ANALYTICS_BASE}/api/hall-analytics/import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...hallAnalyticsMeta, wpPostId: post.id, link: post.link }),
+      }).catch(() => {});
+    }
 
     localStorage.removeItem(DRAFT_KEY);
     const label = status === 'draft' ? '下書き保存' : '公開';
