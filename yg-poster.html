@@ -969,7 +969,7 @@
           <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 P-PROから取得</button>
         </div>
         <input type="text" id="pisionEventInput" placeholder="イベント名（取得後に手動入力。イベント画像ライブラリと連動）"
-          onchange="pisionEventChanged()"
+          oninput="pisionEventChanged()"
           style="width:100%;margin-top:6px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box">
         <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
       </div>
