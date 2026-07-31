@@ -2185,7 +2185,6 @@ function eventLibSaveRule(name) {
   const cssId = name.replace(/[^a-zA-Z0-9]/g, '_');
   const input = document.getElementById(`ruleInput_${cssId}`);
   const rule = input ? input.value.trim() : '';
-  if (!rule) { alert('公約テキストを入力してください'); return; }
   const lib = eventLibLoad();
   const existing = (typeof lib[name] === 'object') ? lib[name] : { image: typeof lib[name] === 'string' ? lib[name] : null };
   lib[name] = { ...existing, rule };
