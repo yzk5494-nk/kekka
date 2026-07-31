@@ -1454,6 +1454,22 @@
       </div>
       <div id="quickCopyBtns" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:4px"></div>
       <div id="imageQueueList" style="display:flex;flex-direction:column;gap:8px"></div>
+
+      <!-- 並び速報作成：作成済みリストから、5台グループ=並び／それ以外=優秀台としてポスト文を作る -->
+      <div style="border-top:1px solid #f0f0f0;padding-top:10px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:12px;color:#999;font-weight:bold">並び速報作成</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input type="text" id="narabiDate" placeholder="日付（例: 7/28）" style="flex:1;min-width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
+          <input type="text" id="narabiHall" placeholder="店舗名" style="flex:2;min-width:120px;padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
+          <input type="text" id="narabiEvent" placeholder="企画名（例: リバイバルBD）" style="flex:2;min-width:120px;padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
+        </div>
+        <button onclick="generateNarabiPost()" style="padding:6px;background:#1e2a3a;color:#f5c518;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit">✍ 並び速報を作成（5台グループ=並び／それ以外=優秀台）</button>
+        <textarea id="narabiResult" readonly placeholder="「作成済みリスト」に5台グループ等を追加してから作成してください" style="width:100%;min-height:220px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="post-copy-btn" onclick="copyNarabiResult()">📋 コピー</button>
+          <span id="narabiCopyMsg" style="font-size:12px;color:#27ae60;display:none">✓ コピーしました</span>
+        </div>
+      </div>
     </div>
 
     <!-- 全台データ画像 -->
@@ -6010,6 +6026,94 @@ async function mergeQueueImages() {
     btn.textContent = '✓ ダウンロードしました';
   }
   setTimeout(() => { btn.disabled = false; btn.textContent = '🖼 1枚に結合'; }, 2000);
+}
+
+// ===== 並び速報作成 =====
+// 「作成済みリスト」の各グループを、5台なら「並び」、それ以外はグループ内の各台を
+// 「優秀台」（店舗全体の設置台数が5台以上の機種のみ）として整形する
+function generateNarabiPost() {
+  const resultEl = document.getElementById('narabiResult');
+  if (!imageQueue.length) { resultEl.value = ''; alert('「作成済みリスト」に画像がありません。'); return; }
+
+  const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
+  const countByName = {};
+  allMachines.forEach(m => { countByName[m.表示名] = (countByName[m.表示名] || 0) + 1; });
+
+  const narabiEntries = [];
+  const yushudaiCandidates = [];
+
+  imageQueue.forEach(item => {
+    const nums = item.machineNums || [];
+    const group = nums.map(n => machineMap[n]).filter(Boolean).sort((a, b) => a.台番 - b.台番);
+    if (group.length === 5) {
+      const first = group[0], last = group[group.length - 1];
+      const label = first.表示名 === last.表示名 ? first.表示名 : `${first.表示名}～${last.表示名}`;
+      const diffs = group.map(m => m.差 * diffMult);
+      const avg = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+      const posCount = diffs.filter(d => d > 0).length;
+      narabiEntries.push({ label, range: `${first.台番}-${last.台番}`, avg, posCount, total: group.length });
+    } else {
+      group.forEach(m => {
+        if ((countByName[m.表示名] || 0) >= 5) yushudaiCandidates.push(m);
+      });
+    }
+  });
+
+  // 優秀台：機種名でグループ化し、各グループ内は差枚降順、グループ同士は最小台番の昇順で並べる
+  const byName = new Map();
+  yushudaiCandidates.forEach(m => {
+    if (!byName.has(m.表示名)) byName.set(m.表示名, []);
+    byName.get(m.表示名).push(m);
+  });
+  const yushudaiLines = [...byName.entries()]
+    .map(([name, list]) => {
+      const sorted = [...list].sort((a, b) => (b.差 * diffMult) - (a.差 * diffMult));
+      const minNum = Math.min(...list.map(m => m.台番));
+      const parts = sorted.map(m => {
+        const d = m.差 * diffMult;
+        const dStr = d > 0 ? `+${d.toLocaleString()}` : d.toLocaleString();
+        return `${m.台番}番${dStr}枚`;
+      }).join('　');
+      return { minNum, text: `🔻${name}　${parts}` };
+    })
+    .sort((a, b) => a.minNum - b.minNum)
+    .map(x => x.text);
+
+  const date  = document.getElementById('narabiDate').value.trim();
+  const hall  = document.getElementById('narabiHall').value.trim();
+  const event = document.getElementById('narabiEvent').value.trim();
+
+  let head = '';
+  if (date) head += `📅${date}\n`;
+  if (hall) head += `【${hall}】\n`;
+  if (event) head += `➡${event}\n`;
+
+  let text = head.trim();
+
+  if (narabiEntries.length) {
+    text += `\n\n💥${narabiEntries[0].total}台並び`;
+    narabiEntries.forEach(e => {
+      const avgStr = e.avg > 0 ? `+${e.avg.toLocaleString()}` : e.avg.toLocaleString();
+      text += `\n👉${e.label}(${e.range})\n・平均${avgStr}枚　${e.posCount}/${e.total}台プラス`;
+    });
+  }
+
+  if (yushudaiLines.length) {
+    text += `\n\n💥5台以上機種 優秀台\n`;
+    text += yushudaiLines.join('\n');
+  }
+
+  resultEl.value = text.trim();
+}
+
+function copyNarabiResult() {
+  const text = document.getElementById('narabiResult').value;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const msg = document.getElementById('narabiCopyMsg');
+    msg.style.display = 'inline';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  });
 }
 
 function renderImageQueue() {
