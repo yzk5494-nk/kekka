@@ -2899,8 +2899,8 @@ function detectColumns(rawData) {
       if (cell.includes('機種') && 機種名Col < 0) 機種名Col = col;
       if ((cell === '差' || cell === '差枚数' || cell === '差枚') && 差Col < 0) 差Col = col;
       if ((cell === 'G数' || cell === 'ゲーム数' || cell === 'ゲーム' || cell === 'G') && G数Col < 0) G数Col = col;
-      if ((cell === 'BB' || cell === 'BB回数' || cell === 'BB数') && BBCol < 0) BBCol = col;
-      if ((cell === 'RB' || cell === 'RB回数' || cell === 'RB数') && RBCol < 0) RBCol = col;
+      if ((cell === 'BB' || cell === 'BB回数' || cell === 'BB数' || cell === 'BIG') && BBCol < 0) BBCol = col;
+      if ((cell === 'RB' || cell === 'RB回数' || cell === 'RB数' || cell === 'REG') && RBCol < 0) RBCol = col;
     }
     if (台番Col >= 0 && 機種名Col >= 0 && 差Col >= 0) {
       return { dataStartRow: row + 1, 台番Col, 機種名Col, 差Col, G数Col, BBCol, RBCol, auto: true };
