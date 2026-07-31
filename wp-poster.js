@@ -706,7 +706,7 @@ const server = http.createServer(async (req, res) => {
       const libPath = path.join(DATA_DIR, 'pickup-data', 'library.json');
       if (fs.existsSync(libPath)) {
         const data = fs.readFileSync(libPath, 'utf8');
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
         return res.end(data);
       } else {
         return sendJson(200, { images: {}, nicknames: {} });
@@ -727,7 +727,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && parsed.pathname === '/api/event-library') {
       const libPath = path.join(DATA_DIR, 'event-data', 'library.json');
       if (fs.existsSync(libPath)) {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
         return res.end(fs.readFileSync(libPath, 'utf8'));
       }
       return sendJson(200, {});
@@ -752,7 +752,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && parsed.pathname === '/api/featured-library') {
       const libPath = path.join(DATA_DIR, 'featured-data', 'library.json');
       if (fs.existsSync(libPath)) {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
         return res.end(fs.readFileSync(libPath, 'utf8'));
       }
       return sendJson(200, []);
