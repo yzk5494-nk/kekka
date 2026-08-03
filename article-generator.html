@@ -1298,7 +1298,7 @@ const SERIES_CONFIG = {
     eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/ifudodojpg.jpg',
     tagKeywords: ['戦極', '威風堂々'],
     jugglerOnly: false,
-    allowedMachines: ['北斗の拳', '北斗転生', '化物語', 'カバネリ'],
+    allowedMachines: ['北斗の拳', '北斗転生', '化物語', 'カバネリ', '異世界かるてっと', '極振り', 'この素晴らしい', '東京リベンジャーズ'],
     hideBigReg: true,
     sheetKeyword: '威風堂々',
     machineEmoji: '👽',
@@ -2536,10 +2536,16 @@ async function submitWpPost() {
   btn.textContent = '⏳ 投稿中…';
 
   try {
+    let date = null;
+    if (resolvedPostDate) {
+      const now = new Date();
+      const hms = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      date = `${resolvedPostDate}T${hms}`;
+    }
     const res = await fetch('/api/create-hb-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, status, categories, tags, featured_media: FIXED.eventImgId }),
+      body: JSON.stringify({ title, content, status, categories, tags, featured_media: FIXED.eventImgId, date }),
     });
     const data = await res.json();
     const resultEl = document.getElementById('wp-post-result');
@@ -2645,6 +2651,7 @@ let hasG = true;
 let bannerDataUrl = null;
 let lastLoadedFile = null;
 let detectedFileDate = null; // { mm, dd } ファイル名から検出した日付
+let resolvedPostDate = null; // 'YYYY-MM-DD' WP投稿の実際の日付に使う（Excel検出 or P-PRO指定日）
 
 // ── RANKセル画像 ─────────────────────────────────────────────
 // rankImgUrls[1] = '/rank-images/rank1.png' など（サーバー保存済みURL）
@@ -2923,6 +2930,9 @@ async function pisionFetchResults() {
     hasBigReg = machines.some(m => m.BIG !== null && m.REG !== null);
     hasG = machines.some(m => m.G);
 
+    resolvedPostDate = dateVal;
+    detectedFileDate = { mm: dateVal.slice(5, 7), dd: dateVal.slice(8, 10) };
+
     const loaded = finishMachinesLoad(machines, 'P-PRO');
     status.style.color = '#27ae60';
     status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${loaded.length}台を取得しました`;
@@ -2945,6 +2955,15 @@ function roundUp50(v) { return v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 
 
 function processDataFile(file) {
   detectedFileDate = detectDateFromFilename(file.name);
+  resolvedPostDate = null;
+  if (detectedFileDate) {
+    const now = new Date();
+    let year = now.getFullYear();
+    // 検出した月日が今日より未来なら前年のデータとみなす（年末年始のファイル対策）
+    const candidate = new Date(year, Number(detectedFileDate.mm) - 1, Number(detectedFileDate.dd));
+    if (candidate.getTime() - now.getTime() > 24 * 60 * 60 * 1000) year -= 1;
+    resolvedPostDate = `${year}-${detectedFileDate.mm}-${detectedFileDate.dd}`;
+  }
   const reader = new FileReader();
   const isText = file.name.endsWith('.txt') || file.name.endsWith('.csv');
 

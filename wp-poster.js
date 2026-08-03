@@ -1142,11 +1142,12 @@ const server = http.createServer(async (req, res) => {
     // ── hisshobon レポート投稿 ──────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/create-hb-post') {
       const buf = await collectBody(req);
-      const { title, content, status, categories, tags, featured_media } = JSON.parse(buf.toString('utf8'));
+      const { title, content, status, categories, tags, featured_media, date } = JSON.parse(buf.toString('utf8'));
       const body = { title, content, status: status || 'draft' };
       if (categories && categories.length) body.categories = categories;
       if (tags && tags.length) body.tags = tags;
       if (featured_media) body.featured_media = featured_media;
+      if (date) body.date = date;
       const r = await hbRequest('POST', 'report', body);
       console.log(`[hb-report] status=${r.status} title="${title}"`);
       return sendJson(r.status, r.data);
