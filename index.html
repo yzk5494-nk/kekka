@@ -3272,12 +3272,42 @@ function renderPisionColumnList() {
     const text = avg === null
       ? 'データ未取得'
       : `平均${avg >= 0 ? '+' : ''}${avg.toLocaleString()}枚（${machines.length}台）`;
+    const nums = machines.map(m => m.台番);
+    const allSelected = nums.length > 0 && nums.every(n => selectedOrder.includes(n));
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;background:#f7f7f7;border-radius:5px;font-size:12px">
-        <span>${r.start}〜${r.end}：${text}</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;${nums.length ? '' : 'opacity:.5'}">
+          <input type="checkbox" ${allSelected ? 'checked' : ''} ${nums.length ? '' : 'disabled'} onclick="togglePisionColumnSelection(${idx}, this.checked)">
+          <span>${r.start}〜${r.end}：${text}</span>
+        </label>
         <span onclick="removePisionColumnRange(${idx})" style="cursor:pointer;color:#e74c3c;font-weight:bold">✕</span>
       </div>`;
   }).join('');
+}
+
+function togglePisionColumnSelection(idx, checked) {
+  const hallKey = getPisionColumnHallKey();
+  const ranges = loadPisionColumnRanges()[hallKey] || [];
+  const r = ranges[idx];
+  if (!r) return;
+  const nums = (allMachines || []).filter(m => m.台番 >= r.start && m.台番 <= r.end).map(m => m.台番);
+
+  if (checked) {
+    nums.forEach(n => { if (!selectedOrder.includes(n)) selectedOrder.push(n); });
+  } else {
+    selectedOrder = selectedOrder.filter(n => !nums.includes(n));
+  }
+
+  document.getElementById('selectedCount').textContent = `${selectedOrder.length}台`;
+  renderSelectedList();
+  filterMachines();
+  updateCardImagesFromSelection();
+  document.getElementById('downloadBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('copyBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
+  document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
+  generatePost();
+  renderPisionColumnList();
 }
 
 // PISIONから取得したデータ(machines/hall/targetDate)を画面に反映する共通処理
@@ -3952,6 +3982,7 @@ function toggleMachine(num) {
   document.getElementById('addToQueueBtn').disabled = selectedOrder.length === 0;
   document.getElementById('sendToWpBtn').disabled = selectedOrder.length === 0;
   generatePost();
+  if (currentGenSlot === 4) renderPisionColumnList();
 }
 
 function moveUp(num) {
