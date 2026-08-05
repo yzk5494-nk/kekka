@@ -1227,6 +1227,8 @@
     <div class="modal-toolbar">
       <input class="modal-search" id="media-search" placeholder="ファイル名で検索..." onkeydown="if(event.key==='Enter')searchMedia()">
       <button class="modal-search-btn" onclick="searchMedia()">検索</button>
+      <button class="modal-search-btn" id="media-upload-btn" onclick="document.getElementById('media-local-file').click()">📁 自分のPCから選択</button>
+      <input type="file" id="media-local-file" accept="image/*" style="display:none" onchange="uploadLocalMediaFile(event)">
     </div>
     <div class="modal-body">
       <div class="media-grid" id="media-grid">
@@ -1599,12 +1601,14 @@ const BLOCK_DEFS = [
   { id:'b-store-img',   type:'image',       label:'店舗外観画像',         idKey:'store-img-id',  urlKey:'store-img-url' },
   { id:'b-balloon-1',   type:'balloon',     label:'挨拶',                 textKey:'b1' },
   { id:'b-balloon-2',   type:'balloon',     label:'店舗紹介',              textKey:'b2' },
-  { id:'b-event-img',   type:'image-fixed', label:'企画アイキャッチ（固定）', fixedUrl: FIXED.eventImgUrl },
+  { id:'b-free-img-1',  type:'image',       label:'任意画像①（空なら出力なし）', idKey:'free-img-1-id', urlKey:'free-img-1-url' },
+  { id:'b-event-img',   type:'image-fixed', label:'企画アイキャッチ（固定・サムネイル用）', fixedUrl: FIXED.eventImgUrl },
   { id:'b-balloon-3',   type:'balloon',     label:'企画説明',              textKey:'b3' },
   { id:'b-balloon-4',   type:'balloon',     label:'取材説明',              textKey:'b4' },
   { id:'b-balloon-5',   type:'balloon',     label:'参戦告知',              textKey:'b5' },
   { id:'b-balloon-6',   type:'balloon',     label:'前回振り返り',           textKey:'b6' },
   { id:'b-balloon-7',   type:'balloon',     label:'設置機種案内',           textKey:'b7' },
+  { id:'b-lineup',      type:'lineup',      label:'並び人数（空なら出力なし）' },
   { id:'b-cap',         type:'cap',         label:'ジャグ系設置台数' },
   { id:'b-balloon-8',   type:'balloon',     label:'合計台数',              textKey:'b8' },
   { id:'b-balloon-9',   type:'balloon',     label:'機種構成',              textKey:'b9' },
@@ -1902,6 +1906,18 @@ function buildBlockList() {
       bodyHTML = `<div class="block-item-body">
         <div style="font-size:11px;color:#888;padding:4px 0;">← 左パネルの「🎰 ジャグ系設置台数」で編集</div>
       </div>`;
+    } else if (def.type === 'lineup') {
+      typeTag = '<span class="block-type-tag tag-cap">台数ボックス</span>';
+      bodyHTML = `<div class="block-item-body">
+        <div class="img-block-body">
+          <label>抽選人数</label>
+          <input type="number" id="input-lineup-lottery" placeholder="例：84" oninput="initPreview()">
+          <label>一般人数</label>
+          <input type="number" id="input-lineup-general" placeholder="例：24" oninput="initPreview()">
+          <label>総台数</label>
+          <input type="number" id="input-lineup-units" placeholder="例：345" oninput="initPreview()">
+        </div>
+      </div>`;
     } else if (def.type === 'paragraph') {
       typeTag = '<span class="block-type-tag tag-para">段落</span>';
       const initVal = (texts[def.textKey] || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2102,6 +2118,8 @@ function generate() {
   const rankImgUrl  = v('input-rank-img-url')  || 'https://example.com/ranking.jpg';
   const endImgId    = v('input-end-img-id')    || 'END_IMG_ID';
   const endImgUrl   = v('input-end-img-url')   || 'https://example.com/machine.jpg';
+  const freeImg1Id  = v('input-free-img-1-id');
+  const freeImg1Url = v('input-free-img-1-url');
 
   // 機種リスト（cap-block）
   const _mEmoji = SERIES_CONFIG[currentSeries].machineEmoji || '🤡';
@@ -2126,14 +2144,15 @@ function generate() {
     balloon(bid, bHtml('b1')),
     balloon(bid, bHtml('b2')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
+    wpImageMaybe(freeImg1Id, freeImg1Url),
     balloonMaybe(bHtml('b3')
       .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')),
     balloonMaybe(bHtml('b4')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
-    wpImage(FIXED.listImgId, FIXED.listImgUrl),
     balloonMaybe(bHtml('b5')),
     balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
+    lineupBoxMaybe(),
     capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
     balloonMaybe(bHtml('b8')),
     ...(currentSeries === 'tokyoghoul'
@@ -2161,15 +2180,16 @@ function initPreview() {
   const storeImgUrl = v('input-store-img-url') || '';
   const rankImgUrl  = v('input-rank-img-url')  || generatedRankDataUrl || '';
   const endImgUrl   = v('input-end-img-url')   || '';
+  const freeImg1Url = v('input-free-img-1-url') || '';
   const texts = getTemplateTexts();
   function bText(key) { return texts[key] || ''; }
-  renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, bText });
+  renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, freeImg1Url, bText });
 }
 
 // ============================================================
 // プレビュー描画
 // ============================================================
-function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, bText }) {
+function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImgUrl, endImgUrl, freeImg1Url, bText }) {
   const machListPrev = SERIES_CONFIG[currentSeries].freeformCap
     ? v('f-pachinko-total')
     : machines.map(m =>
@@ -2202,6 +2222,23 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     return `<div class="prev-img-placeholder">📷 ${label}</div>`;
   }
 
+  function lineupPrevHtml() {
+    const lottery = v('input-lineup-lottery');
+    const general = v('input-lineup-general');
+    const units   = v('input-lineup-units');
+    if (!lottery && !general && !units) {
+      return `<div class="prev-cap-box" style="border-color:#333;">
+        <div class="prev-cap-title" style="background:#333;">並び人数（未入力）</div>
+        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルで入力すると本文に表示されます</div>
+      </div>`;
+    }
+    const total = (parseInt(lottery) || 0) + (parseInt(general) || 0);
+    return `<div class="prev-cap-box" style="border-color:#333;">
+      <div class="prev-cap-title" style="background:#333;">並び人数</div>
+      <div class="prev-cap-content" style="background:#f5f5f5;"><strong>${total}名(抽選${lottery || 0}名、一般${general || 0}名)/${units || 0}台</strong></div>
+    </div>`;
+  }
+
   // contenteditable な吹き出し
   function bl(html, key) {
     return `<div class="prev-balloon">
@@ -2221,11 +2258,13 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${imgPrev(storeImgUrl, '店舗外観画像', 'store-img-id', 'store-img-url')}
     ${bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
     ${bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
+    ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
     ${bl(bHtmlPrev('b3'), 'b3')}
     ${bl(bHtmlPrev('b4'), 'b4')}
     ${bl(bHtmlPrev('b5'), 'b5')}
     ${bl(bHtmlPrev('b6'), 'b6')}
     ${bl(bHtmlPrev('b7'), 'b7')}
+    ${lineupPrevHtml()}
     <div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
@@ -2275,6 +2314,19 @@ function fmt(cmd) {
 // ============================================================
 function wpImage(id, url) {
   return `<!-- wp:image {"id":${id},"sizeSlug":"full","linkDestination":"none"} -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="" class="wp-image-${id}"/></figure>\n<!-- /wp:image -->`;
+}
+// id/urlが未設定の任意画像スロット用。空なら何も出力しない
+function wpImageMaybe(id, url) {
+  return (id && url) ? wpImage(id, url) : '';
+}
+// 並び人数ボックス。3項目とも未入力なら何も出力しない
+function lineupBoxMaybe() {
+  const lottery = v('input-lineup-lottery');
+  const general = v('input-lineup-general');
+  const units   = v('input-lineup-units');
+  if (!lottery && !general && !units) return '';
+  const total = (parseInt(lottery) || 0) + (parseInt(general) || 0);
+  return capBlock('並び人数', `${total}名(抽選${lottery || 0}名、一般${general || 0}名)/${units || 0}台`);
 }
 function balloon(balloonID, content) {
   return `<!-- wp:loos/balloon {"balloonID":"${balloonID}"} -->\n<p>${content}</p>\n<!-- /wp:loos/balloon -->`;
@@ -3642,6 +3694,42 @@ function selectMediaItem(el, id, url, name) {
   mediaState.selectedName = name;
   document.getElementById('media-selected-name').textContent = name;
   document.getElementById('media-select-btn').disabled = false;
+}
+
+async function uploadLocalMediaFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const btn = document.getElementById('media-upload-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ アップロード中…';
+
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch('/api/upload-hb-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, data: base64 }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.id || !data.source_url) throw new Error(data.message || 'アップロードに失敗しました');
+
+    mediaState.selectedId   = data.id;
+    mediaState.selectedUrl  = data.source_url;
+    mediaState.selectedName = file.name;
+    confirmMediaSelect();
+  } catch (e) {
+    showToast('❌ アップロード失敗: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+    event.target.value = '';
+  }
 }
 
 function confirmMediaSelect() {
