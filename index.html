@@ -1047,14 +1047,17 @@
         </label>
         <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
         <div id="pisionColumnSection" style="margin-top:10px;border-top:1px solid #eee;padding-top:8px">
-          <div style="font-size:11px;color:#888;margin-bottom:4px">列ごとの平均差枚数（店舗ごとに台番範囲を登録）</div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="togglePisionColumnList()">
+            <span>列ごとの平均差枚数（店舗ごとに台番範囲を登録）<span id="pisionColumnCount"></span></span>
+            <span id="pisionColumnToggleIcon">▶</span>
+          </div>
           <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
             <input type="number" id="pisionColStart" placeholder="開始台番" style="width:0;flex:1;padding:4px 6px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
             <span style="font-size:12px;color:#999">〜</span>
             <input type="number" id="pisionColEnd" placeholder="終了台番" style="width:0;flex:1;padding:4px 6px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
             <button onclick="addPisionColumnRange()" style="padding:4px 10px;background:#1e2a3a;color:#f5c518;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">＋追加</button>
           </div>
-          <div id="pisionColumnList" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div id="pisionColumnList" style="display:none;flex-direction:column;gap:4px"></div>
         </div>
       </div>
       <div id="sheetSelectBox" class="sheet-select-box" style="display:none">
@@ -3225,11 +3228,22 @@ function removePisionColumnRange(idx) {
   renderPisionColumnList();
 }
 
+function togglePisionColumnList() {
+  const list = document.getElementById('pisionColumnList');
+  const icon = document.getElementById('pisionColumnToggleIcon');
+  const opening = list.style.display === 'none';
+  list.style.display = opening ? 'flex' : 'none';
+  icon.textContent = opening ? '▼' : '▶';
+}
+
 function renderPisionColumnList() {
   const list = document.getElementById('pisionColumnList');
   if (!list) return;
   const hallKey = getPisionColumnHallKey();
   const ranges = loadPisionColumnRanges()[hallKey] || [];
+
+  const countEl = document.getElementById('pisionColumnCount');
+  if (countEl) countEl.textContent = ranges.length ? `（${ranges.length}件）` : '';
 
   if (!ranges.length) {
     list.innerHTML = hallKey
@@ -3238,14 +3252,26 @@ function renderPisionColumnList() {
     return;
   }
 
-  list.innerHTML = ranges.map((r, idx) => {
+  const withStats = ranges.map((r, idx) => {
     const machines = (allMachines || []).filter(m => m.台番 >= r.start && m.台番 <= r.end);
-    let text = 'データ未取得';
-    if (machines.length) {
-      const avg = Math.round(machines.reduce((sum, m) => sum + (m.差 || 0), 0) / machines.length);
-      const sign = avg >= 0 ? '+' : '';
-      text = `平均${sign}${avg.toLocaleString()}枚（${machines.length}台）`;
-    }
+    const avg = machines.length
+      ? Math.round(machines.reduce((sum, m) => sum + (m.差 || 0), 0) / machines.length)
+      : null;
+    return { r, idx, machines, avg };
+  });
+
+  // 平均差枚が高い順（データ未取得の列は末尾）
+  withStats.sort((a, b) => {
+    if (a.avg === null && b.avg === null) return 0;
+    if (a.avg === null) return 1;
+    if (b.avg === null) return -1;
+    return b.avg - a.avg;
+  });
+
+  list.innerHTML = withStats.map(({ r, idx, machines, avg }) => {
+    const text = avg === null
+      ? 'データ未取得'
+      : `平均${avg >= 0 ? '+' : ''}${avg.toLocaleString()}枚（${machines.length}台）`;
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;background:#f7f7f7;border-radius:5px;font-size:12px">
         <span>${r.start}〜${r.end}：${text}</span>
