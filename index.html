@@ -1046,6 +1046,16 @@
           グラフとデータを左右に並べる（縦に長くなりすぎる時用）
         </label>
         <div id="pisionStatus" style="font-size:11px;color:#888;margin-top:4px"></div>
+        <div id="pisionColumnSection" style="margin-top:10px;border-top:1px solid #eee;padding-top:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">列ごとの平均差枚数（店舗ごとに台番範囲を登録）</div>
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+            <input type="number" id="pisionColStart" placeholder="開始台番" style="width:0;flex:1;padding:4px 6px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
+            <span style="font-size:12px;color:#999">〜</span>
+            <input type="number" id="pisionColEnd" placeholder="終了台番" style="width:0;flex:1;padding:4px 6px;border:1px solid #ddd;border-radius:5px;font-size:12px;font-family:inherit">
+            <button onclick="addPisionColumnRange()" style="padding:4px 10px;background:#1e2a3a;color:#f5c518;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">＋追加</button>
+          </div>
+          <div id="pisionColumnList" style="display:flex;flex-direction:column;gap:4px"></div>
+        </div>
       </div>
       <div id="sheetSelectBox" class="sheet-select-box" style="display:none">
         <div class="sheet-select-title">📄 シート選択（クリックで切り替え）</div>
@@ -3172,6 +3182,76 @@ function pisionSelectHall(id, name) {
   pisionSelectedHallId = id;
   document.getElementById('pisionHallInput').value = name;
   document.getElementById('pisionHallCandidates').style.display = 'none';
+  renderPisionColumnList();
+}
+
+// ===== 列ごとの平均差枚数（店舗ごとに台番範囲を登録） =====
+const PISION_COLUMNS_KEY = 'pisionColumnRanges';
+
+function loadPisionColumnRanges() {
+  try { return JSON.parse(localStorage.getItem(PISION_COLUMNS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function savePisionColumnRanges(obj) {
+  localStorage.setItem(PISION_COLUMNS_KEY, JSON.stringify(obj));
+}
+function getPisionColumnHallKey() {
+  return (pisionLastHallName || document.getElementById('pisionHallInput').value || '').trim();
+}
+
+function addPisionColumnRange() {
+  const hallKey = getPisionColumnHallKey();
+  if (!hallKey) { alert('先に店舗を選択してください'); return; }
+  const start = parseInt(document.getElementById('pisionColStart').value, 10);
+  const end   = parseInt(document.getElementById('pisionColEnd').value, 10);
+  if (!start || !end || start > end) { alert('開始・終了の台番を正しく入力してください'); return; }
+
+  const all = loadPisionColumnRanges();
+  if (!all[hallKey]) all[hallKey] = [];
+  all[hallKey].push({ start, end });
+  savePisionColumnRanges(all);
+
+  document.getElementById('pisionColStart').value = '';
+  document.getElementById('pisionColEnd').value = '';
+  renderPisionColumnList();
+}
+
+function removePisionColumnRange(idx) {
+  const hallKey = getPisionColumnHallKey();
+  const all = loadPisionColumnRanges();
+  if (!all[hallKey]) return;
+  all[hallKey].splice(idx, 1);
+  savePisionColumnRanges(all);
+  renderPisionColumnList();
+}
+
+function renderPisionColumnList() {
+  const list = document.getElementById('pisionColumnList');
+  if (!list) return;
+  const hallKey = getPisionColumnHallKey();
+  const ranges = loadPisionColumnRanges()[hallKey] || [];
+
+  if (!ranges.length) {
+    list.innerHTML = hallKey
+      ? '<div style="font-size:11px;color:#bbb">登録された列範囲はありません</div>'
+      : '<div style="font-size:11px;color:#bbb">店舗を選択すると登録できます</div>';
+    return;
+  }
+
+  list.innerHTML = ranges.map((r, idx) => {
+    const machines = (allMachines || []).filter(m => m.台番 >= r.start && m.台番 <= r.end);
+    let text = 'データ未取得';
+    if (machines.length) {
+      const avg = Math.round(machines.reduce((sum, m) => sum + (m.差 || 0), 0) / machines.length);
+      const sign = avg >= 0 ? '+' : '';
+      text = `平均${sign}${avg.toLocaleString()}枚（${machines.length}台）`;
+    }
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;background:#f7f7f7;border-radius:5px;font-size:12px">
+        <span>${r.start}〜${r.end}：${text}</span>
+        <span onclick="removePisionColumnRange(${idx})" style="cursor:pointer;color:#e74c3c;font-weight:bold">✕</span>
+      </div>`;
+  }).join('');
 }
 
 // PISIONから取得したデータ(machines/hall/targetDate)を画面に反映する共通処理
@@ -3197,6 +3277,7 @@ function applyPisionData(data, status) {
     dateEl.value = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
   }
   if (storeEl) storeEl.value = pisionLastHallName;
+  renderPisionColumnList();
 
   status.style.color = '#27ae60';
   status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${allMachines.length}台を取得しました`;
@@ -6047,7 +6128,8 @@ function generateNarabiPost() {
     const group = nums.map(n => machineMap[n]).filter(Boolean).sort((a, b) => a.台番 - b.台番);
     if (group.length === 5) {
       const first = group[0], last = group[group.length - 1];
-      const label = first.表示名 === last.表示名 ? first.表示名 : `${first.表示名}～${last.表示名}`;
+      const firstName = getDisplayName(first.表示名), lastName = getDisplayName(last.表示名);
+      const label = firstName === lastName ? firstName : `${firstName}～${lastName}`;
       const diffs = group.map(m => m.差 * diffMult);
       const avg = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
       const posCount = diffs.filter(d => d > 0).length;
@@ -6074,7 +6156,7 @@ function generateNarabiPost() {
         const dStr = d > 0 ? `+${d.toLocaleString()}` : d.toLocaleString();
         return `${m.台番}番${dStr}枚`;
       }).join('　');
-      return { minNum, text: `🔻${name}　${parts}` };
+      return { minNum, text: `🔻${getDisplayName(name)}　${parts}` };
     })
     .sort((a, b) => a.minNum - b.minNum)
     .map(x => x.text);
