@@ -719,6 +719,7 @@
     <option value="tokyoghoul">戦極～東京喰種～</option>
     <option value="hyakkaryoran">戦極～百花繚乱～</option>
     <option value="ikkyunyukon">戦極～一球入魂～</option>
+    <option value="tenkamusou">天下無双</option>
   </select>
   <div class="page-nav">
     <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
@@ -1465,6 +1466,34 @@ const SERIES_CONFIG = {
         b14: isFirstTime
           ? '初回からして大変な盛り上がりを見せてくれた【戦極〜一球入魂〜】でした！'
           : '次回の【戦極〜一球入魂〜】もお楽しみに‼️',
+      };
+    },
+  },
+  tenkamusou: {
+    // TODO: 専用のアイキャッチ画像に差し替える（現状は一球入魂の画像を仮流用）
+    name: '天下無双',
+    eventImgId:  507847,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/ikkyunyukon.jpg',
+    tagKeywords: ['天下無双'],
+    jugglerOnly: false,
+    allowedMachines: [],
+    sheetKeyword: '天下無双',
+    machineEmoji: '👑',
+    rankingTitle: '機種別差枚ランキング',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/samy-headerjpg.jpg',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#b8860b', capBg: '#fffaf0', capHeaderColor: '#b8860b',
+    defaultMachines: [],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, isFirstTime }) {
+      return {
+        b3:  '各地の猛者ホールが名乗りを上げる取材企画【天下無双】🔥⚔',
+        b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
+        b5:  '今回も全国各地で天下無双参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆',
+        b8:  cnt ? `同店の取材対象は${cnt}機種合計${total}台‼️` : '',
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに天下無双の名にふさわしい結果ではないでしょうか🔥`,
+        b14: isFirstTime
+          ? '初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での天下無双次回開催もかなり期待できそうです！'
+          : '今回もガッツリと盛り上がっていましたね〜👍\n同店での天下無双開催時はかなり期待できそうです！',
       };
     },
   },
