@@ -1681,8 +1681,8 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,
-        機種名: d.displayName || d.model?.name || '',
-        表示名: d.displayName || d.model?.name || '',
+        機種名: d.model?.name || d.displayName || '',
+        表示名: d.model?.name || d.displayName || '',
         差: roundUp50(d.diff ?? 0),
         colored: false,
         G数: d.games ?? null,
@@ -1701,8 +1701,8 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,
-        機種名: d.displayName || d.model?.name || '',
-        表示名: d.displayName || d.model?.name || '',
+        機種名: d.model?.name || d.displayName || '',
+        表示名: d.model?.name || d.displayName || '',
         差: roundUp50(d.diff ?? 0),
         colored: false,
         G数: d.games ?? null,
