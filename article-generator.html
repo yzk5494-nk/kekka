@@ -905,8 +905,7 @@
           <input type="number" id="tenkamusou-top-count" value="5" min="1" max="20" style="width:52px">
           <label style="font-size:12px;color:#444;">機種ぶん生成（平均差枚数が高い順・0枚以下の台はカード内で非表示）</label>
         </div>
-        <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成</button>
-        <button class="img-gen-btn" onclick="uploadTenkamusouRankingsToWP()" style="width:100%;background:#8c6600;padding:10px 8px;font-size:12px;margin-top:6px;">☁ 生成済み画像をWPにアップロード（投稿に使う場合に実行）</button>
+        <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成（WPへ自動アップロード）</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
         <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
       </div>
@@ -3604,15 +3603,6 @@ async function generateRankingImage() {
 
 // ===== 天下無双専用：機種別平均差枚ランキング一括生成 =====
 
-function downloadDataUrl(dataUrl, filename) {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 // 1機種ぶんのランキングカード画像を描画してdataURLを返す（generateRankingImage()と同じ見た目のロジックを流用）
 async function renderMachineRankCard(title, machines, unit) {
   const SCALE     = 2;
@@ -3621,9 +3611,17 @@ async function renderMachineRankCard(title, machines, unit) {
   const TOTAL_W   = W + OUTER_PAD * 2;
   const bannerUrl = libraryImages[title]?.url || null;
   const BANNER_H  = bannerUrl ? 320 : 0;
-  const TITLE_H   = 52;
   const THEAD_H   = 34;
   const ROW_H     = 40;
+
+  // 天下無双専用の枠画像（白×ゴールドの装飾フレーム）にタイトル文字を重ねる。読み込めなければ従来の茶色帯にフォールバック
+  const headerFrameImg = await new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = '/assets/tenkamusou-header.jpg';
+  });
+  const TITLE_H = headerFrameImg ? Math.round(W * headerFrameImg.naturalHeight / headerFrameImg.naturalWidth) : 52;
 
   const rankCellImgs = {};
   await Promise.all(machines.map((_, i) => {
@@ -3701,14 +3699,23 @@ async function renderMachineRankCard(title, machines, unit) {
     return text + '…';
   }
 
-  // タイトルバー（機種名テキスト・専用ヘッダー画像は使わない）
-  ctx.fillStyle = BROWN;
-  ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `bold 16px ${font}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(title, TOTAL_W / 2, TITLE_H / 2);
+  // タイトルバー（天下無双専用の枠画像＋機種名テキスト。枠画像が読み込めなければ従来の茶色帯）
+  if (headerFrameImg) {
+    ctx.drawImage(headerFrameImg, 0, 0, TOTAL_W, TITLE_H);
+    ctx.fillStyle = '#2a1a00';
+    ctx.font = `bold 16px ${font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fitText(title, TOTAL_W - 60), TOTAL_W / 2, TITLE_H / 2);
+  } else {
+    ctx.fillStyle = BROWN;
+    ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold 16px ${font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, TOTAL_W / 2, TITLE_H / 2);
+  }
 
   // バナー（機種の登録画像があれば使用）
   let bannerEndY = TITLE_H;
@@ -3815,7 +3822,7 @@ async function renderMachineRankCard(title, machines, unit) {
   return canvas.toDataURL('image/png');
 }
 
-// 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出→機種ごとに1枚ずつ画像を生成してダウンロード
+// 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出→機種ごとに1枚ずつ画像を生成し、その場でWPにアップロード
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
@@ -3843,6 +3850,7 @@ async function generateTenkamusouMachineRankings() {
   if (!ranked.length) { showToast('対象データがありません'); return; }
 
   tenkamusouRankImages = [];
+  const hall = v('f-hall') || 'ranking';
   let generated = 0;
   for (let i = 0; i < ranked.length; i++) {
     const group = ranked[i];
@@ -3851,40 +3859,15 @@ async function generateTenkamusouMachineRankings() {
     if (!cardMachines.length) continue;
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
     const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit);
-    downloadDataUrl(dataUrl, `天下無双_${i + 1}位_${group.name}.png`);
-    tenkamusouRankImages.push({ name: group.name, dataUrl, wpId: null, wpUrl: null });
-    if (previewEl) {
-      previewEl.insertAdjacentHTML('beforeend', `
-        <a href="${dataUrl}" download="天下無双_${i + 1}位_${group.name}.png" style="display:block;width:120px;text-decoration:none;color:#333;">
-          <img src="${dataUrl}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">
-          <div style="font-size:10px;text-align:center;margin-top:2px;">${i + 1}位 ${group.name}</div>
-        </a>`);
-    }
-    generated++;
-    await new Promise(r => setTimeout(r, 300)); // 連続ダウンロードのブロック回避
-  }
 
-  if (statusEl) statusEl.textContent = generated ? `✓ ${generated}機種ぶん生成しました` : '対象台がありませんでした（全機種0枚以下）';
-  showToast(generated ? `機種別ランキング画像を${generated}枚生成しました` : '生成対象がありませんでした');
+    const item = { name: group.name, dataUrl, wpId: null, wpUrl: null };
+    tenkamusouRankImages.push(item);
 
-  // 実際に投稿するプレビュー（右パネル）にも反映
-  initPreview();
-}
-
-// 天下無双：一括生成した機種別ランキング画像をすべてhisshobon-hall.infoのメディアライブラリにアップロード
-// （投稿コード生成時にWP画像ブロックとして埋め込むため、実URLが必要）
-async function uploadTenkamusouRankingsToWP() {
-  if (!tenkamusouRankImages.length) { showToast('先に機種別ランキング画像を一括生成してください'); return; }
-  const statusEl = document.getElementById('tenkamusou-batch-status');
-  const hall = v('f-hall') || 'ranking';
-
-  for (let i = 0; i < tenkamusouRankImages.length; i++) {
-    const item = tenkamusouRankImages[i];
-    if (item.wpId && item.wpUrl) continue; // アップロード済みはスキップ
-    if (statusEl) statusEl.textContent = `WPアップロード中… (${i + 1}/${tenkamusouRankImages.length}) ${item.name}`;
+    // 生成したその場でWP（hisshobon-hall.info）のメディアライブラリにアップロード
+    if (statusEl) statusEl.textContent = `アップロード中… (${i + 1}/${ranked.length}) ${group.name}`;
     try {
-      const base64 = item.dataUrl.split(',')[1];
-      const filename = `tenkamusou_${hall}_${i + 1}_${item.name}.png`.replace(/[^\w.\-]/g, '_');
+      const base64 = dataUrl.split(',')[1];
+      const filename = `tenkamusou_${hall}_${i + 1}_${group.name}.png`.replace(/[^\w.\-]/g, '_');
       const res = await fetch('/api/upload-hb-media', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3895,18 +3878,28 @@ async function uploadTenkamusouRankingsToWP() {
         item.wpId = data.id;
         item.wpUrl = data.source_url;
       } else {
-        showToast(`アップロード失敗（${item.name}）: ${data.message || data.code || ''}`);
-        console.error('[tenkamusou upload error]', item.name, data);
+        showToast(`アップロード失敗（${group.name}）: ${data.message || data.code || ''}`);
+        console.error('[tenkamusou upload error]', group.name, data);
       }
     } catch (err) {
-      showToast(`アップロードエラー（${item.name}）: ${err.message}`);
-      console.error('[tenkamusou upload exception]', item.name, err);
+      showToast(`アップロードエラー（${group.name}）: ${err.message}`);
+      console.error('[tenkamusou upload exception]', group.name, err);
     }
+
+    if (previewEl) {
+      previewEl.insertAdjacentHTML('beforeend', `
+        <a href="${item.wpUrl || dataUrl}" target="_blank" style="display:block;width:120px;text-decoration:none;color:#333;">
+          <img src="${dataUrl}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">
+          <div style="font-size:10px;text-align:center;margin-top:2px;">${i + 1}位 ${group.name}${item.wpUrl ? '' : '（未アップロード）'}</div>
+        </a>`);
+    }
+    generated++;
   }
 
-  const okCount = tenkamusouRankImages.filter(i => i.wpUrl).length;
-  if (statusEl) statusEl.textContent = `✓ WPアップロード完了（${okCount}/${tenkamusouRankImages.length}）`;
-  showToast(`${okCount}枚をWPにアップロードしました`);
+  if (statusEl) statusEl.textContent = generated ? `✓ ${generated}機種ぶん生成・アップロードしました` : '対象台がありませんでした（全機種0枚以下）';
+  showToast(generated ? `機種別ランキング画像を${generated}枚生成しました` : '生成対象がありませんでした');
+
+  // 実際に投稿するプレビュー（右パネル）にも反映
   initPreview();
 }
 
