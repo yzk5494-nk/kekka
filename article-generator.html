@@ -907,6 +907,7 @@
         </div>
         <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
+        <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
       </div>
     </div>
 
@@ -3791,6 +3792,8 @@ async function generateTenkamusouMachineRankings() {
   const topN = parseInt(document.getElementById('tenkamusou-top-count')?.value) || 5;
   const unit = SERIES_CONFIG[currentSeries]?.unitLabel || '枚';
   const statusEl = document.getElementById('tenkamusou-batch-status');
+  const previewEl = document.getElementById('tenkamusou-batch-preview');
+  if (previewEl) previewEl.innerHTML = '';
 
   // 機種名（ニックネーム反映済み）でグループ化し、平均差枚数を算出
   const groups = new Map();
@@ -3815,6 +3818,13 @@ async function generateTenkamusouMachineRankings() {
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
     const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit);
     downloadDataUrl(dataUrl, `天下無双_${i + 1}位_${group.name}.png`);
+    if (previewEl) {
+      previewEl.insertAdjacentHTML('beforeend', `
+        <a href="${dataUrl}" download="天下無双_${i + 1}位_${group.name}.png" style="display:block;width:120px;text-decoration:none;color:#333;">
+          <img src="${dataUrl}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">
+          <div style="font-size:10px;text-align:center;margin-top:2px;">${i + 1}位 ${group.name}</div>
+        </a>`);
+    }
     generated++;
     await new Promise(r => setTimeout(r, 300)); // 連続ダウンロードのブロック回避
   }
