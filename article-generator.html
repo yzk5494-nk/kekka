@@ -3703,7 +3703,7 @@ async function renderMachineRankCard(title, machines, unit) {
   if (headerFrameImg) {
     ctx.drawImage(headerFrameImg, 0, 0, TOTAL_W, TITLE_H);
     ctx.fillStyle = '#2a1a00';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `bold ${Math.round(TITLE_H * 0.42)}px ${font}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(fitText(title, TOTAL_W - 60), TOTAL_W / 2, TITLE_H / 2);
@@ -3744,14 +3744,17 @@ async function renderMachineRankCard(title, machines, unit) {
   ctx.font = `bold 13px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
+  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['BIG','BIG'],['REG','REG'],['合','合算確率'],['差',`差${unit}数`]]
    : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
    : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
    :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]]
   ).forEach(([k, label]) => {
-    ctx.fillStyle = brownGrad(y + CP, y + THEAD_H - CP);
-    ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
     ctx.fillStyle = '#ffffff';
+    ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
+    ctx.strokeStyle = '#8478c9';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
+    ctx.fillStyle = '#222222';
     ctx.fillText(label, cx(k), y + THEAD_H / 2);
   });
   y += THEAD_H;
