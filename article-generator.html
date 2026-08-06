@@ -717,6 +717,7 @@
     <option value="ifudodo">戦極～威風堂々～</option>
     <option value="shishifunjin">戦極～獅子奮迅～</option>
     <option value="tokyoghoul">戦極～東京喰種～</option>
+    <option value="tenchishinmei">戦極～天地神明～</option>
     <option value="hyakkaryoran">戦極～百花繚乱～</option>
     <option value="ikkyunyukon">戦極～一球入魂～</option>
     <option value="tenkamusou">天下無双</option>
@@ -1402,6 +1403,42 @@ const SERIES_CONFIG = {
       };
     },
   },
+  tenchishinmei: {
+    name: '戦極～天地神明～',
+    eventImgId:  534355,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenchishinmeijpg.jpg',
+    tagKeywords: ['戦極', '天地神明'],
+    jugglerOnly: false,
+    allowedMachines: ['ミリオンゴッド-神々の軌跡-'],
+    hideBigReg: true,
+    sheetKeyword: '天地神明',
+    machineEmoji: '🪙',
+    rankingTitle: 'ミリオンゴッド-神々の軌跡-',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tokyoghoul-header.png',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#6a4c93', capBg: '#f5f0ff', capHeaderColor: '#6a4c93',
+    defaultMachines: [
+      { name:'ミリオンゴッド-神々の軌跡-', count:0 },
+    ],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, plusCount, achieved10000, isFirstTime }) {
+      return {
+        b3:  '【戦極～天地神明～】',
+        b4:  '',
+        b5:  plusCount !== null ? `${total}台中${plusCount}台がプラスという結果にっ👀` : '',
+        b8:  `ミリオンゴッド-神々の軌跡-の設置台数はご覧の通りとなっています🔎`,
+        b13: achieved10000
+          ? `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲見事万枚オーバー達成ですっ‼️\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`
+          : `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️`,
+        b14: isFirstTime
+          ? (achieved10000
+              ? '初回から大いに盛り上がりを見せてくれましたね〜👍見事万枚オーバー達成、次回開催もかなり期待できそうです！'
+              : '初回は惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍\n次回開催にも期待したいですね！')
+          : (achieved10000
+              ? '今回もガッツリと盛り上がっていましたね〜👍\n同店での戦極〜天地神明〜開催時はかなり期待できそうです！'
+              : '今回も惜しくも万枚には届きませんでしたが、優秀台の多さは間違いなしですっ👍\n次回のリベンジにも期待したいですね！'),
+      };
+    },
+  },
   hyakkaryoran: {
     name: '戦極～百花繚乱～',
     eventImgId:  510864,
@@ -1665,8 +1702,8 @@ function getTemplateTexts() {
     b3:  seriesTexts.b3,
     b4:  seriesTexts.b4,
     b5:  seriesTexts.b5,
-    b6:  currentSeries === 'tokyoghoul' ? '' : `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
-    b7:  currentSeries === 'tokyoghoul' ? `それではまず、取材対象機種の確認からいきましょう📹`
+    b6:  (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei') ? '' : `前回は${prev}が優勢でしたが、果たしてどの機種から優秀台が現れるのでしょうか⁉️`,
+    b7:  (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei') ? `それではまず、取材対象機種の確認からいきましょう📹`
       : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
       : currentSeries === 'hyakkaryoran' ? ['まずは設置機種を確認していきましょう🔍', 'まずは取材対象となるハナ系機種の設置台数をごらんください✋'][Math.floor(Math.random() * 2)]
       : currentSeries === 'ikkyunyukon' ? `それではまず、パチンコ設置台数の確認から📷`
@@ -1674,8 +1711,8 @@ function getTemplateTexts() {
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
     b10: seriesTexts.b10 || `それでは、差枚ランキングをご覧ください✋`,
-    b11: seriesTexts.b11 || (currentSeries === 'tokyoghoul' ? `この日のトップ差枚は【${t1num}番台】で${t1d}👍` : `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`),
-    b12: currentSeries === 'tokyoghoul'
+    b11: seriesTexts.b11 || ((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei') ? `この日のトップ差枚は【${t1num}番台】で${t1d}👍` : `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`),
+    b12: (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `また、2位には【${t2num}番台】の${t2d}、そして3位には【${t3num}番台】の${t3d}がランクインですっ❗️`
       : `また、2位には【${t2n}・${t2num}番台】の${t2d}、そして3位${t3n===t2n?'にも':'には'}【${t3n}・${t3num}番台】の${t3d}がランクインですっ❗️`,
     b13: seriesTexts.b13,
@@ -1753,7 +1790,7 @@ async function generateWithAI() {
     const plusCount = allMachineData.length ? allMachineData.filter(m => m.差 > 0).length : null;
     const maxDiffAI = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
     // 万枚オーバーはスマスロ系（東京喰種等）だけで現実的な基準。ジャグラー系では起こり得ないため対象シリーズのみ送る
-    const milestoneRelevant = currentSeries === 'tokyoghoul' || currentSeries === 'shishifunjin';
+    const milestoneRelevant = (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei') || currentSeries === 'shishifunjin';
     const achieved10000 = milestoneRelevant ? (maxDiffAI >= 10000) : null;
     const over10000Count = allMachineData.length ? allMachineData.filter(m => m.差 >= 10000).length : 0;
     const over5000Count  = allMachineData.length ? allMachineData.filter(m => m.差 >= 5000).length : 0;
@@ -1774,7 +1811,7 @@ async function generateWithAI() {
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
 
     // AI生成された吹き出しをプレビューに反映（東京喰種はb5と内容が被るためb6は生成しない）
-    const keys = currentSeries === 'tokyoghoul'
+    const keys = (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? ['b3','b5','b9','b13','b14','b15']
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
@@ -1784,7 +1821,7 @@ async function generateWithAI() {
       const el = document.querySelector(`[data-key="${key}"]`);
       if (el) el.innerHTML = data[key].replace(/\n/g, '<br>');
     });
-    if (currentSeries === 'tokyoghoul') {
+    if ((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')) {
       const b6El = document.querySelector('[data-key="b6"]');
       if (b6El) b6El.innerHTML = '';
     }
@@ -2158,7 +2195,7 @@ function generate() {
     lineupBoxMaybe(),
     capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
     balloonMaybe(bHtml('b8')),
-    ...(currentSeries === 'tokyoghoul'
+    ...((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? [balloonMaybe(bHtml('b10')), wpImage(rankImgId, rankImgUrl), balloonMaybe(bHtml('b9'))]
       : [balloonMaybe(bHtml('b9')), balloonMaybe(bHtml('b10')), wpImage(rankImgId, rankImgUrl)]),
     balloonMaybe(bHtml('b11')),
@@ -2274,7 +2311,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
     </div>
     ${bl(bHtmlPrev('b8'), 'b8')}
-    ${currentSeries === 'tokyoghoul'
+    ${(currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}\n    ${bl(bHtmlPrev('b9'), 'b9')}`
       : `${bl(bHtmlPrev('b9'), 'b9')}\n    ${bl(bHtmlPrev('b10'), 'b10')}\n    ${imgPrev(rankImgUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url')}`}
     ${bl(bHtmlPrev('b11'), 'b11')}
