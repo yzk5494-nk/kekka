@@ -1479,6 +1479,7 @@ const SERIES_CONFIG = {
     tagKeywords: ['天下無双'],
     jugglerOnly: false,
     allowedMachines: [],
+    showLineupBox: true,
     sheetKeyword: '天下無双',
     machineEmoji: '👑',
     rankingTitle: '機種別差枚ランキング',
@@ -1869,8 +1870,9 @@ const defaultMachines = [
 function buildBlockList() {
   const container = document.getElementById('block-list');
   const texts = getTemplateTexts();
+  const showLineup = !!SERIES_CONFIG[currentSeries].showLineupBox;
 
-  BLOCK_DEFS.forEach((def, idx) => {
+  BLOCK_DEFS.filter(def => def.type !== 'lineup' || showLineup).forEach((def, idx) => {
     const item = document.createElement('div');
     item.className = 'block-item';
     item.id = 'block-' + def.id;
@@ -2223,6 +2225,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
   }
 
   function lineupPrevHtml() {
+    if (!SERIES_CONFIG[currentSeries].showLineupBox) return '';
     const lottery = v('input-lineup-lottery');
     const general = v('input-lineup-general');
     const units   = v('input-lineup-units');
@@ -2321,6 +2324,7 @@ function wpImageMaybe(id, url) {
 }
 // 並び人数ボックス。3項目とも未入力なら何も出力しない
 function lineupBoxMaybe() {
+  if (!SERIES_CONFIG[currentSeries].showLineupBox) return '';
   const lottery = v('input-lineup-lottery');
   const general = v('input-lineup-general');
   const units   = v('input-lineup-units');
