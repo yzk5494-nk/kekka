@@ -898,6 +898,16 @@
         <button class="img-gen-btn" onclick="invertDiff()" style="flex:1;background:#3a4f2a;padding:14px 8px;font-size:13px;" id="invert-btn">± 符号反転</button>
       </div>
       <div id="img-upload-wp-btn" style="display:none;"></div>
+      <div id="tenkamusou-batch-row" style="display:none;margin-top:10px;padding:10px;background:#fffaf0;border:1px solid #b8860b;border-radius:8px;">
+        <div style="font-size:12px;color:#b8860b;font-weight:bold;margin-bottom:6px;">👑 機種別平均差枚ランキング画像（一括生成）</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <label style="font-size:12px;color:#444;">上位</label>
+          <input type="number" id="tenkamusou-top-count" value="5" min="1" max="20" style="width:52px">
+          <label style="font-size:12px;color:#444;">機種ぶん生成（平均差枚数が高い順・0枚以下の台はカード内で非表示）</label>
+        </div>
+        <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成</button>
+        <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
+      </div>
     </div>
 
     <div class="basic-header" onclick="toggleBasic()">
@@ -1576,6 +1586,10 @@ function onSeriesChange(val) {
     rowsSection.style.display  = cfg.freeformCap ? 'none' : '';
     totalSection.style.display = cfg.freeformCap ? '' : 'none';
   }
+
+  // 天下無双専用：機種別平均差枚ランキング一括生成ボタンの表示切り替え
+  const tenkamusouBatchRow = document.getElementById('tenkamusou-batch-row');
+  if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = (val === 'tenkamusou') ? '' : 'none';
 
   // 機種一覧をシリーズのデフォルトにリセット
   const machineRows = document.getElementById('machine-rows');
@@ -3552,6 +3566,261 @@ async function generateRankingImage() {
   } else {
     showToast('ランキング画像を生成しました！');
   }
+}
+
+// ===== 天下無双専用：機種別平均差枚ランキング一括生成 =====
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// 1機種ぶんのランキングカード画像を描画してdataURLを返す（generateRankingImage()と同じ見た目のロジックを流用）
+async function renderMachineRankCard(title, machines, unit) {
+  const SCALE     = 2;
+  const W         = 730;
+  const OUTER_PAD = 10;
+  const TOTAL_W   = W + OUTER_PAD * 2;
+  const bannerUrl = libraryImages[title]?.url || null;
+  const BANNER_H  = bannerUrl ? 320 : 0;
+  const TITLE_H   = 52;
+  const THEAD_H   = 34;
+  const ROW_H     = 40;
+
+  const rankCellImgs = {};
+  await Promise.all(machines.map((_, i) => {
+    const r = i + 1;
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { rankCellImgs[r] = img; resolve(); };
+      img.onerror = () => {
+        const img2 = new Image();
+        img2.onload = () => { rankCellImgs[r] = img2; resolve(); };
+        img2.onerror = () => resolve();
+        img2.src = `/rank-images/rank${r}.jpg?t=${Date.now()}`;
+      };
+      img.src = `/rank-images/rank${r}.png?t=${Date.now()}`;
+    });
+  }));
+
+  const H        = TITLE_H + BANNER_H + THEAD_H + machines.length * ROW_H + 4;
+  const CANVAS_H = H + OUTER_PAD * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = TOTAL_W * SCALE;
+  canvas.height = CANVAS_H * SCALE;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
+
+  const font  = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  const BROWN = '#5C2A0A';
+
+  function brownGrad(y1, y2) {
+    const g = ctx.createLinearGradient(0, y1, 0, y2);
+    g.addColorStop(0,   '#9B5A2A');
+    g.addColorStop(0.5, '#6B2E0A');
+    g.addColorStop(1,   '#3A1005');
+    return g;
+  }
+
+  const C = hasBigReg && hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 65  },
+    名:   { x: 143, w: 197 },
+    G:    { x: 340, w: 81  },
+    BIG:  { x: 421, w: 70  },
+    REG:  { x: 491, w: 70  },
+    合:   { x: 561, w: 70  },
+    差:   { x: 631, w: 99  },
+  } : hasBigReg && !hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 65  },
+    名:   { x: 143, w: 348 },
+    BIG:  { x: 491, w: 70  },
+    REG:  { x: 561, w: 70  },
+    差:   { x: 631, w: 99  },
+  } : !hasBigReg && hasG ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 80  },
+    名:   { x: 158, w: 362 },
+    G:    { x: 520, w: 96  },
+    差:   { x: 616, w: 114 },
+  } : {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 80  },
+    名:   { x: 158, w: 458 },
+    差:   { x: 616, w: 114 },
+  };
+  const cx = key => C[key].x + C[key].w / 2;
+  const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
+             : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
+             : !hasBigReg && hasG ? [78, 158, 520, 616]
+             :                      [78, 158, 616];
+
+  function fitText(text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    while (text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+    return text + '…';
+  }
+
+  // タイトルバー（機種名テキスト・専用ヘッダー画像は使わない）
+  ctx.fillStyle = BROWN;
+  ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold 16px ${font}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(title, TOTAL_W / 2, TITLE_H / 2);
+
+  // バナー（機種の登録画像があれば使用）
+  let bannerEndY = TITLE_H;
+  if (bannerUrl) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { ctx.drawImage(img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
+      img.onerror = () => resolve();
+      img.src = bannerUrl;
+    });
+    bannerEndY = TITLE_H + BANNER_H;
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, bannerEndY, TOTAL_W, CANVAS_H - bannerEndY);
+
+  ctx.save();
+  ctx.translate(OUTER_PAD, OUTER_PAD);
+  let y = bannerEndY;
+  const tableStartY = bannerEndY;
+  const CP = 2;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, y, W, THEAD_H);
+  ctx.font = `bold 13px ${font}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
+   : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
+   : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
+   :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]]
+  ).forEach(([k, label]) => {
+    ctx.fillStyle = brownGrad(y + CP, y + THEAD_H - CP);
+    ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, cx(k), y + THEAD_H / 2);
+  });
+  y += THEAD_H;
+
+  machines.forEach((m, i) => {
+    const ry = y + i * ROW_H;
+    ctx.fillStyle = '#f7f4f0';
+    ctx.fillRect(0, ry, W, ROW_H);
+
+    const rankImg = rankCellImgs[i + 1];
+    if (rankImg) {
+      const rip = 5;
+      ctx.drawImage(rankImg, C.rank.x + rip, ry + rip, C.rank.w - rip * 2, ROW_H - rip * 2);
+    } else {
+      ctx.fillStyle = brownGrad(ry, ry + ROW_H);
+      ctx.fillRect(C.rank.x, ry, C.rank.w, ROW_H);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = `bold 9px ${font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('RANK', cx('rank'), ry + ROW_H / 2 - 9);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold 18px ${font}`;
+      ctx.fillText(String(i + 1), cx('rank'), ry + ROW_H / 2 + 7);
+    }
+
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(C.台番.x, ry + ROW_H); ctx.lineTo(W, ry + ROW_H); ctx.stroke();
+    SEPS.forEach(sx => { ctx.beginPath(); ctx.moveTo(sx, ry); ctx.lineTo(sx, ry + ROW_H); ctx.stroke(); });
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 16px ${font}`;
+    ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
+
+    const dName = displayName(m.機種名);
+    ctx.fillText(fitText(dName, C['名'].w - 8), cx('名'), ry + ROW_H / 2);
+
+    if (hasG) ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
+
+    if (hasBigReg) {
+      ctx.fillText(String(m.BIG ?? 0), cx('BIG'), ry + ROW_H / 2);
+      ctx.fillText(String(m.REG ?? 0), cx('REG'), ry + ROW_H / 2);
+    }
+
+    if (hasBigReg && hasG) ctx.fillText(formatGasso(m), cx('合'), ry + ROW_H / 2);
+
+    const diff = m.差;
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 16px ${font}`;
+    ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
+  });
+
+  ctx.restore();
+
+  const borderTop = tableStartY;
+  ctx.strokeStyle = '#000000';
+  ctx.setLineDash([]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, borderTop + 1, TOTAL_W - 2, CANVAS_H - borderTop - 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(5, borderTop + 5, TOTAL_W - 10, CANVAS_H - borderTop - 10);
+
+  return canvas.toDataURL('image/png');
+}
+
+// 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出→機種ごとに1枚ずつ画像を生成してダウンロード
+async function generateTenkamusouMachineRankings() {
+  if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
+  hasG = document.getElementById('col-G')?.value !== 'none';
+  if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
+  if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
+
+  const topN = parseInt(document.getElementById('tenkamusou-top-count')?.value) || 5;
+  const unit = SERIES_CONFIG[currentSeries]?.unitLabel || '枚';
+  const statusEl = document.getElementById('tenkamusou-batch-status');
+
+  // 機種名（ニックネーム反映済み）でグループ化し、平均差枚数を算出
+  const groups = new Map();
+  allMachineData.forEach(m => {
+    const name = displayName(m.機種名);
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(m);
+  });
+  const ranked = [...groups.entries()]
+    .map(([name, units]) => ({ name, units, avg: units.reduce((s, u) => s + u.差, 0) / units.length }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, topN);
+
+  if (!ranked.length) { showToast('対象データがありません'); return; }
+
+  let generated = 0;
+  for (let i = 0; i < ranked.length; i++) {
+    const group = ranked[i];
+    // カード内は差枚数が0以下の台を除外し、差枚数の高い順に並べる
+    const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差);
+    if (!cardMachines.length) continue;
+    if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
+    const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit);
+    downloadDataUrl(dataUrl, `天下無双_${i + 1}位_${group.name}.png`);
+    generated++;
+    await new Promise(r => setTimeout(r, 300)); // 連続ダウンロードのブロック回避
+  }
+
+  if (statusEl) statusEl.textContent = generated ? `✓ ${generated}機種ぶん生成しました` : '対象台がありませんでした（全機種0枚以下）';
+  showToast(generated ? `機種別ランキング画像を${generated}枚生成しました` : '生成対象がありませんでした');
 }
 
 async function uploadRankingToWP() {
