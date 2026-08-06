@@ -1414,7 +1414,7 @@ const SERIES_CONFIG = {
     sheetKeyword: '天地神明',
     machineEmoji: '🪙',
     rankingTitle: 'ミリオンゴッド-神々の軌跡-',
-    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tokyoghoul-header.png',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenchishinmei-header.png',
     capLabel: '取材対象機種設置台数',
     capColor: '#6a4c93', capBg: '#f5f0ff', capHeaderColor: '#6a4c93',
     defaultMachines: [
@@ -3248,12 +3248,13 @@ async function generateRankingImage() {
   const THEAD_H  = 34;
   const ROW_H    = 40;
 
-  // ヘッダー画像を事前ロード
+  // ヘッダー画像を事前ロード（headerImgUrl未設定の企画はテキストのみの簡易ヘッダーにフォールバック）
   const jagHeaderImg = await new Promise(resolve => {
+    const rawHeaderUrl = SERIES_CONFIG[currentSeries].headerImgUrl;
+    if (!rawHeaderUrl) { resolve(null); return; }
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    const rawHeaderUrl = SERIES_CONFIG[currentSeries].headerImgUrl || 'https://hisshobon-hall.info/wp-content/uploads/jag-headerjpg.jpg';
     img.src = '/api/proxy-image?url=' + encodeURIComponent(rawHeaderUrl);
   });
   const TITLE_H = jagHeaderImg ? Math.round(W * jagHeaderImg.naturalHeight / jagHeaderImg.naturalWidth) : 52;
