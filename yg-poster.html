@@ -835,6 +835,10 @@
           </div>
         </div>
         <div class="gb-sidebar-section">
+          <div class="gb-sidebar-section-title">スラッグ（URL）</div>
+          <input type="text" id="wpSlug" class="gb-sidebar-select" placeholder="英数字（空欄で自動生成）">
+        </div>
+        <div class="gb-sidebar-section">
           <div class="gb-sidebar-section-title">アイキャッチ画像</div>
           <div class="gb-featured-area" id="gbFeaturedArea">
             <input type="file" accept="image/*" onchange="gbSetFeaturedImg(this)">
@@ -1413,6 +1417,7 @@ function gbSaveDraft() {
       savedAt: new Date().toISOString(),
       title: document.getElementById('gbTitle').innerHTML,
       category: document.getElementById('wpCategory')?.value || '',
+      slug: document.getElementById('wpSlug')?.value || '',
       blocks: gbBlocks.map(b => ({ ...b })),
       featuredBase64: gbFeaturedBase64 || null,
       featuredName: gbFeaturedName || null,
@@ -1449,6 +1454,10 @@ function gbRestoreDraft() {
     if (draft.category) {
       const sel = document.getElementById('wpCategory');
       if (sel) sel.value = draft.category;
+    }
+    if (draft.slug) {
+      const slugEl = document.getElementById('wpSlug');
+      if (slugEl) slugEl.value = draft.slug;
     }
     if (draft.blocks?.length > 0) {
       gbBlocks = draft.blocks.map(b => ({ ...b }));
@@ -2535,6 +2544,8 @@ async function gbSubmitPost(status = 'draft') {
     const catVal = document.getElementById('wpCategory').value;
     if (catVal) postData.categories = [parseInt(catVal, 10)];
     if (featuredMediaId) postData.featured_media = featuredMediaId;
+    const slugVal = document.getElementById('wpSlug').value.trim();
+    if (slugVal) postData.slug = slugVal;
     const hallAnalyticsMeta = deriveHallAnalyticsMeta();
 
     const r = await fetch('/api/create-yg-post', {
