@@ -3605,12 +3605,13 @@ async function generateRankingImage() {
 // ===== 天下無双専用：機種別平均差枚ランキング一括生成 =====
 
 // 1機種ぶんのランキングカード画像を描画してdataURLを返す（generateRankingImage()と同じ見た目のロジックを流用）
-async function renderMachineRankCard(title, machines, unit) {
+// rawName: Excel/P-PRO由来の元の機種名（画像ライブラリはこのキーで登録されているため、ニックネーム変換後のtitleでは引けない）
+async function renderMachineRankCard(title, machines, unit, rawName) {
   const SCALE     = 2;
   const W         = 730;
   const OUTER_PAD = 10;
   const TOTAL_W   = W + OUTER_PAD * 2;
-  const bannerUrl = libraryImages[title]?.url || null;
+  const bannerUrl = libraryImages[rawName]?.url || libraryImages[title]?.url || null;
   const BANNER_H  = bannerUrl ? 320 : 0;
   const THEAD_H   = 34;
   const ROW_H     = 40;
@@ -3862,7 +3863,7 @@ async function generateTenkamusouMachineRankings() {
     const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差);
     if (!cardMachines.length) continue;
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
-    const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit);
+    const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit, cardMachines[0].機種名);
 
     const item = { name: group.name, dataUrl, wpId: null, wpUrl: null };
     tenkamusouRankImages.push(item);
