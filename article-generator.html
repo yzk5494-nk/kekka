@@ -2727,6 +2727,7 @@ async function submitWpPost() {
 // コピー
 // ============================================================
 function copyCode() {
+  generate(); // コピー直前に必ず最新の内容で作り直す（天下無双の一括生成画像など、反映漏れを防ぐ）
   const code = document.getElementById('code-output').textContent;
   if (!code || code.startsWith('←')) return;
   navigator.clipboard.writeText(code).then(() => {
