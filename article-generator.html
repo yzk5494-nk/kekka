@@ -5041,19 +5041,9 @@ async function saveStoreCard() {
 async function importFromWordPress() {
   showToast('WordPressからデータを取得中...');
   try {
-    const baseUrl = 'https://hisshobon-hall.info/wp-json/wp/v2/blog_parts';
-    let all = [];
-    let page = 1;
-    while (true) {
-      const res = await fetch(`${baseUrl}?per_page=100&page=${page}`);
-      if (!res.ok) break;
-      const data = await res.json();
-      if (!data.length) break;
-      all = all.concat(data);
-      const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1');
-      if (page >= totalPages) break;
-      page++;
-    }
+    const res = await fetch('/api/hb-blog-parts');
+    if (!res.ok) throw new Error('取得失敗');
+    const all = await res.json();
     if (!all.length) { showToast('データが見つかりませんでした'); return; }
 
     const decodeHtml = s => s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#(\d+);/g,(_,c)=>String.fromCharCode(c)).replace(/&nbsp;/g,' ');

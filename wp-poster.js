@@ -833,10 +833,23 @@ const server = http.createServer(async (req, res) => {
     // ── YG カテゴリー新規作成 ──────────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/create-yg-category') {
       const buf = await collectBody(req);
-      const { name, parent } = JSON.parse(buf.toString('utf8'));
+      const { name, parent, slug } = JSON.parse(buf.toString('utf8'));
       if (!name || !name.trim()) return sendJson(400, { error: 'カテゴリー名を入力してください' });
-      const r = await ygRequest('POST', 'categories', { name: name.trim(), parent: parent || 0 });
-      console.log(`[yg-category] status=${r.status} name="${name}" parent=${parent || 0}`);
+      const payload = { name: name.trim(), parent: parent || 0 };
+      if (slug && slug.trim()) payload.slug = slug.trim();
+      const r = await ygRequest('POST', 'categories', payload);
+      console.log(`[yg-category] status=${r.status} name="${name}" parent=${parent || 0} slug="${slug || ''}"`);
+      return sendJson(r.status, r.data);
+    }
+
+    // ── YG カテゴリー スラッグ修正 ──────────────────────────────────
+    if (req.method === 'POST' && parsed.pathname === '/api/update-yg-category-slug') {
+      const buf = await collectBody(req);
+      const { id, slug } = JSON.parse(buf.toString('utf8'));
+      if (!id) return sendJson(400, { error: 'カテゴリーIDが必要です' });
+      if (!slug || !slug.trim()) return sendJson(400, { error: 'スラッグを入力してください' });
+      const r = await ygRequest('POST', `categories/${id}`, { slug: slug.trim() });
+      console.log(`[yg-category-slug] status=${r.status} id=${id} slug="${slug}"`);
       return sendJson(r.status, r.data);
     }
 
@@ -1131,6 +1144,12 @@ const server = http.createServer(async (req, res) => {
         return { id: c.id, name: c.name, link: c.link, pref: PREF_MAP[prefSlug] || prefSlug };
       });
       return sendJson(200, halls);
+    }
+
+    // ── hisshobon 店舗情報ブロック（blog_parts）一覧 ──────────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/hb-blog-parts') {
+      const all = await hbFetchAllPages('blog_parts');
+      return sendJson(200, all);
     }
 
     // ── hisshobon タグ一覧（全件・キャッシュ優先） ──────────────────

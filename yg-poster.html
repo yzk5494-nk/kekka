@@ -827,10 +827,16 @@
             <button type="button" onclick="toggleNewCategoryForm()" style="font-size:11px;padding:4px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;color:#888;cursor:pointer;font-family:inherit">+ 新規カテゴリー</button>
             <div id="newCategoryForm" style="display:none;margin-top:8px">
               <input type="text" id="newCategoryName" placeholder="カテゴリー名" class="gb-sidebar-select" style="margin-bottom:6px;box-sizing:border-box">
+              <input type="text" id="newCategorySlug" placeholder="スラッグ（英数字、空欄で自動）" class="gb-sidebar-select" style="margin-bottom:6px;box-sizing:border-box">
               <select id="newCategoryParent" class="gb-sidebar-select" style="margin-bottom:6px">
                 <option value="0">(親カテゴリーなし)</option>
               </select>
               <button type="button" onclick="createYgCategory()" id="newCategoryCreateBtn" style="width:100%;padding:6px;border:none;border-radius:3px;background:#1e2a3a;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">作成してWPに追加</button>
+            </div>
+            <button type="button" onclick="toggleEditCategorySlugForm()" style="font-size:11px;padding:4px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;color:#888;cursor:pointer;font-family:inherit;margin-top:4px">✏️ 選択中カテゴリーのスラッグを修正</button>
+            <div id="editCategorySlugForm" style="display:none;margin-top:8px">
+              <input type="text" id="editCategorySlug" placeholder="新しいスラッグ（英数字）" class="gb-sidebar-select" style="margin-bottom:6px;box-sizing:border-box">
+              <button type="button" onclick="updateYgCategorySlug()" id="editCategorySlugBtn" style="width:100%;padding:6px;border:none;border-radius:3px;background:#1e2a3a;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">スラッグを更新</button>
             </div>
           </div>
         </div>
@@ -1521,7 +1527,9 @@ function toggleNewCategoryForm() {
 
 async function createYgCategory() {
   const nameInput = document.getElementById('newCategoryName');
+  const slugInput = document.getElementById('newCategorySlug');
   const name = nameInput.value.trim();
+  const slug = slugInput.value.trim();
   if (!name) { alert('カテゴリー名を入力してください'); return; }
   const parent = parseInt(document.getElementById('newCategoryParent').value, 10) || 0;
   const btn = document.getElementById('newCategoryCreateBtn');
@@ -1531,14 +1539,51 @@ async function createYgCategory() {
     const res = await fetch('/api/create-yg-category', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, parent }),
+      body: JSON.stringify({ name, parent, slug }),
     });
     const data = await res.json();
     if (!res.ok) { alert('作成失敗: ' + (data.message || data.error || res.status)); return; }
     await gbLoadCategories();
     document.getElementById('wpCategory').value = data.id;
     nameInput.value = '';
+    slugInput.value = '';
     document.getElementById('newCategoryForm').style.display = 'none';
+  } catch(e) {
+    alert('通信エラー: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function toggleEditCategorySlugForm() {
+  const catSelect = document.getElementById('wpCategory');
+  if (!catSelect.value) { alert('先にカテゴリーを選択してください'); return; }
+  const form = document.getElementById('editCategorySlugForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function updateYgCategorySlug() {
+  const id = document.getElementById('wpCategory').value;
+  const slugInput = document.getElementById('editCategorySlug');
+  const slug = slugInput.value.trim();
+  if (!id) { alert('先にカテゴリーを選択してください'); return; }
+  if (!slug) { alert('新しいスラッグを入力してください'); return; }
+  const btn = document.getElementById('editCategorySlugBtn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '更新中…';
+  try {
+    const res = await fetch('/api/update-yg-category-slug', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, slug }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('更新失敗: ' + (data.message || data.error || res.status)); return; }
+    await gbLoadCategories();
+    document.getElementById('wpCategory').value = id;
+    slugInput.value = '';
+    document.getElementById('editCategorySlugForm').style.display = 'none';
+    alert('スラッグを更新しました');
   } catch(e) {
     alert('通信エラー: ' + e.message);
   } finally {
