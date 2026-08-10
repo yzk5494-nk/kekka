@@ -961,6 +961,7 @@
     </div>
 
     <div style="padding:8px 10px 4px; flex-shrink:0;">
+      <button class="apply-btn" onclick="firstTimeAIGenerate()" style="width:100%;padding:10px 8px;background:#e67e22;color:white;border-color:#e67e22;font-size:12px;margin-bottom:6px;">🆕 初開催 AI文章生成</button>
       <button class="apply-btn" id="ai-gen-btn" onclick="generateWithAI()" style="width:100%;padding:14px 8px;background:#6a3fa0;color:white;border-color:#6a3fa0;font-size:13px;">🤖 AI文章生成</button>
     </div>
 
@@ -4371,8 +4372,8 @@ let pendingMachineName = null; // 画像選択待ちの機種名
 let prevTop1Data = {}; // { 店舗名: 前回TOP1機種名 }
 
 let isFirstTime = false;
-function toggleFirstTime() {
-  isFirstTime = !isFirstTime;
+function setFirstTime(on) {
+  isFirstTime = on;
   const btn = document.getElementById('btn-first-time');
   btn.style.background = isFirstTime ? '#e67e22' : 'white';
   btn.style.color = isFirstTime ? 'white' : '#555';
@@ -4380,6 +4381,14 @@ function toggleFirstTime() {
   const field = document.getElementById('f-prev-machine');
   if (isFirstTime) field.value = '初開催';
   else if (field.value === '初開催') field.value = '';
+}
+function toggleFirstTime() {
+  setFirstTime(!isFirstTime);
+}
+// 「初開催」ボタンを押してから「AI文章生成」を押す一連の操作をワンクリックにまとめたもの
+function firstTimeAIGenerate() {
+  setFirstTime(true);
+  generateWithAI();
 }
 
 async function applyPrevTop1(hallName) {
