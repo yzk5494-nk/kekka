@@ -777,6 +777,8 @@
         style="padding:5px 12px;background:none;border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:3px;font-size:12px;cursor:pointer;font-family:inherit;">📝 エディター</button>
       <button class="yg-main-tab" id="ygTab-library" onclick="ygSwitchMainTab('library')"
         style="padding:5px 12px;background:none;border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:3px;font-size:12px;cursor:pointer;font-family:inherit;">🗂 ライブラリ</button>
+      <button class="yg-main-tab" id="ygTab-postlog" onclick="ygSwitchMainTab('postlog')"
+        style="padding:5px 12px;background:none;border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:3px;font-size:12px;cursor:pointer;font-family:inherit;">📋 投稿ログ</button>
     </div>
   </div>
   <div class="gb-header-center">
@@ -1392,6 +1394,23 @@
     </label>
   </div>
   <div id="eventLibList" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px;"></div>
+</div>
+
+<div id="ygPostLogView" style="display:none;flex:1;overflow:hidden;flex-direction:column;background:#f5f6f8;">
+  <div style="padding:16px 24px 12px;background:#fff;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;">
+    <span style="font-size:16px;font-weight:700;">📋 投稿ログ</span>
+    <span style="font-size:12px;color:#aaa;">日付・店舗名は画像生成タブの入力欄から自動取得。見出し行は任意入力</span>
+    <input id="ygPostLogHeadline" type="text" placeholder="👑『天誅』灼・閃・斬　など任意の見出し"
+      style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="ygInsertTemplate()" style="padding:7px 14px;font-size:13px;background:#1e2a3a;color:#f5c518;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:bold">🏷 テンプレを先頭に挿入</button>
+      <button onclick="ygCopyPostLog()" style="padding:7px 16px;font-size:13px;background:#2c6e49;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">📋 コピー</button>
+      <button onclick="ygClearPostLog()" style="padding:7px 16px;font-size:13px;background:none;border:1px solid #f5c6c6;color:#e74c3c;border-radius:6px;cursor:pointer;font-family:inherit">🗑 クリア</button>
+    </div>
+  </div>
+  <textarea id="ygPostLogArea" oninput="ygPostLogOnInput()"
+    style="flex:1;padding:20px 24px;border:none;resize:none;font-size:13px;line-height:1.7;font-family:inherit;outline:none;background:#f5f6f8;"
+    placeholder="投稿（公開・下書き保存）すると、テンプレート＋台データがここに書き出されます。自由に編集できます"></textarea>
 </div>
 
 <script>
@@ -2610,19 +2629,13 @@ async function gbSubmitPost(status = 'draft') {
       }).catch(() => {});
     }
 
-    // 投稿ログへの書き出し：公開・下書き保存のたびに、ここまで積み上げた画像＋台データをまとめて記録する
-    // （こちらもRailway本番へ直接送り、投稿元の端末によらず1箇所に集約する）
-    if (postLogGroups.length) {
-      fetch(`${HALL_ANALYTICS_BASE}/api/yg-post-log`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, status, wpPostId: post.id, link: post.link, groups: postLogGroups }),
-      }).catch(() => {});
-      postLogGroups = [];
-    }
+    // 投稿ログ（まとめ欄）への書き出し：公開・下書き保存のたびに、ここまで積み上げた台データをテキストで書き出す
+    ygAddPostLogEntry(postLogGroups);
+    postLogGroups = [];
 
     localStorage.removeItem(DRAFT_KEY);
     const label = status === 'draft' ? '下書き保存' : '公開';
-    gbShowStatus('success', `✓ ${label}しました！ <a href="${post.link}" target="_blank" style="color:inherit;font-weight:bold">記事を確認</a>　<a href="${HALL_ANALYTICS_BASE}/yg-post-log" target="_blank" style="color:inherit;font-weight:bold">投稿ログを見る</a>`);
+    gbShowStatus('success', `✓ ${label}しました！ <a href="${post.link}" target="_blank" style="color:inherit;font-weight:bold">記事を確認</a>`);
     document.getElementById('gbSaveIndicator').textContent = status === 'draft' ? '下書き保存済み' : '公開済み';
     // 公開時のみ、ホール分析DB用の積み上げをリセット（次の記事作成に備える）
     if (status !== 'draft') hallAnalyticsGroups = [];
@@ -2735,14 +2748,17 @@ function ygSwitchMainTab(tab) {
   const editorView    = document.getElementById('ygEditorView');
   const generatorView = document.getElementById('ygGeneratorView');
   const libraryView   = document.getElementById('ygLibraryView');
+  const postLogView   = document.getElementById('ygPostLogView');
   const editorBtn     = document.getElementById('ygTab-editor');
   const generatorBtn  = document.getElementById('ygTab-generator');
   const libraryBtn    = document.getElementById('ygTab-library');
+  const postLogBtn    = document.getElementById('ygTab-postlog');
 
   editorView.style.display    = 'none';
   generatorView.style.display = 'none';
   libraryView.style.display   = 'none';
-  [editorBtn, generatorBtn, libraryBtn].forEach(b => {
+  postLogView.style.display   = 'none';
+  [editorBtn, generatorBtn, libraryBtn, postLogBtn].forEach(b => {
     if (b) { b.style.background = 'none'; b.style.color = '#aaa'; b.style.borderColor = 'rgba(255,255,255,0.2)'; }
   });
 
@@ -2752,6 +2768,12 @@ function ygSwitchMainTab(tab) {
     libraryBtn.style.color = '#fff';
     libraryBtn.style.borderColor = 'rgba(255,255,255,0.3)';
     renderEventLibList();
+  } else if (tab === 'postlog') {
+    postLogView.style.display = 'flex';
+    postLogBtn.style.background = 'rgba(255,255,255,0.15)';
+    postLogBtn.style.color = '#fff';
+    postLogBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+    ygRenderPostLog();
   } else if (tab === 'editor') {
     editorView.style.display = 'flex';
     editorBtn.style.background = 'rgba(255,255,255,0.15)';
@@ -3146,16 +3168,97 @@ function setUnit(unit) {
 }
 let selectedOrder = []; // 台番の配列（選択順）
 let hallAnalyticsGroups = []; // ホール分析DB用：画像をエディターに挿入するたびに、その台番号を1グループとして積み上げる
-let postLogGroups = []; // 投稿ログ用：画像をエディターに挿入するたびに、その画像＋台データを1グループとして積み上げる（投稿時に書き出してリセット）
+let postLogGroups = []; // 投稿ログ（まとめ欄）用：台データを1グループとして積み上げる（投稿時に書き出してリセット）
 // 台番号の配列（例：selectedOrderやimageQueueの各itemのmachineNums）から、allMachines由来の詳細データを持つグループを記録する
-// imageDataUrl（"data:image/png;base64,..."）を渡すと、投稿ログにその画像も一緒に記録する
-function recordHallAnalyticsGroup(unitNums, imageDataUrl) {
+function recordHallAnalyticsGroup(unitNums) {
   if (!unitNums || !unitNums.length) return;
   const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
   const group = unitNums.map(num => machineMap[num]).filter(Boolean);
   if (group.length) hallAnalyticsGroups.push(group);
-  if (group.length) postLogGroups.push({ image: imageDataUrl || null, machines: group });
+  if (group.length) postLogGroups.push(group);
 }
+
+// ===== 投稿ログ（まとめ欄） =====
+// 自由に編集できる1本のテキストとしてlocalStorageに保存する（ポスト作成2のまとめ欄とは異なり、
+// テンプレート見出し＋台データを1つの文書として積み上げていくため）
+let ygPostLogText = localStorage.getItem('ygPostLogText') || '';
+function ygSavePostLog() {
+  try { localStorage.setItem('ygPostLogText', ygPostLogText); } catch {}
+}
+function ygRenderPostLog() {
+  const area = document.getElementById('ygPostLogArea');
+  if (area && area.value !== ygPostLogText) area.value = ygPostLogText;
+}
+// テキストエリアを直接編集した内容をそのまま保存する（自動書き出しと手動編集を両立させるため）
+function ygPostLogOnInput() {
+  const area = document.getElementById('ygPostLogArea');
+  if (!area) return;
+  ygPostLogText = area.value;
+  ygSavePostLog();
+}
+function ygCopyPostLog() {
+  if (!ygPostLogText) return;
+  navigator.clipboard.writeText(ygPostLogText).catch(() => {});
+}
+function ygClearPostLog() {
+  if (!ygPostLogText) return;
+  if (!confirm('投稿ログをクリアしますか？')) return;
+  ygPostLogText = '';
+  ygSavePostLog();
+  ygRenderPostLog();
+}
+// 画像生成タブの日付・店舗名入力欄（#postDate・#postStore）＋見出し行入力欄から、テンプレート見出しを組み立てる
+function ygBuildPostLogTemplate() {
+  const dateEl  = document.getElementById('postDate');
+  const storeEl = document.getElementById('postStore');
+  const headlineEl = document.getElementById('ygPostLogHeadline');
+  const date  = dateEl  ? dateEl.value.trim()  : '';
+  const store = storeEl ? storeEl.value.trim() : '';
+  const headline = headlineEl ? headlineEl.value.trim() : '';
+  const lines = [];
+  if (date) lines.push(date);
+  if (store) lines.push(`「${store}」結果`);
+  if (lines.length) lines.push('');
+  if (headline) { lines.push(headline); lines.push(''); }
+  lines.push('❤️‍🔥全台系❤️‍🔥', '', '🌀3台以上並び🌀', '', '⚡ニブイチ機種⚡');
+  return lines.join('\n');
+}
+// テンプレート見出しを先頭に挿入する（🏷ボタン用。既存の本文はそのまま下に残す）
+function ygInsertTemplate() {
+  const template = ygBuildPostLogTemplate();
+  ygPostLogText = ygPostLogText.trim() ? template + '\n\n\n' + ygPostLogText : template;
+  ygSavePostLog();
+  ygRenderPostLog();
+}
+// postLogGroups（recordHallAnalyticsGroupで積み上げた台データ）から、グループ（画像1枚分）ごとに
+// 「📌機種名(台数)／➡勝ち台数/台数プラス（or マイナス）📈平均±差枚」の形式でテキストを作り、末尾に追加する
+// まだ何も書き出されていなければ、先にテンプレート見出しを自動で挿入する
+function ygAddPostLogEntry(groups) {
+  if (!groups || !groups.length) return;
+  const fmtN = n => (n >= 0 ? '+' : '') + n.toLocaleString();
+  const blocks = groups.map(group => {
+    const count = group.length;
+    const diffs = group.map(m => (Number(m.差) || 0) * diffMult);
+    const wins = diffs.filter(d => d > 0).length;
+    const total = diffs.reduce((a, b) => a + b, 0);
+    const avg = Math.round(total / count);
+    const isPlus = avg >= 0;
+    const first = group[0], last = group[group.length - 1];
+    const firstName = first.表示名 || first.機種名;
+    const lastName = last.表示名 || last.機種名;
+    const nameLabel = firstName === lastName ? firstName : (firstName + '-' + lastName);
+    return `📌${nameLabel}(${count}台)\n➡${wins}台/${count}台${isPlus ? 'プラス' : 'マイナス'}${isPlus ? '📈' : '📉'}平均${fmtN(avg)}${currentUnit}`;
+  });
+  const blockText = blocks.join('\n\n');
+  if (!ygPostLogText.trim()) {
+    ygPostLogText = ygBuildPostLogTemplate() + '\n\n' + blockText;
+  } else {
+    ygPostLogText = ygPostLogText + '\n\n' + blockText;
+  }
+  ygSavePostLog();
+  ygRenderPostLog();
+}
+ygRenderPostLog();
 const cardImages = [null, null, null, null];
 let sortKey = '台番';
 let sortAsc = true;
@@ -5872,7 +5975,7 @@ function sendCanvasToWP() {
   gbRender();
 
   // ホール分析DB用・投稿ログ用：この瞬間に選択されている台を1グループとして記録に積み上げる
-  recordHallAnalyticsGroup(selectedOrder, b.src);
+  recordHallAnalyticsGroup(selectedOrder);
 
   const sendBtn = document.getElementById('sendToWpBtn');
   const orig = sendBtn.textContent;
@@ -6106,7 +6209,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
-        recordHallAnalyticsGroup(item.machineNums, item.dataUrl);
+        recordHallAnalyticsGroup(item.machineNums);
       });
       gbRender();
       // WP投稿タブに切り替え
@@ -6206,7 +6309,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
-        recordHallAnalyticsGroup(item.machineNums, item.dataUrl);
+        recordHallAnalyticsGroup(item.machineNums);
       });
       gbRender();
       ygSwitchMainTab('editor');
