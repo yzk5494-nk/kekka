@@ -2610,9 +2610,19 @@ async function gbSubmitPost(status = 'draft') {
       }).catch(() => {});
     }
 
+    // 投稿ログへの書き出し：公開・下書き保存のたびに、ここまで積み上げた画像＋台データをまとめて記録する
+    // （こちらもRailway本番へ直接送り、投稿元の端末によらず1箇所に集約する）
+    if (postLogGroups.length) {
+      fetch(`${HALL_ANALYTICS_BASE}/api/yg-post-log`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, status, wpPostId: post.id, link: post.link, groups: postLogGroups }),
+      }).catch(() => {});
+      postLogGroups = [];
+    }
+
     localStorage.removeItem(DRAFT_KEY);
     const label = status === 'draft' ? '下書き保存' : '公開';
-    gbShowStatus('success', `✓ ${label}しました！ <a href="${post.link}" target="_blank" style="color:inherit;font-weight:bold">記事を確認</a>`);
+    gbShowStatus('success', `✓ ${label}しました！ <a href="${post.link}" target="_blank" style="color:inherit;font-weight:bold">記事を確認</a>　<a href="${HALL_ANALYTICS_BASE}/yg-post-log" target="_blank" style="color:inherit;font-weight:bold">投稿ログを見る</a>`);
     document.getElementById('gbSaveIndicator').textContent = status === 'draft' ? '下書き保存済み' : '公開済み';
     // 公開時のみ、ホール分析DB用の積み上げをリセット（次の記事作成に備える）
     if (status !== 'draft') hallAnalyticsGroups = [];
@@ -3136,12 +3146,15 @@ function setUnit(unit) {
 }
 let selectedOrder = []; // 台番の配列（選択順）
 let hallAnalyticsGroups = []; // ホール分析DB用：画像をエディターに挿入するたびに、その台番号を1グループとして積み上げる
+let postLogGroups = []; // 投稿ログ用：画像をエディターに挿入するたびに、その画像＋台データを1グループとして積み上げる（投稿時に書き出してリセット）
 // 台番号の配列（例：selectedOrderやimageQueueの各itemのmachineNums）から、allMachines由来の詳細データを持つグループを記録する
-function recordHallAnalyticsGroup(unitNums) {
+// imageDataUrl（"data:image/png;base64,..."）を渡すと、投稿ログにその画像も一緒に記録する
+function recordHallAnalyticsGroup(unitNums, imageDataUrl) {
   if (!unitNums || !unitNums.length) return;
   const machineMap = Object.fromEntries(allMachines.map(m => [m.台番, m]));
   const group = unitNums.map(num => machineMap[num]).filter(Boolean);
   if (group.length) hallAnalyticsGroups.push(group);
+  if (group.length) postLogGroups.push({ image: imageDataUrl || null, machines: group });
 }
 const cardImages = [null, null, null, null];
 let sortKey = '台番';
@@ -5858,8 +5871,8 @@ function sendCanvasToWP() {
   b.src = 'data:image/png;base64,' + base64;
   gbRender();
 
-  // ホール分析DB用：この瞬間に選択されている台を1グループとして記録に積み上げる
-  recordHallAnalyticsGroup(selectedOrder);
+  // ホール分析DB用・投稿ログ用：この瞬間に選択されている台を1グループとして記録に積み上げる
+  recordHallAnalyticsGroup(selectedOrder, b.src);
 
   const sendBtn = document.getElementById('sendToWpBtn');
   const orig = sendBtn.textContent;
@@ -6093,7 +6106,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
-        recordHallAnalyticsGroup(item.machineNums);
+        recordHallAnalyticsGroup(item.machineNums, item.dataUrl);
       });
       gbRender();
       // WP投稿タブに切り替え
@@ -6193,7 +6206,7 @@ function sendAllQueueToWP() {
         b.base64 = base64;
         b.filename = (item.label || '画像') + '.png';
         b.src = item.dataUrl;
-        recordHallAnalyticsGroup(item.machineNums);
+        recordHallAnalyticsGroup(item.machineNums, item.dataUrl);
       });
       gbRender();
       ygSwitchMainTab('editor');

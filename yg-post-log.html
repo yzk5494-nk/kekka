@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投稿ログ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Yu Gothic", "Meiryo", sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+  header {
+    background: #1e2a3a; color: white;
+    padding: 10px 18px; font-size: 15px; font-weight: bold;
+    display: flex; align-items: center; gap: 12px;
+  }
+  header a { color: #aaa; font-size: 12px; text-decoration: none; margin-left: auto; }
+  header a:hover { color: white; }
+
+  .container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+
+  .entry {
+    background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    padding: 16px 18px; margin-bottom: 20px;
+  }
+  .entry-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .entry-title { font-size: 15px; font-weight: bold; color: #1e2a3a; }
+  .entry-meta { font-size: 12px; color: #888; }
+  .entry-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+  .entry-status.publish { background: #e3f3e6; color: #2c7a3d; }
+  .entry-status.draft { background: #f0f0f0; color: #888; }
+  .entry-link { font-size: 12px; color: #3858e9; text-decoration: none; margin-left: auto; }
+  .entry-link:hover { text-decoration: underline; }
+
+  .group { display: flex; gap: 14px; padding: 10px 0; border-top: 1px solid #eee; }
+  .group:first-of-type { border-top: none; }
+  .group img { width: 160px; height: auto; border-radius: 6px; border: 1px solid #ddd; flex-shrink: 0; cursor: zoom-in; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 5px 8px; text-align: right; border-bottom: 1px solid #f0f0f0; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: #888; font-weight: normal; }
+  .diff-pos { color: #d4342c; font-weight: bold; }
+  .diff-neg { color: #2a6fc9; }
+
+  .empty { color: #999; font-size: 13px; padding: 60px 0; text-align: center; }
+
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none;
+    align-items: center; justify-content: center; z-index: 999; cursor: zoom-out;
+  }
+  .lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+  投稿ログ
+  <a href="/yg-poster">戻る</a>
+</header>
+
+<div class="container" id="list">
+  <div class="empty">読み込み中…</div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="this.style.display='none'">
+  <img id="lightboxImg" src="">
+</div>
+
+<script>
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmtDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso || ''; }
+}
+
+function renderMachineTable(machines) {
+  if (!machines || !machines.length) return '';
+  const hasGames = machines.some(m => m.G数 != null);
+  const rows = machines.map(m => {
+    const diff = Number(m.差) || 0;
+    const diffClass = diff > 0 ? 'diff-pos' : diff < 0 ? 'diff-neg' : '';
+    const diffText = (diff > 0 ? '+' : '') + diff;
+    const extra = hasGames ? `<td>${m.G数 ?? ''}</td><td>${m.BB ?? ''}</td><td>${m.RB ?? ''}</td>` : '';
+    return `<tr><td>${m.台番}</td><td>${escHtml(m.表示名 || m.機種名)}</td><td class="${diffClass}">${diffText}</td>${extra}</tr>`;
+  }).join('');
+  const extraHead = hasGames ? '<th>G数</th><th>BB</th><th>RB</th>' : '';
+  return `<table><thead><tr><th>台番</th><th>機種名</th><th>差枚</th>${extraHead}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderEntry(entry) {
+  const groupsHtml = (entry.groups || []).map(g => `
+    <div class="group">
+      ${g.image ? `<img src="${g.image}" onclick="showLightbox('${g.image}')">` : ''}
+      <div style="flex:1;overflow-x:auto">${renderMachineTable(g.machines)}</div>
+    </div>
+  `).join('');
+
+  const statusClass = entry.status === 'publish' ? 'publish' : 'draft';
+  const statusLabel = entry.status === 'publish' ? '公開' : '下書き';
+
+  return `
+    <div class="entry">
+      <div class="entry-head">
+        <span class="entry-title">${escHtml(entry.title || '(無題)')}</span>
+        <span class="entry-status ${statusClass}">${statusLabel}</span>
+        <span class="entry-meta">${fmtDate(entry.createdAt)}</span>
+        ${entry.link ? `<a class="entry-link" href="${entry.link}" target="_blank">記事を見る →</a>` : ''}
+      </div>
+      ${groupsHtml || '<div class="empty" style="padding:10px 0">台データなし</div>'}
+    </div>
+  `;
+}
+
+function showLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+
+async function load() {
+  const list = document.getElementById('list');
+  try {
+    const res = await fetch('/api/yg-post-log');
+    const entries = await res.json();
+    if (!Array.isArray(entries) || !entries.length) {
+      list.innerHTML = '<div class="empty">まだ投稿ログがありません</div>';
+      return;
+    }
+    list.innerHTML = entries.map(renderEntry).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="empty">読み込みに失敗しました</div>';
+  }
+}
+load();
+</script>
+</body>
+</html>

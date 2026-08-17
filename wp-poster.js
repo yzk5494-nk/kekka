@@ -415,6 +415,12 @@ const server = http.createServer(async (req, res) => {
       return res.end(html);
     }
 
+    if (req.method === 'GET' && parsed.pathname === '/yg-post-log') {
+      const html = fs.readFileSync(path.join(__dirname, 'yg-post-log.html'), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
     if (req.method === 'GET' && parsed.pathname === '/article-generator') {
       const html = fs.readFileSync(path.join(__dirname, 'article-generator.html'), 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -778,6 +784,42 @@ const server = http.createServer(async (req, res) => {
       const libPath = path.join(DATA_DIR, 'featured-data', 'library.json');
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
       fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
+      return sendJson(200, { ok: true });
+    }
+
+    // ── yg-poster.html：投稿ログ（公開・下書き保存のたびに、その回の画像＋台データをまとめて書き出す） ──
+    if (req.method === 'GET' && parsed.pathname === '/api/yg-post-log') {
+      const libPath = path.join(DATA_DIR, 'yg-post-log', 'library.json');
+      if (fs.existsSync(libPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        return res.end(fs.readFileSync(libPath, 'utf8'));
+      }
+      return sendJson(200, []);
+    }
+    if (req.method === 'POST' && parsed.pathname === '/api/yg-post-log') {
+      const buf = await collectBody(req);
+      const body = JSON.parse(buf.toString('utf8'));
+      const groups = Array.isArray(body.groups) ? body.groups : [];
+      for (const g of groups) {
+        if (g && typeof g.image === 'string') g.image = persistImageValue('yg-post-log', g.image);
+      }
+      const entry = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        createdAt: new Date().toISOString(),
+        title: body.title || '',
+        status: body.status || '',
+        wpPostId: body.wpPostId || null,
+        link: body.link || null,
+        groups,
+      };
+      const libPath = path.join(DATA_DIR, 'yg-post-log', 'library.json');
+      let list = [];
+      if (fs.existsSync(libPath)) {
+        try { list = JSON.parse(fs.readFileSync(libPath, 'utf8')); } catch { list = []; }
+      }
+      list.unshift(entry);
+      fs.mkdirSync(path.dirname(libPath), { recursive: true });
+      fs.writeFileSync(libPath, JSON.stringify(list), 'utf8');
       return sendJson(200, { ok: true });
     }
 
