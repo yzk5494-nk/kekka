@@ -1548,9 +1548,18 @@ const SERIES_CONFIG = {
     capLabel: '取材対象機種設置台数',
     capColor: '#b8860b', capBg: '#fffaf0', capHeaderColor: '#b8860b',
     defaultMachines: [],
-    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, isFirstTime }) {
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, isFirstTime, pref, city, hall }) {
+      // 挨拶(b1・b2)は複数パターンをランダムに出し分ける。b1・b2はセットで対応させること
+      const greetings = [
+        { b1: '皆さん、こんにちわ‼️', b2: `今回は【天下無双】の取材で${pref}${city}にある${hall}にやって参りました～💨` },
+        { b1: '皆さん、こんにちはっ🌟', b2: `今回、私は【天下無双】の取材で${pref}${city}にある${hall}へとやって参りました💨💨💨` },
+      ];
+      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
       return {
-        b3:  '各地の猛者ホールが名乗りを上げる取材企画【天下無双】🔥⚔',
+        b1:  greeting.b1,
+        b2:  greeting.b2,
+        // b3はAI文章生成で上書きされる（wp-poster.jsのb3Section参照）ため、ここはAI未実行時の簡易プレースホルダー
+        b3:  '【天下無双】',
         b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
         b5:  '今回も全国各地で天下無双参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆',
         b8:  cnt ? `同店の取材対象は${cnt}機種合計${total}台‼️` : '',
@@ -1724,11 +1733,11 @@ function getTemplateTexts() {
   const maxDiff = allMachineData.length ? Math.max(...allMachineData.map(m => m.差)) : 0;
   const achieved10000 = maxDiff >= 10000;
 
-  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime, plusCount, achieved10000 });
+  const seriesTexts = SERIES_CONFIG[currentSeries].getSeriesTexts({ cnt, total, t1n, t1num, t1d, adj1, t2n, t2d, adj2, isFirstTime, plusCount, achieved10000, pref, city, hall });
 
   return {
-    b1:  `皆さんこんにちわっ😊必勝本編集部・新人編集のマモルです❗️`,
-    b2:  `今回は${pref}・${city}にある【${hall}】へとやってきましたーっ💨`,
+    b1:  seriesTexts.b1 || `皆さんこんにちわっ😊必勝本編集部・新人編集のマモルです❗️`,
+    b2:  seriesTexts.b2 || `今回は${pref}・${city}にある【${hall}】へとやってきましたーっ💨`,
     b3:  seriesTexts.b3,
     b4:  seriesTexts.b4,
     b5:  seriesTexts.b5,
@@ -2240,9 +2249,9 @@ function generate() {
     balloonMaybe(bHtml('b4')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
     balloonMaybe(bHtml('b5')),
+    lineupBoxMaybe(),
     balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
-    lineupBoxMaybe(),
     currentSeries === 'tenkamusou' ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
     balloonMaybe(bHtml('b8')),
     ...((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
@@ -2366,9 +2375,9 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${bl(bHtmlPrev('b3'), 'b3')}
     ${bl(bHtmlPrev('b4'), 'b4')}
     ${bl(bHtmlPrev('b5'), 'b5')}
+    ${lineupPrevHtml()}
     ${bl(bHtmlPrev('b6'), 'b6')}
     ${bl(bHtmlPrev('b7'), 'b7')}
-    ${lineupPrevHtml()}
     ${currentSeries === 'tenkamusou' ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
