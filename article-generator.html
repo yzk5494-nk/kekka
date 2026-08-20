@@ -1539,7 +1539,7 @@ const SERIES_CONFIG = {
     showLineupBox: true,
     sheetKeyword: '天下無双',
     machineEmoji: '👑',
-    rankingTitle: '機種別差枚ランキング',
+    rankingTitle: '店内差枚数ランキング',
     headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/samy-headerjpg.jpg',
     capLabel: '取材対象機種設置台数',
     capColor: '#b8860b', capBg: '#fffaf0', capHeaderColor: '#b8860b',
@@ -2214,6 +2214,8 @@ function generate() {
         if (tenkamusouOtherImage?.wpId && tenkamusouOtherImage?.wpUrl) {
           blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', wpImage(tenkamusouOtherImage.wpId, tenkamusouOtherImage.wpUrl)));
         }
+        // 最後に店内全体の差枚数ランキング画像（機種を問わない全体ランキング）を追加
+        blocks.push(wpImage(rankImgId, rankImgUrl));
         return blocks;
       }
     }
@@ -2434,7 +2436,7 @@ function wpParagraph(content) {
 }
 // SWELLテーマの折りたたみ（アコーディオン）ブロック。天下無双「その他の機種ランキング」用
 function accordionBlock(title, innerHtml) {
-  return `<!-- wp:loos/accordion -->\n<div class="swell-block-accordion"><details class="swell-block-accordion__item" data-swl-acc="wrapper"><summary class="swell-block-accordion__title" data-swl-acc="header"><span class="swell-block-accordion__label">${title}</span><span class="swell-block-accordion__icon c-switchIconBtn" data-swl-acc="icon" aria-hidden="true" data-opened="false"><i class="__icon--closed icon-caret-down"></i><i class="__icon--opened icon-caret-up"></i></span></summary><div class="swell-block-accordion__body" data-swl-acc="body">${innerHtml}</div></details></div>\n<!-- /wp:loos/accordion -->`;
+  return `<!-- wp:loos/accordion -->\n<div class="swell-block-accordion"><!-- wp:loos/accordion-item -->\n<details class="swell-block-accordion__item" data-swl-acc="wrapper"><summary class="swell-block-accordion__title" data-swl-acc="header"><span class="swell-block-accordion__label">${title}</span><span class="swell-block-accordion__icon c-switchIconBtn" data-swl-acc="icon" aria-hidden="true" data-opened="false"><i class="__icon--closed icon-caret-down"></i><i class="__icon--opened icon-caret-up"></i></span></summary><div class="swell-block-accordion__body" data-swl-acc="body">${innerHtml}</div></details>\n<!-- /wp:loos/accordion-item --></div>\n<!-- /wp:loos/accordion -->`;
 }
 
 // ============================================================
@@ -2749,6 +2751,12 @@ async function submitWpPost() {
 // ============================================================
 function copyCode() {
   generate(); // コピー直前に必ず最新の内容で作り直す（天下無双の一括生成画像など、反映漏れを防ぐ）
+  if (currentSeries === 'tenkamusou') {
+    const rid = document.getElementById('input-rank-img-id')?.value;
+    if (!rid || rid === 'RANKING_IMG_ID') {
+      showToast('⚠️ 店内差枚数ランキング画像が未生成です（先に「ランキング画像を生成」を押してください）');
+    }
+  }
   const code = document.getElementById('code-output').textContent;
   if (!code || code.startsWith('←')) return;
   navigator.clipboard.writeText(code).then(() => {
