@@ -2212,7 +2212,7 @@ function generate() {
       if (uploaded.length) {
         const blocks = uploaded.map(item => wpImage(item.wpId, item.wpUrl));
         if (tenkamusouOtherImage?.wpId && tenkamusouOtherImage?.wpUrl) {
-          blocks.push(wpImage(tenkamusouOtherImage.wpId, tenkamusouOtherImage.wpUrl));
+          blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', wpImage(tenkamusouOtherImage.wpId, tenkamusouOtherImage.wpUrl)));
         }
         return blocks;
       }
@@ -2431,6 +2431,10 @@ function capBlock(title, content) {
 }
 function wpParagraph(content) {
   return `<!-- wp:paragraph -->\n<p>${content}</p>\n<!-- /wp:paragraph -->`;
+}
+// SWELLテーマの折りたたみ（アコーディオン）ブロック。天下無双「その他の機種ランキング」用
+function accordionBlock(title, innerHtml) {
+  return `<!-- wp:loos/accordion -->\n<div class="swell-block-accordion"><details class="swell-block-accordion__item" data-swl-acc="wrapper"><summary class="swell-block-accordion__title" data-swl-acc="header"><span class="swell-block-accordion__label">${title}</span><span class="swell-block-accordion__icon c-switchIconBtn" data-swl-acc="icon" aria-hidden="true" data-opened="false"><i class="__icon--closed icon-caret-down"></i><i class="__icon--opened icon-caret-up"></i></span></summary><div class="swell-block-accordion__body" data-swl-acc="body">${innerHtml}</div></details></div>\n<!-- /wp:loos/accordion -->`;
 }
 
 // ============================================================
@@ -3896,6 +3900,7 @@ async function generateTenkamusouMachineRankings() {
     groups.get(name).push(m);
   });
   const ranked = [...groups.entries()]
+    .filter(([, units]) => units.length >= 3)
     .map(([name, units]) => ({ name, units, avg: units.reduce((s, u) => s + u.差, 0) / units.length }))
     .sort((a, b) => b.avg - a.avg)
     .slice(0, topN);
