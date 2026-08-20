@@ -905,6 +905,11 @@
           <input type="number" id="tenkamusou-top-count" value="5" min="1" max="20" style="width:52px">
           <label style="font-size:12px;color:#444;">機種ぶん生成（平均差枚数が高い順・0枚以下の台はカード内で非表示）</label>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#444;margin-bottom:8px;">
+          <input type="checkbox" id="tenkamusou-manual-mode" onchange="toggleTenkamusouManualMode()">
+          手動で機種を選択する（設置3台以上の機種のみ表示）
+        </label>
+        <div id="tenkamusou-manual-list" style="display:none;max-height:180px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
         <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成（WPへ自動アップロード）</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
         <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
@@ -3054,6 +3059,7 @@ function finishMachinesLoad(machines, sourceLabel) {
 
   machines.sort((a, b) => b.差 - a.差);
   allMachineData = machines;
+  if (document.getElementById('tenkamusou-manual-mode')?.checked) refreshTenkamusouManualList();
   renderDataTable(machines);
   document.getElementById('data-total-label').textContent = `全${machines.length}台`;
 
@@ -3892,7 +3898,47 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   return canvas.toDataURL('image/png');
 }
 
-// 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出→機種ごとに1枚ずつ画像を生成し、その場でWPにアップロード
+// 手動選択モードの切り替え。ONなら上位N入力を無効化しチェックリストを表示・再構築する
+function toggleTenkamusouManualMode() {
+  const manual = document.getElementById('tenkamusou-manual-mode')?.checked;
+  const topCountEl = document.getElementById('tenkamusou-top-count');
+  const listEl = document.getElementById('tenkamusou-manual-list');
+  if (topCountEl) topCountEl.disabled = !!manual;
+  if (listEl) listEl.style.display = manual ? '' : 'none';
+  if (manual) refreshTenkamusouManualList();
+}
+
+// 手動選択チェックリストを現在の読み込みデータから再構築（設置3台以上の機種のみ、平均差枚数の高い順）。
+// 既にチェック済みの機種名は再構築後も維持する
+function refreshTenkamusouManualList() {
+  const listEl = document.getElementById('tenkamusou-manual-list');
+  if (!listEl) return;
+  const prevChecked = new Set([...listEl.querySelectorAll('input[type=checkbox]:checked')].map(el => el.value));
+
+  const groups = new Map();
+  allMachineData.forEach(m => {
+    const name = displayName(m.機種名);
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(m);
+  });
+  const entries = [...groups.entries()]
+    .filter(([, units]) => units.length >= 3)
+    .map(([name, units]) => ({ name, count: units.length, avg: Math.round(units.reduce((s, u) => s + u.差, 0) / units.length) }))
+    .sort((a, b) => b.avg - a.avg);
+
+  if (!entries.length) {
+    listEl.innerHTML = '<div style="font-size:11px;color:#999;">対象機種がありません（設置3台以上の機種なし）</div>';
+    return;
+  }
+  listEl.innerHTML = entries.map(e => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;">
+      <input type="checkbox" value="${e.name.replace(/"/g, '&quot;')}" ${prevChecked.has(e.name) ? 'checked' : ''}>
+      <span style="flex:1;">${e.name}</span>
+      <span style="color:#999;">${e.count}台・平均${e.avg >= 0 ? '+' : ''}${e.avg}枚</span>
+    </label>`).join('');
+}
+
+// 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出（または手動選択された機種）→機種ごとに1枚ずつ画像を生成し、その場でWPにアップロード
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
@@ -3912,13 +3958,18 @@ async function generateTenkamusouMachineRankings() {
     if (!groups.has(name)) groups.set(name, []);
     groups.get(name).push(m);
   });
-  const ranked = [...groups.entries()]
+  const isManual = document.getElementById('tenkamusou-manual-mode')?.checked;
+  const manualNames = isManual
+    ? new Set([...document.querySelectorAll('#tenkamusou-manual-list input[type=checkbox]:checked')].map(el => el.value))
+    : null;
+
+  let ranked = [...groups.entries()]
     .filter(([, units]) => units.length >= 3)
     .map(([name, units]) => ({ name, units, avg: units.reduce((s, u) => s + u.差, 0) / units.length }))
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, topN);
+    .sort((a, b) => b.avg - a.avg);
+  ranked = isManual ? ranked.filter(g => manualNames.has(g.name)) : ranked.slice(0, topN);
 
-  if (!ranked.length) { showToast('対象データがありません'); return; }
+  if (!ranked.length) { showToast(isManual ? '機種にチェックを入れてください' : '対象データがありません'); return; }
 
   tenkamusouRankImages = [];
   // メインの選出結果が変わるので、古い「その他の機種ランキング」は無効化する
