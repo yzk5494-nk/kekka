@@ -2211,8 +2211,10 @@ function generate() {
       const uploaded = tenkamusouRankImages.filter(item => item.wpId && item.wpUrl);
       if (uploaded.length) {
         const blocks = uploaded.map(item => wpImage(item.wpId, item.wpUrl));
-        if (tenkamusouOtherImage?.wpId && tenkamusouOtherImage?.wpUrl) {
-          blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', wpImage(tenkamusouOtherImage.wpId, tenkamusouOtherImage.wpUrl)));
+        const otherUploaded = tenkamusouOtherImages.filter(item => item.wpId && item.wpUrl);
+        if (otherUploaded.length) {
+          const otherHtml = otherUploaded.map(item => wpImage(item.wpId, item.wpUrl)).join('');
+          blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', otherHtml));
         }
         // 最後に店内全体の差枚数ランキング画像（機種を問わない全体ランキング）を追加
         blocks.push(wpImage(rankImgId, rankImgUrl));
@@ -2311,7 +2313,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
   function rankImagesPrevHtml(singleUrl) {
     if (currentSeries === 'tenkamusou' && tenkamusouRankImages.length) {
       const imgs = tenkamusouRankImages.map(item => item.wpUrl || item.dataUrl);
-      if (tenkamusouOtherImage) imgs.push(tenkamusouOtherImage.wpUrl || tenkamusouOtherImage.dataUrl);
+      tenkamusouOtherImages.forEach(item => imgs.push(item.wpUrl || item.dataUrl));
       return imgs.map(src => `<img src="${src}" class="prev-img">`).join('\n    ');
     }
     return imgPrev(singleUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url');
@@ -2852,9 +2854,10 @@ let generatedRankDataUrl = null;
 // { name, dataUrl, wpId, wpUrl }[]
 let tenkamusouRankImages = [];
 
-// 天下無双：「その他の機種ランキング」（メインで使わなかった残り全機種を1枚にまとめた画像）
-// { dataUrl, wpId, wpUrl } | null
-let tenkamusouOtherImage = null;
+// 天下無双：「その他の機種ランキング」（メインで使わなかった残り全機種をまとめた画像。縦に長くなりすぎると
+// WordPressの自動リサイズ閾値(高さ2560px)で画像全体が縮小され読みづらくなるため複数枚に分割することがある）
+// { dataUrl, wpId, wpUrl }[]
+let tenkamusouOtherImages = [];
 
 async function initRankImgSlots() {
   // サーバーに保存済みのrank1〜rank10を確認してスロット生成
@@ -3027,7 +3030,7 @@ function finishMachinesLoad(machines, sourceLabel) {
   if (batchPreviewEl) batchPreviewEl.innerHTML = '';
   const batchStatusEl = document.getElementById('tenkamusou-batch-status');
   if (batchStatusEl) batchStatusEl.textContent = '';
-  tenkamusouOtherImage = null;
+  tenkamusouOtherImages = [];
   const otherPreviewEl = document.getElementById('tenkamusou-other-preview');
   if (otherPreviewEl) otherPreviewEl.innerHTML = '';
   const otherStatusEl = document.getElementById('tenkamusou-other-status');
@@ -3917,7 +3920,7 @@ async function generateTenkamusouMachineRankings() {
 
   tenkamusouRankImages = [];
   // メインの選出結果が変わるので、古い「その他の機種ランキング」は無効化する
-  tenkamusouOtherImage = null;
+  tenkamusouOtherImages = [];
   const otherPreviewEl = document.getElementById('tenkamusou-other-preview');
   if (otherPreviewEl) otherPreviewEl.innerHTML = '';
   const otherStatusEl = document.getElementById('tenkamusou-other-status');
@@ -3975,8 +3978,10 @@ async function generateTenkamusouMachineRankings() {
   initPreview();
 }
 
-// 「その他の機種ランキング」：メインのカードに使わなかった残り全機種を1枚の縦長画像にまとめて描画する
+// 「その他の機種ランキング」：メインのカードに使わなかった残り全機種を描画する
 // hisshobon-hall.infoの実記事にある同名セクション（紫ヘッダー・ランク/台番/機種名/ゲーム数/差枚数の5列）を踏襲
+// 1枚に収めると縦に長くなりすぎ、WordPressの自動リサイズ閾値(高さ2560px)で画像全体（横幅も）が縮小され
+// 読みづらくなるため、一定の高さを超える場合はグループ単位で複数枚に分割して返す（dataURLの配列）
 async function renderOtherMachinesImage(groups, unit) {
   const SCALE       = 2;
   const W           = 730;
@@ -3987,6 +3992,8 @@ async function renderOtherMachinesImage(groups, unit) {
   const GROUP_GAP   = 14;
   const PURPLE      = '#6f3fc4';
   const font        = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  // WP自動リサイズ閾値(物理2560px = SCALE2で論理1280px)に対して十分な余裕を持たせた1ページあたりの最大高さ
+  const MAX_PAGE_H  = 1100;
 
   const COLS = {
     rank: { x: 0,   w: 90  },
@@ -3998,55 +4005,73 @@ async function renderOtherMachinesImage(groups, unit) {
   const cx = key => COLS[key].x + COLS[key].w / 2;
 
   const groupH = g => THEAD_H + g.units.length * ROW_H;
-  const H = groups.reduce((s, g) => s + groupH(g) + GROUP_GAP, 0) - GROUP_GAP + OUTER_PAD * 2;
 
-  const canvas = document.createElement('canvas');
-  canvas.width  = TOTAL_W * SCALE;
-  canvas.height = H * SCALE;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(SCALE, SCALE);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, TOTAL_W, H);
+  // グループを割らずに、ページ高さがMAX_PAGE_Hを超えないよう複数ページに分割
+  const pages = [];
+  let page = [];
+  let pageH = OUTER_PAD * 2;
+  groups.forEach(g => {
+    const h = groupH(g) + GROUP_GAP;
+    if (page.length && pageH + h > MAX_PAGE_H) {
+      pages.push(page);
+      page = [];
+      pageH = OUTER_PAD * 2;
+    }
+    page.push(g);
+    pageH += h;
+  });
+  if (page.length) pages.push(page);
 
-  function fitText(text, maxW) {
+  function fitText(ctx, text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
     while (text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
     return text + '…';
   }
 
-  let y = OUTER_PAD;
-  ctx.translate(OUTER_PAD, 0);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  groups.forEach(g => {
-    // ヘッダー行（紫の帯・連続背景）
-    ctx.fillStyle = PURPLE;
-    ctx.fillRect(0, y, W, THEAD_H);
+  return pages.map(pageGroups => {
+    const H = pageGroups.reduce((s, g) => s + groupH(g) + GROUP_GAP, 0) - GROUP_GAP + OUTER_PAD * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width  = TOTAL_W * SCALE;
+    canvas.height = H * SCALE;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 13px ${font}`;
-    [['rank','ランク'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]].forEach(([k, label]) => {
-      ctx.fillText(label, cx(k), y + THEAD_H / 2);
-    });
-    y += THEAD_H;
+    ctx.fillRect(0, 0, TOTAL_W, H);
 
-    g.units.forEach((m, i) => {
-      const ry = y + i * ROW_H;
-      ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#f5f3fb';
-      ctx.fillRect(0, ry, W, ROW_H);
+    let y = OUTER_PAD;
+    ctx.translate(OUTER_PAD, 0);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-      ctx.fillStyle = '#222222';
-      ctx.font = `bold 14px ${font}`;
-      ctx.fillText(`${i + 1}位`, cx('rank'), ry + ROW_H / 2);
-      ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
-      ctx.fillText(fitText(displayName(m.機種名), COLS['名'].w - 12), cx('名'), ry + ROW_H / 2);
-      ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
-      ctx.fillText(`+${m.差.toLocaleString()}${unit}`, cx('差'), ry + ROW_H / 2);
+    pageGroups.forEach(g => {
+      // ヘッダー行（紫の帯・連続背景）
+      ctx.fillStyle = PURPLE;
+      ctx.fillRect(0, y, W, THEAD_H);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold 13px ${font}`;
+      [['rank','ランク'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]].forEach(([k, label]) => {
+        ctx.fillText(label, cx(k), y + THEAD_H / 2);
+      });
+      y += THEAD_H;
+
+      g.units.forEach((m, i) => {
+        const ry = y + i * ROW_H;
+        ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#f5f3fb';
+        ctx.fillRect(0, ry, W, ROW_H);
+
+        ctx.fillStyle = '#222222';
+        ctx.font = `bold 14px ${font}`;
+        ctx.fillText(`${i + 1}位`, cx('rank'), ry + ROW_H / 2);
+        ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
+        ctx.fillText(fitText(ctx, displayName(m.機種名), COLS['名'].w - 12), cx('名'), ry + ROW_H / 2);
+        ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
+        ctx.fillText(`+${m.差.toLocaleString()}${unit}`, cx('差'), ry + ROW_H / 2);
+      });
+      y += g.units.length * ROW_H + GROUP_GAP;
     });
-    y += g.units.length * ROW_H + GROUP_GAP;
+
+    return canvas.toDataURL('image/png');
   });
-
-  return canvas.toDataURL('image/png');
 }
 
 // 全読み込みデータのうち、メインの機種別カードに使わなかった残り全機種を「その他の機種ランキング」として1枚生成し、WPへアップロード
@@ -4066,47 +4091,53 @@ async function generateTenkamusouOtherMachines() {
     groups.get(name).push(m);
   });
   const otherGroups = [...groups.entries()]
+    .filter(([, units]) => units.length >= 3)
     .map(([name, units]) => ({ name, units: units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差) }))
     .filter(g => g.units.length);
 
   if (!otherGroups.length) { showToast('その他の対象機種がありません'); return; }
 
   if (statusEl) statusEl.textContent = '生成中…';
-  const dataUrl = await renderOtherMachinesImage(otherGroups, unit);
-  tenkamusouOtherImage = { dataUrl, wpId: null, wpUrl: null };
+  const dataUrls = await renderOtherMachinesImage(otherGroups, unit);
+  tenkamusouOtherImages = dataUrls.map(dataUrl => ({ dataUrl, wpId: null, wpUrl: null }));
 
-  if (statusEl) statusEl.textContent = 'アップロード中…';
-  try {
-    const base64 = dataUrl.split(',')[1];
-    const hall = v('f-hall') || 'ranking';
-    const filename = `tenkamusou_${hall}_other.png`.replace(/[^\w.\-]/g, '_');
-    const res = await fetch('/api/upload-hb-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename, data: base64 }),
-    });
-    const data = await res.json();
-    if (data.id && data.source_url) {
-      tenkamusouOtherImage.wpId = data.id;
-      tenkamusouOtherImage.wpUrl = data.source_url;
-    } else {
-      showToast(`アップロード失敗: ${data.message || data.code || ''}`);
-      console.error('[tenkamusou other upload error]', data);
+  const hall = v('f-hall') || 'ranking';
+  let uploadFailCount = 0;
+  for (let i = 0; i < tenkamusouOtherImages.length; i++) {
+    const item = tenkamusouOtherImages[i];
+    if (statusEl) statusEl.textContent = `アップロード中… (${i + 1}/${tenkamusouOtherImages.length})`;
+    try {
+      const base64 = item.dataUrl.split(',')[1];
+      const filename = `tenkamusou_${hall}_other_${i + 1}.png`.replace(/[^\w.\-]/g, '_');
+      const res = await fetch('/api/upload-hb-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, data: base64 }),
+      });
+      const data = await res.json();
+      if (data.id && data.source_url) {
+        item.wpId = data.id;
+        item.wpUrl = data.source_url;
+      } else {
+        uploadFailCount++;
+        console.error('[tenkamusou other upload error]', data);
+      }
+    } catch (err) {
+      uploadFailCount++;
+      console.error('[tenkamusou other upload exception]', err);
     }
-  } catch (err) {
-    showToast(`アップロードエラー: ${err.message}`);
-    console.error('[tenkamusou other upload exception]', err);
   }
+  if (uploadFailCount) showToast(`アップロード失敗: ${uploadFailCount}枚`);
 
   const previewEl = document.getElementById('tenkamusou-other-preview');
   if (previewEl) {
-    previewEl.innerHTML = `
-      <a href="${tenkamusouOtherImage.wpUrl || dataUrl}" target="_blank" style="display:block;width:120px;text-decoration:none;color:#333;">
-        <img src="${dataUrl}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">
-        <div style="font-size:10px;text-align:center;margin-top:2px;">その他の機種（${otherGroups.length}機種）${tenkamusouOtherImage.wpUrl ? '' : '（未アップロード）'}</div>
-      </a>`;
+    previewEl.innerHTML = tenkamusouOtherImages.map((item, i) => `
+      <a href="${item.wpUrl || item.dataUrl}" target="_blank" style="display:inline-block;width:120px;text-decoration:none;color:#333;margin-right:6px;">
+        <img src="${item.dataUrl}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">
+        <div style="font-size:10px;text-align:center;margin-top:2px;">その他${tenkamusouOtherImages.length > 1 ? `（${i + 1}/${tenkamusouOtherImages.length}）` : ''}${item.wpUrl ? '' : '（未アップロード）'}</div>
+      </a>`).join('');
   }
-  if (statusEl) statusEl.textContent = tenkamusouOtherImage.wpUrl ? `✓ ${otherGroups.length}機種ぶん生成・アップロードしました` : '✓ 生成しました（アップロード失敗）';
+  if (statusEl) statusEl.textContent = uploadFailCount === 0 ? `✓ ${otherGroups.length}機種ぶん（画像${tenkamusouOtherImages.length}枚）生成・アップロードしました` : '✓ 生成しました（一部アップロード失敗）';
   showToast('その他の機種ランキング画像を生成しました');
 
   initPreview();
