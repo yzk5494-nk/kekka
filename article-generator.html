@@ -2314,6 +2314,8 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     if (currentSeries === 'tenkamusou' && tenkamusouRankImages.length) {
       const imgs = tenkamusouRankImages.map(item => item.wpUrl || item.dataUrl);
       tenkamusouOtherImages.forEach(item => imgs.push(item.wpUrl || item.dataUrl));
+      // 最後に店内全体の差枚数ランキング画像（rankImageBlocks()と揃える）
+      if (singleUrl) imgs.push(singleUrl);
       return imgs.map(src => `<img src="${src}" class="prev-img">`).join('\n    ');
     }
     return imgPrev(singleUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url');
