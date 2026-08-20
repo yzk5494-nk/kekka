@@ -1837,7 +1837,7 @@ async function generateWithAI() {
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
 
     // AI生成された吹き出しをプレビューに反映（東京喰種はb5と内容が被るためb6は生成しない）
-    const keys = (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
+    const keys = currentSeries === 'tokyoghoul'
       ? ['b3','b5','b9','b13','b14','b15']
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
@@ -1847,7 +1847,7 @@ async function generateWithAI() {
       const el = document.querySelector(`[data-key="${key}"]`);
       if (el) el.innerHTML = data[key].replace(/\n/g, '<br>');
     });
-    if ((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')) {
+    if (currentSeries === 'tokyoghoul') {
       const b6El = document.querySelector('[data-key="b6"]');
       if (b6El) b6El.innerHTML = '';
     }
@@ -3145,6 +3145,11 @@ function loadDataFile(event) {
   lastLoadedFile = file;
   const btn = document.getElementById('reload-data-btn');
   if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  // CSVはカンマ区切りが規格なので、選択時に自動でカンマ区切りに切り替える
+  if (file.name.toLowerCase().endsWith('.csv')) {
+    const sepEl = document.getElementById('col-sep');
+    if (sepEl) sepEl.value = 'comma';
+  }
   processDataFile(file);
 }
 
