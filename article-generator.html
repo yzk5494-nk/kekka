@@ -1562,7 +1562,10 @@ const SERIES_CONFIG = {
         b3:  '【天下無双】',
         b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
         b5:  '今回も全国各地で天下無双参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆',
-        b8:  cnt ? `同店の取材対象は${cnt}機種合計${total}台‼️` : '',
+        // b8はランキング画像一覧の途中（機種別カードとその他の機種ランキングの間）に表示位置を変更済み
+        b8:  ['その他の機種の差枚はコチラ❗️', 'その他の機種の差枚はコチラ🌟'][Math.floor(Math.random() * 2)],
+        // b9はランキング画像一覧の最後（店内差枚数ランキング画像の直前）に表示位置を変更済み
+        b9:  ['また、この日の店内差枚数ランキングがこちら❗️', 'そして、全体の差枚ランキングです🌟'][Math.floor(Math.random() * 2)],
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに天下無双の名にふさわしい結果ではないでしょうか🔥`,
         b14: isFirstTime
           ? '初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での天下無双次回開催もかなり期待できそうです！'
@@ -1746,6 +1749,7 @@ function getTemplateTexts() {
       : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
       : currentSeries === 'hyakkaryoran' ? ['まずは設置機種を確認していきましょう🔍', 'まずは取材対象となるハナ系機種の設置台数をごらんください✋'][Math.floor(Math.random() * 2)]
       : currentSeries === 'ikkyunyukon' ? `それではまず、パチンコ設置台数の確認から📷`
+      : currentSeries === 'tenkamusou' ? `それでは早速【機種別差枚ランキング】をチェックしていきましょう🙆‍♀️`
       : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
@@ -1841,10 +1845,14 @@ async function generateWithAI() {
     const tier7000 = allMachineData.filter(m => m.差 >= 7000).length;
     const tier4000 = allMachineData.filter(m => m.差 >= 4000).length;
     const tier3000 = allMachineData.filter(m => m.差 >= 3000).length;
+    // 天下無双：並び人数（抽選＋一般）の合計をAIプロンプトへ送る（b6の総入場数コメント用）
+    const lineupTotal = SERIES_CONFIG[currentSeries]?.showLineupBox
+      ? (parseInt(v('input-lineup-lottery')) || 0) + (parseInt(v('input-lineup-general')) || 0)
+      : null;
     const res = await fetch('/api/generate-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, openCount, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff, adjMultiplier: SERIES_CONFIG[currentSeries]?.adjMultiplier || 1, bodyUnit: SERIES_CONFIG[currentSeries]?.bodyUnit || '枚' }),
+      body: JSON.stringify({ pref, city, hall, reporter, prev, t1n, t1num, t1d, t2n, t2num, t2d, t3n, t3num, t3d, machineList, total, main, second, cnt, rankInTop, gassoTop, pastArticles, openCount, firstTime: isFirstTime, eventName, plusCount, achieved10000, series: currentSeries, avgDiff, maxG, tier7000, tier4000, tier3000, over10000Count, over5000Count, rankInMinDiff, lineupTotal, adjMultiplier: SERIES_CONFIG[currentSeries]?.adjMultiplier || 1, bodyUnit: SERIES_CONFIG[currentSeries]?.bodyUnit || '枚' }),
     });
     const data = await res.json();
     if (!res.ok) { showToast('❌ ' + (data.error || 'AI生成エラー')); return; }
@@ -1854,6 +1862,8 @@ async function generateWithAI() {
       ? ['b3','b5','b9','b13','b14','b15']
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
+      : currentSeries === 'tenkamusou'
+      ? ['b3','b5','b6','b13','b14','b15']
       : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
       if (!data[key]) return;
@@ -2226,10 +2236,13 @@ function generate() {
         const blocks = uploaded.map(item => wpImage(item.wpId, item.wpUrl));
         const otherUploaded = tenkamusouOtherImages.filter(item => item.wpId && item.wpUrl);
         if (otherUploaded.length) {
+          // 機種別カードとその他の機種ランキングの間にb8（案内文）を挟む
+          blocks.push(balloonMaybe(bHtml('b8')));
           const otherHtml = otherUploaded.map(item => wpImage(item.wpId, item.wpUrl)).join('');
           blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', otherHtml));
         }
-        // 最後に店内全体の差枚数ランキング画像（機種を問わない全体ランキング）を追加
+        // 最後に店内全体の差枚数ランキング画像（機種を問わない全体ランキング）を、b9（案内文）を挟んで追加
+        blocks.push(balloonMaybe(bHtml('b9')));
         blocks.push(wpImage(rankImgId, rankImgUrl));
         return blocks;
       }
@@ -2253,9 +2266,11 @@ function generate() {
     balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
     currentSeries === 'tenkamusou' ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
-    balloonMaybe(bHtml('b8')),
+    currentSeries === 'tenkamusou' ? '' : balloonMaybe(bHtml('b8')),
     ...((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks(), balloonMaybe(bHtml('b9'))]
+      : currentSeries === 'tenkamusou'
+      ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks()]
       : [balloonMaybe(bHtml('b9')), balloonMaybe(bHtml('b10')), ...rankImageBlocks()]),
     balloonMaybe(bHtml('b11')),
     balloonMaybe(bHtml('b12')),
@@ -2325,11 +2340,16 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
   // 未生成ならこれまで通り単一のランキング画像スロットを表示する。
   function rankImagesPrevHtml(singleUrl) {
     if (currentSeries === 'tenkamusou' && tenkamusouRankImages.length) {
-      const imgs = tenkamusouRankImages.map(item => item.wpUrl || item.dataUrl);
-      tenkamusouOtherImages.forEach(item => imgs.push(item.wpUrl || item.dataUrl));
-      // 最後に店内全体の差枚数ランキング画像（rankImageBlocks()と揃える）
-      if (singleUrl) imgs.push(singleUrl);
-      return imgs.map(src => `<img src="${src}" class="prev-img">`).join('\n    ');
+      const mainImgsHtml = tenkamusouRankImages.map(item => `<img src="${item.wpUrl || item.dataUrl}" class="prev-img">`).join('\n    ');
+      let otherHtml = '';
+      if (tenkamusouOtherImages.length) {
+        // 機種別カードとその他の機種ランキングの間にb8（案内文）を挟む（rankImageBlocks()と揃える）
+        const otherImgsHtml = tenkamusouOtherImages.map(item => `<img src="${item.wpUrl || item.dataUrl}" class="prev-img">`).join('\n    ');
+        otherHtml = `\n    ${bl(bHtmlPrev('b8'), 'b8')}\n    ${otherImgsHtml}`;
+      }
+      // 最後に店内全体の差枚数ランキング画像を、b9（案内文）を挟んで追加（rankImageBlocks()と揃える）
+      const finalImgHtml = singleUrl ? `\n    ${bl(bHtmlPrev('b9'), 'b9')}\n    <img src="${singleUrl}" class="prev-img">` : '';
+      return `${mainImgsHtml}${otherHtml}${finalImgHtml}`;
     }
     return imgPrev(singleUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url');
   }
@@ -2382,9 +2402,11 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
     </div>`}
-    ${bl(bHtmlPrev('b8'), 'b8')}
+    ${currentSeries === 'tenkamusou' ? '' : bl(bHtmlPrev('b8'), 'b8')}
     ${(currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}\n    ${bl(bHtmlPrev('b9'), 'b9')}`
+      : currentSeries === 'tenkamusou'
+      ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`
       : `${bl(bHtmlPrev('b9'), 'b9')}\n    ${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`}
     ${bl(bHtmlPrev('b11'), 'b11')}
     ${bl(bHtmlPrev('b12'), 'b12')}
