@@ -1557,9 +1557,10 @@ const SERIES_CONFIG = {
       const greeting = greetings[Math.floor(Math.random() * greetings.length)];
       return {
         b1:  greeting.b1,
+        // b2はAI文章生成で上書きされる（wp-poster.jsのb2Section参照。挨拶＋初開催/恒例を統合）ため、ここはAI未実行時の簡易プレースホルダー
         b2:  greeting.b2,
-        // b3はAI文章生成で上書きされる（wp-poster.jsのb3Section参照）ため、ここはAI未実行時の簡易プレースホルダー
-        b3:  '【天下無双】',
+        // b3はb2に統合したため使わない
+        b3:  '',
         b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
         b5:  '今回も全国各地で天下無双参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆',
         // b8はランキング画像一覧の途中（機種別カードとその他の機種ランキングの間）に表示位置を変更済み
@@ -1863,7 +1864,7 @@ async function generateWithAI() {
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
       : currentSeries === 'tenkamusou'
-      ? ['b3','b5','b6','b13','b14','b15']
+      ? ['b2','b5','b6','b13','b14','b15']
       : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
       if (!data[key]) return;
@@ -1873,6 +1874,11 @@ async function generateWithAI() {
     if (currentSeries === 'tokyoghoul') {
       const b6El = document.querySelector('[data-key="b6"]');
       if (b6El) b6El.innerHTML = '';
+    }
+    if (currentSeries === 'tenkamusou') {
+      // b2に統合したのでb3は使わない（固定プレースホルダーが残らないようクリア）
+      const b3El = document.querySelector('[data-key="b3"]');
+      if (b3El) b3El.innerHTML = '';
     }
 
     // 生成結果をこの店舗の記憶として保存
@@ -2389,8 +2395,12 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
 
   const html = `<div class="prev-body">
     ${imgPrev(storeImgUrl, '店舗外観画像', 'store-img-id', 'store-img-url')}
-    ${bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
-    ${bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
+    ${currentSeries === 'tenkamusou'
+      ? bl(bHtmlPrev('b1'), 'b1')
+      : bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
+    ${currentSeries === 'tenkamusou'
+      ? bl(bHtmlPrev('b2'), 'b2')
+      : bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
     ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
     ${bl(bHtmlPrev('b3'), 'b3')}
     ${bl(bHtmlPrev('b4'), 'b4')}
