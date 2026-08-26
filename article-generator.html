@@ -991,6 +991,19 @@
       </div>
     </div>
 
+    <!-- 並び人数（天下無双など showLineupBox シリーズのみ表示） -->
+    <div id="lineup-section-header" class="basic-header" style="cursor:default;background:#3a6ea5;display:none;">
+      🚶 並び人数
+    </div>
+    <div id="lineup-section" style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;display:none;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;">
+        <input type="checkbox" id="input-lineup-enabled" checked oninput="initPreview()"> 本文に記載する
+      </label>
+      <div class="form-group"><label>抽選人数</label><input type="number" id="input-lineup-lottery" placeholder="例：84" oninput="initPreview()"></div>
+      <div class="form-group"><label>一般人数</label><input type="number" id="input-lineup-general" placeholder="例：24" oninput="initPreview()"></div>
+      <div class="form-group"><label>総台数</label><input type="number" id="input-lineup-units" placeholder="例：345" oninput="initPreview()"></div>
+    </div>
+
     <!-- 生成ボタン -->
     <div class="action-bar">
       <button class="gen-btn" onclick="generate()" style="display:none;">▶ コード＆プレビューを生成</button>
@@ -1616,6 +1629,12 @@ function onSeriesChange(val) {
     totalSection.style.display = (val === 'tenkamusou') ? 'none' : (cfg.freeformCap ? '' : 'none');
   }
 
+  // 並び人数セクションの表示切り替え（showLineupBox が true のシリーズのみ）
+  const lineupSectionHeader = document.getElementById('lineup-section-header');
+  const lineupSection = document.getElementById('lineup-section');
+  if (lineupSectionHeader) lineupSectionHeader.style.display = cfg.showLineupBox ? '' : 'none';
+  if (lineupSection) lineupSection.style.display = cfg.showLineupBox ? '' : 'none';
+
   // 天下無双専用：機種別平均差枚ランキング一括生成ボタンの表示切り替え
   const tenkamusouBatchRow = document.getElementById('tenkamusou-batch-row');
   if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = (val === 'tenkamusou') ? '' : 'none';
@@ -2004,14 +2023,7 @@ function buildBlockList() {
     } else if (def.type === 'lineup') {
       typeTag = '<span class="block-type-tag tag-cap">台数ボックス</span>';
       bodyHTML = `<div class="block-item-body">
-        <div class="img-block-body">
-          <label>抽選人数</label>
-          <input type="number" id="input-lineup-lottery" placeholder="例：84" oninput="initPreview()">
-          <label>一般人数</label>
-          <input type="number" id="input-lineup-general" placeholder="例：24" oninput="initPreview()">
-          <label>総台数</label>
-          <input type="number" id="input-lineup-units" placeholder="例：345" oninput="initPreview()">
-        </div>
+        <div style="font-size:11px;color:#888;padding:4px 0;">← 左パネルの「🚶 並び人数」で編集</div>
       </div>`;
     } else if (def.type === 'paragraph') {
       typeTag = '<span class="block-type-tag tag-para">段落</span>';
@@ -2362,19 +2374,27 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
 
   function lineupPrevHtml() {
     if (!SERIES_CONFIG[currentSeries].showLineupBox) return '';
+    const enabled = document.getElementById('input-lineup-enabled')?.checked ?? true;
     const lottery = v('input-lineup-lottery');
     const general = v('input-lineup-general');
     const units   = v('input-lineup-units');
+    if (!enabled) {
+      return `<div class="prev-cap-box" style="border-color:#333;">
+        <div class="prev-cap-title" style="background:#333;">並び人数（本文に記載しない設定）</div>
+        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルの「本文に記載する」をONにすると表示されます</div>
+      </div>`;
+    }
     if (!lottery && !general && !units) {
       return `<div class="prev-cap-box" style="border-color:#333;">
         <div class="prev-cap-title" style="background:#333;">並び人数（未入力）</div>
-        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルで入力すると本文に表示されます</div>
+        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルの「🚶 並び人数」で入力すると本文に表示されます</div>
       </div>`;
     }
     const total = (parseInt(lottery) || 0) + (parseInt(general) || 0);
+    const unitsSuffix = units ? `/${units}台` : '';
     return `<div class="prev-cap-box" style="border-color:#333;">
       <div class="prev-cap-title" style="background:#333;">並び人数</div>
-      <div class="prev-cap-content" style="background:#f5f5f5;"><strong>${total}名(抽選${lottery || 0}名、一般${general || 0}名)/${units || 0}台</strong></div>
+      <div class="prev-cap-content" style="background:#f5f5f5;"><strong>${total}名(抽選${lottery || 0}名、一般${general || 0}名)${unitsSuffix}</strong></div>
     </div>`;
   }
 
@@ -2464,15 +2484,17 @@ function wpImage(id, url) {
 function wpImageMaybe(id, url) {
   return (id && url) ? wpImage(id, url) : '';
 }
-// 並び人数ボックス。3項目とも未入力なら何も出力しない
+// 並び人数ボックス。「本文に記載する」がOFF、または3項目とも未入力なら何も出力しない
 function lineupBoxMaybe() {
   if (!SERIES_CONFIG[currentSeries].showLineupBox) return '';
+  if (!(document.getElementById('input-lineup-enabled')?.checked ?? true)) return '';
   const lottery = v('input-lineup-lottery');
   const general = v('input-lineup-general');
   const units   = v('input-lineup-units');
   if (!lottery && !general && !units) return '';
   const total = (parseInt(lottery) || 0) + (parseInt(general) || 0);
-  return capBlock('並び人数', `${total}名(抽選${lottery || 0}名、一般${general || 0}名)/${units || 0}台`);
+  const unitsSuffix = units ? `/${units}台` : '';
+  return capBlock('並び人数', `${total}名(抽選${lottery || 0}名、一般${general || 0}名)${unitsSuffix}`);
 }
 function balloon(balloonID, content) {
   return `<!-- wp:loos/balloon {"balloonID":"${balloonID}"} -->\n<p>${content}</p>\n<!-- /wp:loos/balloon -->`;
