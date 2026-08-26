@@ -726,9 +726,13 @@
     <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
     <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')">🏪 店舗管理</button>
     <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')">🎰 機種管理</button>
+    <button class="page-nav-btn" id="nav-canonical" onclick="switchPage('canonical')">🏷 代表機種</button>
     <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()">🎫 パチンコ機種管理</button>
   </div>
 </header>
+
+<datalist id="machine-name-datalist"></datalist>
+<datalist id="registered-machine-datalist"></datalist>
 
 <div id="page-article" class="page-section">
 <div class="main">
@@ -1068,46 +1072,78 @@
   </div>
 </div>
 
-<!-- ===== 機種管理ページ ===== -->
+<!-- ===== 機種管理ページ（振り分け専用） ===== -->
 <div id="page-machines" class="page-section hidden">
   <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px 16px; background:#f0f2f5; overflow-y:auto;">
     <div class="modal" style="position:static; width:100%; max-width:860px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
       <div class="modal-header">
-        <h3>🎰 機種画像 ＆ 表示名登録 <span id="machines-page-series-label" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
+        <h3>🎰 機種の振り分け <span id="machines-page-series-label" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
       </div>
       <div style="padding:8px 14px; background:#fffbe6; font-size:11px; color:#886600; border-bottom:1px solid #eee; flex-shrink:0;">
-        ランキング生成時にRANK1の機種画像が自動でバナーに。表示名を設定すると機種名の表記ゆれを統一できます。
+        Excelの機種名を、🏷 代表機種タブで登録した「代表機種」に振り分けます。画像やサムネの登録は代表機種タブで行ってください。
       </div>
       <div style="padding:8px 14px 4px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; flex-shrink:0;">
-        <span style="font-size:11px; color:#555; font-weight:bold; flex:1;">機種一覧（クリックで編集）</span>
+        <span style="font-size:11px; color:#555; font-weight:bold; flex:1;">機種一覧</span>
         <button id="btn-delete-non-target" onclick="deleteNonTargetMachines()" style="padding:3px 10px;font-size:11px;border:1px solid #e07070;border-radius:4px;cursor:pointer;font-family:inherit;background:#fff5f5;color:#c0392b;">対象外機種を削除</button>
         <span id="machine-list-legend" style="font-size:10px; color:#aaa;">
-          <span style="color:#4a9a30;">■</span> 登録済み　<span style="color:#bbb;">■</span> 未登録
+          <span style="color:#4a9a30;">■</span> 振り分け済み　<span style="color:#bbb;">■</span> 未振り分け
         </span>
       </div>
-      <div class="machine-img-list" id="machine-img-list" style="display:block; max-height:55vh; overflow-y:auto;">
-        <div class="machine-img-empty">データを読み込むか、手動で登録してください</div>
+      <div class="machine-img-list" id="machine-img-list" style="display:block; max-height:65vh; overflow-y:auto;">
+        <div class="machine-img-empty">データを読み込むか、代表機種タブで登録してください</div>
       </div>
-      <datalist id="machine-name-datalist"></datalist>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 代表機種ページ ===== -->
+<div id="page-canonical" class="page-section hidden">
+  <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px 16px; background:#f0f2f5; overflow-y:auto;">
+    <div class="modal" style="position:static; width:100%; max-width:860px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+      <div class="modal-header">
+        <h3>🏷 代表機種 <span id="canonical-page-series-label" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
+      </div>
+      <div style="padding:8px 14px; background:#fffbe6; font-size:11px; color:#886600; border-bottom:1px solid #eee; flex-shrink:0;">
+        サムネ・締め画像・表示名・別名（表記ゆれ）をまとめて管理します。ランキング生成時にRANK1の代表機種画像が自動でバナーに使われます。
+      </div>
+      <div style="padding:8px 14px 4px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; flex-shrink:0;">
+        <span style="font-size:11px; color:#555; font-weight:bold; flex:1;">代表機種一覧（クリックで編集）</span>
+      </div>
+      <div class="machine-img-list" id="canonical-list" style="display:block; max-height:50vh; overflow-y:auto;">
+        <div class="machine-img-empty">まだ代表機種が登録されていません。下のフォームから登録してください</div>
+      </div>
       <div style="padding:10px 14px; border-top:1px solid #eee; background:#fafafa; flex-shrink:0;">
-        <div style="font-size:11px; color:#555; font-weight:bold; margin-bottom:6px;">✏️ 手動で登録</div>
+        <div style="font-size:11px; color:#555; font-weight:bold; margin-bottom:6px;">✏️ 代表機種を新規登録（サムネ・締め画像をまとめて登録）</div>
         <div style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap;">
           <div style="flex:1; min-width:180px;">
-            <div style="font-size:10px; color:#999; margin-bottom:2px;">機種名（データの表記）</div>
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">機種名（代表名。例：ヴヴヴ2）</div>
             <input id="new-machine-name" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:5px; font-size:12px; font-family:inherit;"
-              placeholder="例：ＳマイジャグラーⅤＫＤ" list="machine-name-datalist">
+              placeholder="例：ヴヴヴ2" list="machine-name-datalist">
           </div>
           <div style="flex:1; min-width:180px;">
-            <div style="font-size:10px; color:#999; margin-bottom:2px;">表示名（変換後・省略可）</div>
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">表示名（省略可・空なら代表名を使用）</div>
             <input id="new-machine-nickname" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:5px; font-size:12px; font-family:inherit;"
-              placeholder="例：マイジャグⅤ">
+              placeholder="例：ヴヴヴ2">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-top:8px;">
+          <div>
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">サムネ（バナー）画像</div>
+            <label class="machine-img-add-btn" style="cursor:pointer; text-align:center; display:inline-block;">
+              📁 選択
+              <input type="file" id="new-machine-banner-file" accept="image/*" style="display:none" onchange="onNewMachineBannerPick(event)">
+            </label>
+            <span id="new-machine-banner-label" style="font-size:11px;color:#4a9a30;margin-left:4px;"></span>
           </div>
           <div>
+            <div style="font-size:10px; color:#999; margin-bottom:2px;">締め用画像（複数選択可）</div>
             <label class="machine-img-add-btn" style="cursor:pointer; text-align:center; display:inline-block;">
-              📁 ローカルから選択
-              <input type="file" id="machine-page-file" accept="image/*" style="display:none" onchange="pickLocalMachineImg(event)">
+              📁 選択（複数可）
+              <input type="file" id="new-machine-end-files" accept="image/*" multiple style="display:none" onchange="onNewMachineEndPick(event)">
             </label>
+            <span id="new-machine-end-label" style="font-size:11px;color:#4a9a30;margin-left:4px;"></span>
           </div>
+          <button class="apply-btn" onclick="registerNewMachine()" style="padding:7px 14px;font-size:12px;">✔ この内容で登録</button>
         </div>
       </div>
     </div>
@@ -3339,9 +3375,22 @@ function processDataFile(file) {
   else reader.readAsArrayBuffer(file);
 }
 
-// 機種名→表示名変換（nicknameが登録されていれば優先）
+// 完全一致 → 別名(aliases)から逆引き、の順で登録情報（画像・表示名）を解決
+function resolveLibraryEntry(name) {
+  if (libraryImages[name]) return libraryImages[name];
+  for (const val of Object.values(libraryImages)) {
+    if (val.aliases?.includes(name)) return val;
+  }
+  return null;
+}
+
+// 機種名→表示名変換（nicknameが登録されていれば優先。別名(aliases)経由も解決）
+// 代表機種として登録済みなら、表示名(nickname)未設定でも代表名自体をフォールバックとして使う
 function displayName(name) {
-  if (libraryImages[name]?.nickname) return libraryImages[name].nickname;
+  if (libraryImages[name]) return libraryImages[name].nickname || name;
+  for (const [key, val] of Object.entries(libraryImages)) {
+    if (val.aliases?.includes(name)) return val.nickname || key;
+  }
   const cleaned = cleanName(name);
   if (libraryImages[cleaned]?.nickname) return libraryImages[cleaned].nickname;
   // ライブラリキーをcleanNameで正規化して逆引き
@@ -3404,8 +3453,8 @@ async function generateRankingImage() {
   // 2位が1位と同一機種の場合、バナーが重複しないよう1位と異なる機種が現れる順位まで繰り下げる
   const rank2Idx = machines.findIndex((m, i) => i > 0 && m.機種名 !== rank1Name);
   const rank2Name    = rank2Idx >= 0 ? machines[rank2Idx].機種名 : machines[1]?.機種名;
-  const autoBannerUrl = rank1Name && libraryImages[rank1Name]?.url;
-  const rank2BannerUrl = rank2Name && libraryImages[rank2Name]?.url;
+  const autoBannerUrl = rank1Name && resolveLibraryEntry(rank1Name)?.url;
+  const rank2BannerUrl = rank2Name && resolveLibraryEntry(rank2Name)?.url;
   const effectiveBanner = bannerDataUrl || autoBannerUrl || null;
   const isDualBanner = SERIES_CONFIG[currentSeries]?.dualBanner && !bannerDataUrl && autoBannerUrl && rank2BannerUrl;
   const BANNER_H = (isDualBanner || effectiveBanner) ? 320 : 0;
@@ -3695,7 +3744,7 @@ async function generateRankingImage() {
   if (machines[2]) { document.getElementById('f-top3-name').value = displayName(machines[2].機種名); document.getElementById('f-top3-num').value = machines[2].台番; document.getElementById('f-top3-diff').value = fmtDiff(machines[2].差); }
 
   // 締め用機種画像をRANK1機種の登録画像で自動設定（締め用複数あればランダム、なければバナー用を使用）
-  const rank1Info = rank1Name && libraryImages[rank1Name];
+  const rank1Info = rank1Name && resolveLibraryEntry(rank1Name);
   const endImgs = rank1Info?.endImages?.length ? rank1Info.endImages : (rank1Info?.url ? [rank1Info.url] : []);
   const rank1Img = endImgs.length ? endImgs[Math.floor(Math.random() * endImgs.length)] : null;
   if (rank1Img) {
@@ -3744,7 +3793,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   const W         = 730;
   const OUTER_PAD = 10;
   const TOTAL_W   = W + OUTER_PAD * 2;
-  const bannerUrl = libraryImages[rawName]?.url || libraryImages[title]?.url || null;
+  const bannerUrl = resolveLibraryEntry(rawName)?.url || resolveLibraryEntry(title)?.url || null;
   const BANNER_H  = bannerUrl ? 320 : 0;
   const THEAD_H   = 34;
   const ROW_H     = 40;
@@ -4579,7 +4628,7 @@ async function applyPrevTop1(hallName) {
 }
 
 function openMachineImgModal() {
-  switchPage('machines');
+  switchPage('canonical');
   document.getElementById('new-machine-name').value = '';
   document.getElementById('new-machine-nickname').value = '';
 }
@@ -4602,15 +4651,9 @@ function renderMachineFromData() {
   renderMachineImgList();
 }
 
-function chipPickMachine(name) {
-  document.getElementById('new-machine-name').value = name;
-  const reg = libraryImages[name];
-  document.getElementById('new-machine-nickname').value = reg?.nickname || '';
-  document.getElementById('machine-page-file').click();
-}
-
 let _machineListNames = [];
 
+// 機種一覧（振り分け専用）：Excelの機種名を代表機種に振り分ける
 function renderMachineImgList() {
   const list = document.getElementById('machine-img-list');
 
@@ -4624,60 +4667,86 @@ function renderMachineImgList() {
         return true;
       }))]
     : [];
-  // Excel以外の登録済み機種
+  // Excel以外の登録済み機種（代表機種として単独登録されているもの）
   const otherRegNames = Object.keys(libraryImages).filter(n => !excelNames.includes(n));
 
-  // 全機種：Excel機種を上 → それ以外の登録済みを下
   const allNames = [...excelNames, ...otherRegNames];
   _machineListNames = allNames;
 
+  // 別名(alias) → 代表名 の逆引きマップ
+  const aliasTargetOf = {};
+  for (const [key, val] of Object.entries(libraryImages)) {
+    (val.aliases || []).forEach(a => { aliasTargetOf[a] = key; });
+  }
+
+  // 振り分け先として選ぶための代表機種一覧（datalist）
+  const registeredDatalist = document.getElementById('registered-machine-datalist');
+  if (registeredDatalist) {
+    registeredDatalist.innerHTML = Object.keys(libraryImages).sort((a, b) => a.localeCompare(b, 'ja')).map(n => `<option value="${ea(n)}">`).join('');
+  }
+
   if (!allNames.length) {
-    list.innerHTML = '<div class="machine-img-empty">データを読み込むか、手動で登録してください</div>';
+    list.innerHTML = '<div class="machine-img-empty">データを読み込むか、代表機種タブで登録してください</div>';
     return;
   }
 
   list.innerHTML = allNames.map((name, idx) => {
-    const info = libraryImages[name];
-    const isReg = !!info;
-    const hasImg = !!(info?.url);
-    const imgEl = hasImg
-      ? `<img id="mimg-${idx}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;background:#eee;flex-shrink:0;">`
-      : `<div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>`;
-    const hasNick = !!(info?.nickname);
-    const badge = hasNick
-      ? `<span style="font-size:10px;background:#e8f5e2;color:#4a9a30;border-radius:3px;padding:1px 5px;margin-left:5px;">登録済</span>`
-      : `<span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未登録</span>`;
-    const nameLabel = name + (info?.nickname ? ` → <span style="color:#d4a827">${ea(info.nickname)}</span>` : '');
+    const aliasTarget = aliasTargetOf[name];
+    if (aliasTarget) {
+      return `
+      <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #e5eaf5;border-radius:7px;background:#f5f8ff;overflow:hidden;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;">
+          <div style="width:56px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8aa8e0;">🔗</div>
+          <div style="flex:1;overflow:hidden;min-width:0;">
+            <div style="font-size:13px;font-weight:bold;color:#333;">${ea(name)}
+              <span style="font-size:10px;background:#e8f5e2;color:#4a9a30;border-radius:3px;padding:1px 5px;margin-left:5px;">振り分け済み</span>
+            </div>
+            <div style="font-size:11px;color:#888;margin-top:2px;">→「${ea(aliasTarget)}」に振り分け済み</div>
+          </div>
+          <button onclick="unlinkMachineAlias('${ea(name)}')" style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:inherit;background:#fff;color:#888;flex-shrink:0;">解除</button>
+        </div>
+      </div>`;
+    }
+
+    if (libraryImages[name]) {
+      const info = libraryImages[name];
+      const hasImg = !!info.url;
+      const imgEl = hasImg
+        ? `<img id="mimg-${idx}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;background:#eee;flex-shrink:0;">`
+        : `<div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>`;
+      const nameLabel = name + (info.nickname ? ` → <span style="color:#d4a827">${ea(info.nickname)}</span>` : '');
+      return `
+      <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;">
+          ${imgEl}
+          <div style="flex:1;overflow:hidden;min-width:0;">
+            <div style="font-size:13px;font-weight:bold;color:#333;">${nameLabel}
+              <span style="font-size:10px;background:#e8f5e2;color:#4a9a30;border-radius:3px;padding:1px 5px;margin-left:5px;">代表機種</span>
+            </div>
+          </div>
+          <button onclick="switchPage('canonical')" style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:inherit;background:#fff;color:#888;flex-shrink:0;">代表機種タブで編集</button>
+        </div>
+      </div>`;
+    }
+
     return `
     <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
-      <div class="mitem-main" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;" onclick="toggleMachineEdit(${idx})">
-        ${imgEl}
-        <div style="flex:1;overflow:hidden;min-width:0;">
-          <div style="font-size:13px;font-weight:bold;color:#333;">${nameLabel}${badge}</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;flex-wrap:wrap;">
+        <div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>
+        <div style="flex:1;min-width:140px;">
+          <div style="font-size:13px;font-weight:bold;color:#333;">${ea(name)}
+            <span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未振り分け</span>
+          </div>
         </div>
-        <span style="font-size:10px;color:#bbb;flex-shrink:0;">▼</span>
-      </div>
-      <div class="mitem-edit" id="medit-${idx}">
-        <div class="mitem-edit-label">表示名（変換後の名前・省略可）</div>
-        <div class="mitem-edit-row">
-          <input class="mitem-nn-input" id="mnn-${idx}" value="${ea(info?.nickname || '')}" placeholder="例：マイジャグⅤ">
-          <label class="mitem-pick-btn">🖼 バナー用画像を${isReg && info?.url ? '変更' : '登録'}
-            <input type="file" accept="image/*" style="display:none" onchange="pickInlineMachineImg(event,${idx})">
-          </label>
-          <button class="mitem-save-btn" onclick="saveInlineMachineEdit(${idx})">✔ 保存</button>
-          ${isReg ? `<button class="machine-img-del" onclick="deleteMachineImg(_machineListNames[${idx}])">削除</button>` : ''}
-        </div>
-        <div class="mitem-section-label">🎰 締め用画像（複数登録→ランダム選択）</div>
-        <div class="end-img-strip" id="end-strip-${idx}">${renderEndStrip(info?.endImages || [], idx)}</div>
-        <label class="mitem-pick-btn" style="display:inline-block;">＋ 締め用画像を追加
-          <input type="file" accept="image/*" style="display:none" onchange="addEndImg(event,${idx})">
-        </label>
+        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" list="registered-machine-datalist" style="min-width:160px;">
+        <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})">振り分ける</button>
       </div>
     </div>`;
   }).join('');
 
   // base64画像はinnerHTMLに埋め込まず、後からsrcをセット
   allNames.forEach((name, idx) => {
+    if (aliasTargetOf[name]) return;
     const url = libraryImages[name]?.url;
     if (url) {
       const img = document.getElementById('mimg-' + idx);
@@ -4686,130 +4755,282 @@ function renderMachineImgList() {
   });
 }
 
+// 機種管理・代表機種の両ページを再描画（データ変更後はこれを呼ぶ）
+function refreshMachineViews() {
+  try { renderMachineImgList(); } catch(e) { console.error('renderMachineImgList error:', e); }
+  try { renderCanonicalList(); } catch(e) { console.error('renderCanonicalList error:', e); }
+}
+
+// 未振り分けの機種を既存の代表機種に振り分ける（画像の再登録不要）
+async function makeAliasOfExisting(idx) {
+  const name = _machineListNames[idx];
+  if (!name) return;
+  const input = document.getElementById(`alias-target-${idx}`);
+  const target = input.value.trim();
+  if (!target) return;
+  if (target === name) { showToast('自分自身は振り分け先にできません'); return; }
+  if (!libraryImages[target]) { showToast(`「${target}」はまだ代表機種として登録されていません`); return; }
+  if (!libraryImages[target].aliases) libraryImages[target].aliases = [];
+  if (!libraryImages[target].aliases.includes(name)) libraryImages[target].aliases.push(name);
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`「${name}」を「${target}」に振り分けました`);
+}
+
+// 振り分け設定を解除
+async function unlinkMachineAlias(name) {
+  for (const val of Object.values(libraryImages)) {
+    if (val.aliases) {
+      const i = val.aliases.indexOf(name);
+      if (i >= 0) { val.aliases.splice(i, 1); break; }
+    }
+  }
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`「${name}」の振り分けを解除しました`);
+}
+
+// ===== 代表機種ページ（画像・表示名・締め画像・別名をまとめて管理） =====
+let _canonicalListNames = [];
+
+function renderCanonicalList() {
+  const list = document.getElementById('canonical-list');
+  const names = Object.keys(libraryImages).sort((a, b) => a.localeCompare(b, 'ja'));
+  _canonicalListNames = names;
+
+  if (!names.length) {
+    list.innerHTML = '<div class="machine-img-empty">まだ代表機種が登録されていません。下のフォームから登録してください</div>';
+    return;
+  }
+
+  list.innerHTML = names.map((name, idx) => {
+    const info = libraryImages[name];
+    const hasImg = !!info?.url;
+    const imgEl = hasImg
+      ? `<img id="cimg-${idx}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;background:#eee;flex-shrink:0;">`
+      : `<div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>`;
+    const nameLabel = name + (info?.nickname ? ` → <span style="color:#d4a827">${ea(info.nickname)}</span>` : '');
+    const aliasCount = info?.aliases?.length || 0;
+    const aliasBadge = aliasCount
+      ? `<span style="font-size:10px;background:#e8f0ff;color:#3a6ea5;border-radius:3px;padding:1px 5px;margin-left:5px;">別名${aliasCount}件</span>`
+      : '';
+    return `
+    <div class="machine-img-item" id="citem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
+      <div class="mitem-main" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;" onclick="toggleCanonicalEdit(${idx})">
+        ${imgEl}
+        <div style="flex:1;overflow:hidden;min-width:0;">
+          <div style="font-size:13px;font-weight:bold;color:#333;">${nameLabel}${aliasBadge}</div>
+        </div>
+        <span style="font-size:10px;color:#bbb;flex-shrink:0;">▼</span>
+      </div>
+      <div class="mitem-edit" id="cedit-${idx}">
+        <div class="mitem-edit-label">表示名（省略可）</div>
+        <div class="mitem-edit-row">
+          <input class="mitem-nn-input" id="cnn-${idx}" value="${ea(info?.nickname || '')}" placeholder="例：マイジャグⅤ">
+          <label class="mitem-pick-btn">🖼 サムネ画像を${hasImg ? '変更' : '登録'}
+            <input type="file" accept="image/*" style="display:none" onchange="pickCanonicalBanner(event,${idx})">
+          </label>
+          <button class="mitem-save-btn" onclick="saveCanonicalEdit(${idx})">✔ 保存</button>
+          <button class="machine-img-del" onclick="deleteMachineImg(_canonicalListNames[${idx}])">削除</button>
+        </div>
+        <div class="mitem-section-label">🎰 締め用画像（複数登録→ランダム選択）</div>
+        <div class="end-img-strip" id="cend-strip-${idx}">${renderEndStrip(info?.endImages || [], idx)}</div>
+        <label class="mitem-pick-btn" style="display:inline-block;">＋ 締め用画像を追加
+          <input type="file" accept="image/*" style="display:none" onchange="addCanonicalEndImg(event,${idx})">
+        </label>
+        <div class="mitem-section-label">🔗 別名（表記ゆれ・画像を共有）</div>
+        <div id="calias-list-${idx}">${renderAliasChips(info?.aliases || [], idx)}</div>
+        <div class="mitem-edit-row">
+          <input class="mitem-nn-input" id="calias-input-${idx}" placeholder="例：ヴァルヴレイヴ2mt" list="machine-name-datalist">
+          <button class="mitem-save-btn" onclick="addCanonicalAlias(${idx})">＋ 別名を追加</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  names.forEach((name, idx) => {
+    const url = libraryImages[name]?.url;
+    if (url) {
+      const img = document.getElementById('cimg-' + idx);
+      if (img) img.src = url;
+    }
+  });
+}
+
+function toggleCanonicalEdit(idx) {
+  const item = document.getElementById(`citem-${idx}`);
+  if (!item) return;
+  item.classList.toggle('expanded');
+  if (item.classList.contains('expanded')) {
+    const input = document.getElementById(`cnn-${idx}`);
+    if (input) input.focus();
+  }
+}
+
+async function saveCanonicalEdit(idx) {
+  const name = _canonicalListNames[idx];
+  if (!name) return;
+  const nickname = document.getElementById(`cnn-${idx}`).value.trim() || null;
+  if (nickname) libraryImages[name].nickname = nickname;
+  else delete libraryImages[name].nickname;
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`「${name}」を更新しました`);
+}
+
+async function pickCanonicalBanner(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const name = _canonicalListNames[idx];
+  if (!name) return;
+  libraryImages[name].url = await fileToDataUrl(file);
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`「${name}」の画像を更新しました`);
+  event.target.value = '';
+}
+
 // 締め用サムネ列のHTML生成
 function renderEndStrip(endImages, idx) {
   if (!endImages || !endImages.length) return '<span style="font-size:11px;color:#bbb;">未登録</span>';
   return endImages.map((url, i) => `
     <div class="end-img-thumb">
       <img src="${url}" onerror="this.style.background='#ddd'">
-      <button class="del-x" onclick="event.stopPropagation();deleteEndImg(${idx},${i})">✕</button>
+      <button class="del-x" onclick="event.stopPropagation();deleteCanonicalEndImg(${idx},${i})">✕</button>
     </div>`).join('');
 }
 
 // 締め用画像を追加
-async function addEndImg(event, idx) {
+async function addCanonicalEndImg(event, idx) {
   const file = event.target.files[0];
   if (!file) return;
-  const name = _machineListNames[idx];
+  const name = _canonicalListNames[idx];
   if (!name) return;
-  const dataUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  if (!libraryImages[name]) libraryImages[name] = { id: null };
+  const dataUrl = await fileToDataUrl(file);
   if (!libraryImages[name].endImages) libraryImages[name].endImages = [];
   libraryImages[name].endImages.push(dataUrl);
   await saveMachineImages();
   // ストリップだけ更新（アイテムは閉じない）
-  const strip = document.getElementById(`end-strip-${idx}`);
+  const strip = document.getElementById(`cend-strip-${idx}`);
   if (strip) strip.innerHTML = renderEndStrip(libraryImages[name].endImages, idx);
   showToast(`「${name}」に締め用画像を追加しました（計${libraryImages[name].endImages.length}枚）`);
   event.target.value = '';
 }
 
 // 締め用画像を削除
-async function deleteEndImg(idx, imgIdx) {
-  const name = _machineListNames[idx];
+async function deleteCanonicalEndImg(idx, imgIdx) {
+  const name = _canonicalListNames[idx];
   if (!name || !libraryImages[name]?.endImages) return;
   libraryImages[name].endImages.splice(imgIdx, 1);
   await saveMachineImages();
   // ストリップだけ更新（アイテムは閉じない）
-  const strip = document.getElementById(`end-strip-${idx}`);
+  const strip = document.getElementById(`cend-strip-${idx}`);
   if (strip) strip.innerHTML = renderEndStrip(libraryImages[name].endImages, idx);
   showToast('締め用画像を削除しました');
 }
 
-function toggleMachineEdit(idx) {
-  const item = document.getElementById(`mitem-${idx}`);
-  if (!item) return;
-  item.classList.toggle('expanded');
-  const icon = item.querySelector('.mitem-toggle-icon');
-  if (icon) icon.textContent = item.classList.contains('expanded') ? '▲' : '▼';
-  if (item.classList.contains('expanded')) {
-    const input = document.getElementById(`mnn-${idx}`);
-    if (input) input.focus();
+// 別名チップのHTML生成
+function renderAliasChips(aliases, idx) {
+  if (!aliases || !aliases.length) return '<span style="font-size:11px;color:#bbb;">別名なし</span>';
+  return aliases.map((a, i) => `
+    <span class="alias-chip" style="display:inline-flex;align-items:center;gap:4px;background:#eef4ff;color:#2a5aa0;border-radius:12px;padding:2px 8px;margin:2px 4px 2px 0;font-size:11px;">
+      ${ea(a)}
+      <button onclick="event.stopPropagation();deleteCanonicalAlias(${idx},${i})" style="border:none;background:none;color:#2a5aa0;cursor:pointer;font-size:11px;padding:0;line-height:1;">✕</button>
+    </span>`).join('');
+}
+
+// 代表機種に別名を追加
+async function addCanonicalAlias(idx) {
+  const name = _canonicalListNames[idx];
+  if (!name) return;
+  const input = document.getElementById(`calias-input-${idx}`);
+  const alias = input.value.trim();
+  if (!alias) return;
+  if (alias === name) { showToast('代表名と同じ名前は別名にできません'); return; }
+  if (libraryImages[alias]) { showToast(`「${alias}」は既に別の機種として登録されています`); return; }
+  for (const [key, val] of Object.entries(libraryImages)) {
+    if (val.aliases?.includes(alias)) { showToast(`「${alias}」は既に「${key}」の別名として登録されています`); return; }
   }
-}
-
-async function saveInlineMachineEdit(idx) {
-  const name = _machineListNames[idx];
-  if (!name) return;
-  const nickname = document.getElementById(`mnn-${idx}`).value.trim() || null;
-  const existing = libraryImages[name] || {};
-  libraryImages[name] = { ...existing };
-  if (nickname) libraryImages[name].nickname = nickname;
-  else delete libraryImages[name].nickname;
+  if (!libraryImages[name].aliases) libraryImages[name].aliases = [];
+  libraryImages[name].aliases.push(alias);
   await saveMachineImages();
-  renderMachineImgList();
-  renderMachineFromData();
-  showToast(`「${name}」を更新しました`);
+  refreshMachineViews();
+  showToast(`「${alias}」を「${name}」の別名として登録しました`);
 }
 
-async function pickInlineMachineImg(event, idx) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const name = _machineListNames[idx];
-  if (!name) return;
-  const nickname = document.getElementById(`mnn-${idx}`)?.value.trim() || null;
-  const dataUrl = await new Promise((resolve, reject) => {
+// 代表機種の別名を削除
+async function deleteCanonicalAlias(idx, aliasIdx) {
+  const name = _canonicalListNames[idx];
+  if (!name || !libraryImages[name]?.aliases) return;
+  const removed = libraryImages[name].aliases.splice(aliasIdx, 1);
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`別名「${removed[0]}」を解除しました`);
+}
+
+// 代表機種の新規登録フォーム（サムネ・締め画像を選択時点ではまだ確定せず、保留してプレビューだけ更新）
+let pendingNewMachineBanner = null;
+let pendingNewMachineEndImgs = [];
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-  const existing = libraryImages[name] || {};
-  libraryImages[name] = { ...existing, url: dataUrl };
-  if (nickname) libraryImages[name].nickname = nickname;
-  else delete libraryImages[name].nickname;
-  await saveMachineImages();
-  renderMachineImgList();
-  renderMachineFromData();
-  showToast(`「${name}」の画像を更新しました`);
-  event.target.value = '';
 }
 
-async function pickLocalMachineImg(event) {
+async function onNewMachineBannerPick(event) {
   const file = event.target.files[0];
   if (!file) return;
+  pendingNewMachineBanner = await fileToDataUrl(file);
+  document.getElementById('new-machine-banner-label').textContent = `✓ ${file.name}`;
+}
+
+async function onNewMachineEndPick(event) {
+  const files = [...event.target.files];
+  if (!files.length) return;
+  pendingNewMachineEndImgs = await Promise.all(files.map(fileToDataUrl));
+  document.getElementById('new-machine-end-label').textContent = `✓ ${files.length}枚選択`;
+}
+
+// フォームの内容（機種名・表示名・サムネ・締め画像）をまとめて代表機種として登録
+async function registerNewMachine() {
   const name = document.getElementById('new-machine-name').value.trim();
-  if (!name) { showToast('先に機種名を入力してください'); event.target.value = ''; return; }
+  if (!name) { showToast('機種名（代表名）を入力してください'); return; }
+  if (!pendingNewMachineBanner && !pendingNewMachineEndImgs.length) {
+    showToast('サムネ画像か締め用画像を1枚以上選択してください'); return;
+  }
   const nickname = document.getElementById('new-machine-nickname').value.trim() || null;
-
-  const dataUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  libraryImages[name] = { id: null, url: dataUrl, ...(nickname ? { nickname } : {}) };
+  const existing = libraryImages[name] || {};
+  libraryImages[name] = {
+    ...existing,
+    ...(pendingNewMachineBanner ? { url: pendingNewMachineBanner } : {}),
+    ...(nickname ? { nickname } : {}),
+  };
+  if (pendingNewMachineEndImgs.length) {
+    libraryImages[name].endImages = [...(existing.endImages || []), ...pendingNewMachineEndImgs];
+  }
   await saveMachineImages();
-  renderMachineImgList();
-  renderMachineFromData();
-  showToast(`「${nickname || name}」を登録しました`);
+  refreshMachineViews();
+  showToast(`「${nickname || name}」を登録しました（締め画像${libraryImages[name].endImages?.length || 0}枚）`);
+
   document.getElementById('new-machine-name').value = '';
   document.getElementById('new-machine-nickname').value = '';
-  event.target.value = '';
+  document.getElementById('new-machine-banner-label').textContent = '';
+  document.getElementById('new-machine-end-label').textContent = '';
+  document.getElementById('new-machine-banner-file').value = '';
+  document.getElementById('new-machine-end-files').value = '';
+  pendingNewMachineBanner = null;
+  pendingNewMachineEndImgs = [];
 }
 
 async function deleteMachineImg(name) {
   if (!confirm(`「${name}」の画像登録を削除しますか？`)) return;
   delete libraryImages[name];
   await saveMachineImages();
-  renderMachineImgList();
-  renderMachineFromData();
+  refreshMachineViews();
   showToast(`「${name}」を削除しました`);
 }
 
@@ -4833,7 +5054,7 @@ async function deleteNonTargetMachines() {
   if (!confirm(`対象外の${targets.length}機種を削除しますか？\n${targets.join('\n')}`)) return;
   targets.forEach(k => delete libraryImages[k]);
   await saveLibrary();
-  renderMachineImgList();
+  refreshMachineViews();
   showToast(`${targets.length}機種を削除しました`);
 }
 
@@ -5053,7 +5274,7 @@ async function saveStores() {
 // ページ切り替え
 // ============================================================
 function switchPage(name) {
-  ['article', 'stores', 'machines'].forEach(p => {
+  ['article', 'stores', 'machines', 'canonical'].forEach(p => {
     const sec = document.getElementById('page-' + p);
     const btn = document.getElementById('nav-' + p);
     if (p === name) {
@@ -5070,6 +5291,11 @@ function switchPage(name) {
     if (label) label.textContent = `（${SERIES_CONFIG[currentSeries]?.name || ''}）`;
     try { renderMachineImgList(); } catch(e) { console.error('renderMachineImgList error:', e); }
     try { renderMachineFromData(); } catch(e) { console.error('renderMachineFromData error:', e); }
+  }
+  if (name === 'canonical') {
+    const label = document.getElementById('canonical-page-series-label');
+    if (label) label.textContent = `（${SERIES_CONFIG[currentSeries]?.name || ''}）`;
+    try { renderCanonicalList(); } catch(e) { console.error('renderCanonicalList error:', e); }
   }
 }
 
