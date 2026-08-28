@@ -4093,8 +4093,8 @@ async function generateTenkamusouMachineRankings() {
   let generated = 0;
   for (let i = 0; i < ranked.length; i++) {
     const group = ranked[i];
-    // カード内は差枚数が0以下の台を除外し、差枚数の高い順に並べる
-    const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差);
+    // カード内は差枚数が0以下の台を除外し、差枚数の高い順に並べる（TOP20まで）
+    const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差).slice(0, 20);
     if (!cardMachines.length) continue;
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
     const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit, cardMachines[0].機種名);

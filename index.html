@@ -1974,7 +1974,7 @@ function switchTab(name) {
     const postSec = document.getElementById('autoPickPostSection');
     if (postSec) postSec.style.display = (currentGenSlot >= 2 && currentGenSlot <= 3) ? 'block' : 'none';
 
-    // 画像生成静岡（スロット4）はP-PRO取得のみ、Excel/テキストアップロードは隠す
+    // 画像生成静岡（スロット4）：P-PRO取得に加えてExcel/テキストアップロードも利用可
     const isShizuoka = currentGenSlot === 4;
     const autoPickManualEl = document.getElementById('autoPickManualSection');
     if (autoPickManualEl) autoPickManualEl.style.display = isShizuoka ? 'block' : 'none';
@@ -1982,13 +1982,8 @@ function switchTab(name) {
     const colorOnlyWrapEl = document.getElementById('colorOnlyWrap');
     if (colorOnlyWrapEl) colorOnlyWrapEl.style.display = isShizuoka ? 'none' : 'block';
     if (isShizuoka && colorOnlyFilter) toggleColorOnly();
-    document.getElementById('modeExcelBtn').closest('div').style.display = isShizuoka ? 'none' : 'flex';
-    if (isShizuoka) {
-      document.getElementById('excelUploadSection').style.display = 'none';
-      document.getElementById('textUploadSection').style.display = 'none';
-    } else {
-      switchFileMode(lastFileMode);
-    }
+    document.getElementById('modeExcelBtn').closest('div').style.display = 'flex';
+    switchFileMode(lastFileMode);
     document.getElementById('pisionSection').style.display = isShizuoka ? 'block' : 'none';
     const pisionPostEl = document.getElementById('pisionPostSection');
     if (pisionPostEl) pisionPostEl.style.display = isShizuoka ? 'block' : 'none';
@@ -3034,9 +3029,9 @@ function showColMap(rawData, cols) {
   document.getElementById('map機種名').value = cols.機種名Col;
   document.getElementById('map差').value = cols.差Col;
 
-  // 画像生成②専用: G数/BB/RBセレクタ
+  // 画像生成②・YG・静岡専用: G数/BB/RBセレクタ
   const slot2Rows = document.getElementById('colMapSlot2Rows');
-  if ((currentGenSlot >= 2 && currentGenSlot <= 3)) {
+  if ((currentGenSlot >= 2 && currentGenSlot <= 4)) {
     slot2Rows.style.display = 'block';
     const noneOption = '<option value="-1">── なし ──</option>';
     ['mapG数','mapBB','mapRB'].forEach(id => {
@@ -3067,9 +3062,9 @@ function applyColMap() {
   const 差Col     = parseInt(document.getElementById('map差').value);
   const dataStart = parseInt(document.getElementById('mapDataRow').value);
 
-  const G数ColVal = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapG数').value) : -1;
-  const BBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapBB').value)  : -1;
-  const RBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 3) ? parseInt(document.getElementById('mapRB').value)  : -1;
+  const G数ColVal = (currentGenSlot >= 2 && currentGenSlot <= 4) ? parseInt(document.getElementById('mapG数').value) : -1;
+  const BBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 4) ? parseInt(document.getElementById('mapBB').value)  : -1;
+  const RBColVal  = (currentGenSlot >= 2 && currentGenSlot <= 4) ? parseInt(document.getElementById('mapRB').value)  : -1;
 
   // YGモード限定：ヘッダー行に同じ列名が2セット以上ある場合を検出
   const extraSets = [];
@@ -3144,7 +3139,7 @@ function applyColMap() {
   updatePreview();
   drawAllDataCanvas();
 
-  if ((currentGenSlot >= 2 && currentGenSlot <= 3) && allMachines.length) {
+  if ((currentGenSlot >= 2 && currentGenSlot <= 4) && allMachines.length) {
     setTimeout(() => autoPickTop(), 100);
   }
 }
