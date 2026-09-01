@@ -1760,6 +1760,8 @@ const BLOCK_DEFS = [
 ];
 
 function cityWithSuffix(c) { return !c || /[市区郡町村]$/.test(c) ? c : c + '市'; }
+// 都道府県の短縮表示。「北海道」は末尾が「道」だが省略すると「北海」になってしまうため除外
+function shortPref(p) { return (!p || p === '北海道') ? p : p.replace(/[都道府県]$/, ''); }
 
 // ============================================================
 // テンプレートテキスト取得
@@ -2574,7 +2576,7 @@ function openWpPostModal() {
       const now = new Date();
       return { mm: String(now.getMonth() + 1).padStart(2, '0'), dd: String(now.getDate()).padStart(2, '0') };
     })();
-    const prefShort = pref.replace(/[都道府県]$/, '');
+    const prefShort = shortPref(pref);
     titleEl.value = `${date.mm}/${date.dd}｜${SERIES_CONFIG[currentSeries].name}｜${hall}｜${prefShort}`;
   }
   document.getElementById('wp-post-result').style.display = 'none';
@@ -5158,7 +5160,7 @@ function renderStoreDropdown(query) {
   const btnArea = `<div style="position:sticky;top:0;z-index:10;background:#f5f5f5;padding:6px 8px;border-bottom:1px solid #ddd;display:flex;flex-wrap:wrap;gap:4px;">
     ${prefBtns.map(p => `<button onmousedown="event.preventDefault();selectPrefFilter('${p}')"
       style="padding:3px 7px;font-size:11px;font-family:inherit;border-radius:4px;cursor:pointer;border:1px solid ${_ddPrefFilter===p?'#1e2a3a':'#ccc'};background:${_ddPrefFilter===p?'#1e2a3a':'#fff'};color:${_ddPrefFilter===p?'#fff':'#333'};white-space:nowrap;"
-      >${p.replace(/[都道府県]$/,'')}</button>`).join('')}
+      >${shortPref(p)}</button>`).join('')}
   </div>`;
 
   if (prefs.length === 0) {
