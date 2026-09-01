@@ -1200,13 +1200,15 @@ const server = http.createServer(async (req, res) => {
       const todayTone = tones[Math.floor(Math.random() * tones.length)];
       const eventName = data.eventName || '戦極～電光石火～';
       const series = data.series || '';
+      // リバイバルは天下無双と同一挙動のため、天下無双判定に相乗り
+      const isTenkamusouLike = series === 'tenkamusou' || series === 'revival';
       const adjMul = data.adjMultiplier || 1;
       const bodyUnit = data.bodyUnit || '枚';
       const pastArticles = data.pastArticles || [];
       const prevArticle = pastArticles[0];
 
       // 天下無双：来店挨拶（店舗情報）＋初開催/恒例の紹介を1つにまとめる（他シリーズはb2は固定文言のためAI生成なし）
-      const b2Section = series !== 'tenkamusou' ? '' : data.firstTime ? `■ b2（来店の挨拶＋初開催の紹介。店舗情報と${eventName}という言葉はそれぞれ1回だけ含めること）
+      const b2Section = !isTenkamusouLike ? '' : data.firstTime ? `■ b2（来店の挨拶＋初開催の紹介。店舗情報と${eventName}という言葉はそれぞれ1回だけ含めること）
 実例:
 - 「今回は【${eventName}】の取材で${data.pref}${data.city}にある${data.hall}にやって参りました～💨実はコチラのお店では初開催となります📷✨どんな景色を見せてくれるのか楽しみですね～😊」
 - 「${data.pref}${data.city}にある${data.hall}にて、今回初開催となる【${eventName}】の取材に伺いました🎉✨果たしてどんな結果が待っているのでしょうか😆」
@@ -1248,7 +1250,7 @@ const server = http.createServer(async (req, res) => {
 - 「この夏より新たにスタートした【${eventName}】⚡🌞」
 - 「戦極シリーズに新たな取材企画がこの夏加わりました🌞\nその名も【${eventName}】⚡」
 - 「今年の夏から新しく幕を開けた戦極系最新企画【${eventName}】⚡🌞」
-→ 「戦極シリーズの新企画」であること、「この夏（今年の夏）からスタートした」という要素は必ず含め、言い回しだけを変えること。絵文字は⚡や🌞など夏・スタートを連想させるものを使うこと。1〜2文。` : series === 'tenkamusou' ? '' : `■ b3（${eventName}の形容。慣用句＋イベント名の形）
+→ 「戦極シリーズの新企画」であること、「この夏（今年の夏）からスタートした」という要素は必ず含め、言い回しだけを変えること。絵文字は⚡や🌞など夏・スタートを連想させるものを使うこと。1〜2文。` : isTenkamusouLike ? '' : `■ b3（${eventName}の形容。慣用句＋イベント名の形）
 実例:
 - 「回を重ねるに連れて好評を博している${eventName}🤡」
 - 「破竹の勢いで規模を拡大している${eventName}」
@@ -1309,7 +1311,7 @@ ${prevArticle?.texts?.b13 ? `前回のB13参考: "${prevArticle.texts.b13}"` : '
 - 「${month}も全国各地から新規参戦ホールが続々‼️続々と熱戦の輪が広がっていますよ⚔️」
 - 「${month}も新たに${eventName}へ挑むホールが続々登場‼️各地で熱戦が繰り広げられていますっ⚔️」
 → 店舗数（◯店舗、約◯店舗などの具体的・概算の数字）には一切触れず、「新規参戦ホールが続々」という新シリーズならではの勢いを表現すること。月・言い回しだけを変えること。1文。`;
-      } else if (series === 'tenkamusou') {
+      } else if (isTenkamusouLike) {
         b5Section = `■ b5（朝イチの並びチェックへの導入）
 実例:
 - 「まずは朝イチの並びをチェックいたしましょう📝」
@@ -1348,7 +1350,7 @@ ${prevArticle?.texts?.b13 ? `前回のB13参考: "${prevArticle.texts.b13}"` : '
 - 「往年の名機ミリオンゴッドに特化した徹底取材、新シリーズということでいつも以上に気合いが入っておりますっ💪\nこちらの店舗での${eventName}開催も今回で${openCount}回目となりますっ✨」
 - 「今回も往年の名機ミリオンゴッドのみに焦点を当てた徹底調査を行って参りましたっ✍\n同店での${eventName}開催は${openCount}回目、引き続き気合い十分でお届けしますっ💪」
 → 「往年の名機ミリオンゴッドに特化した徹底取材」であることに触れつつ、「開催は${openCount}回目」であることを必ず含めること。機種名の比較（前回は◯◯が優勢等）はしないこと。絵文字は✍・💪などを使うこと。2文。`;
-      } else if (series === 'tenkamusou') {
+      } else if (isTenkamusouLike) {
         b6Section = `■ b6（並び人数ブロックの直後に入る。総入場数へのお礼コメント）
 ${data.lineupTotal ? `今回の情報: この日の総入場数は${data.lineupTotal}名` : ''}
 実例:
@@ -1531,7 +1533,7 @@ ${b13Section}
 - 正確な数値を伝える場合は「${(data.t1d||'').replace(/\+/,'')}${bodyUnit}という結果に」「${(data.t1d||'').replace(/\+/,'')}${bodyUnit}を記録」のように表現すること
 - 「オーバー」を使いたい場合は「万枚オーバー」のようにキリの良い基準値に対してのみ使うこと
 
-${series === 'tenkamusou' ? '' : data.second ? `■ b9（機種構成の紹介。設置台数テーブルの直後に入る）
+${isTenkamusouLike ? '' : data.second ? `■ b9（機種構成の紹介。設置台数テーブルの直後に入る）
 今回の設置情報: ${data.machineList}（最多:${data.main}、2番目:${data.second}）
 実例:
 - 「${data.main}が最多設置、続いて${data.second}といった機種構成になっています📝」
@@ -1578,12 +1580,12 @@ ${data.rankInMinDiff != null ? `ランクイン台は全て${data.rankInMinDiff}
 
 【出力形式】
 JSONのみを返してください（説明文・コードブロック不要）:
-{${series === 'tenkamusou' ? `
-  "b2": "...",` : ''}${series === 'tenkamusou' ? '' : `
+{${isTenkamusouLike ? `
+  "b2": "...",` : ''}${isTenkamusouLike ? '' : `
   "b3": "...",`}
   "b5": "...",${series === 'tokyoghoul' ? '' : `
   "b6": "...",`}${series === 'hyakkaryoran' ? `
-  "b8": "...",` : ''}${series === 'tenkamusou' ? '' : `
+  "b8": "...",` : ''}${isTenkamusouLike ? '' : `
   "b9": "...",`}
   "b13": "...",
   "b14": "...",

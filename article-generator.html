@@ -721,6 +721,17 @@
     <option value="hyakkaryoran">戦極～百花繚乱～</option>
     <option value="ikkyunyukon">戦極～一球入魂～</option>
     <option value="tenkamusou">天下無双</option>
+    <option value="revival">リバイバル</option>
+  </select>
+  <select id="revival-variant-select" onchange="onRevivalVariantChange(this.value)"
+    style="display:none;margin-left:6px;font-size:13px;padding:3px 8px;border:1px solid #ccc;border-radius:5px;font-family:inherit;cursor:pointer;">
+    <option value="BZD">リバイバルBZD</option>
+    <option value="BZ">リバイバルBZ</option>
+    <option value="BD">リバイバルBD</option>
+    <option value="ZD">リバイバルZD</option>
+    <option value="B">リバイバルB</option>
+    <option value="Z">リバイバルZ</option>
+    <option value="D">リバイバルD</option>
   </select>
   <div class="page-nav">
     <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
@@ -1623,7 +1634,86 @@ const SERIES_CONFIG = {
       };
     },
   },
+  // ベースは天下無双と同一挙動（全機種対象・並び人数ブロックあり・b2/b6のAI文言も天下無双分岐に相乗り）。
+  // アイキャッチ画像・ヘッダー画像は後日差し替え予定のため一旦プレースホルダー
+  revival: {
+    name: 'リバイバル',
+    eventImgId:  0,
+    eventImgUrl: '',
+    tagKeywords: ['リバイバル'],
+    jugglerOnly: false,
+    allowedMachines: [],
+    showLineupBox: true,
+    sheetKeyword: 'リバイバル',
+    machineEmoji: '♻️',
+    rankingTitle: '店内差枚数ランキング',
+    headerImgUrl: '',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#2f855a', capBg: '#f0fff4', capHeaderColor: '#2f855a',
+    defaultMachines: [],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, isFirstTime, pref, city, hall }) {
+      const nm = SERIES_CONFIG.revival.name; // 選択中のバリエーション名（例：リバイバルBZD）
+      const greetings = [
+        { b1: '皆さん、こんにちわっ‼️', b2: `今回は【${nm}】の取材で${pref}${city}にある${hall}にやって参りました～💨` },
+        { b1: '皆さん、こんにちはっ🌟', b2: `今回、私は【${nm}】の取材で${pref}${city}にある${hall}へとやって参りました💨💨💨` },
+      ];
+      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+      return {
+        b1:  greeting.b1,
+        b2:  greeting.b2,
+        b3:  '',
+        b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
+        b5:  `今回も全国各地で${nm}参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆`,
+        b8:  ['その他の機種の差枚はコチラ❗️', 'その他の機種の差枚はコチラ🌟'][Math.floor(Math.random() * 2)],
+        b9:  ['また、この日の店内差枚数ランキングがこちら❗️', 'そして、全体の差枚ランキングです🌟'][Math.floor(Math.random() * 2)],
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに${nm}の名にふさわしい結果ではないでしょうか🔥`,
+        b14: isFirstTime
+          ? `初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での${nm}次回開催もかなり期待できそうです！`
+          : `今回もガッツリと盛り上がっていましたね〜👍\n同店での${nm}開催時はかなり期待できそうです！`,
+      };
+    },
+  },
 };
+
+// リバイバルシリーズの内訳（対象機種・記事内容は共通、サムネ画像と表示名のみ切り替え）
+const REVIVAL_VARIANTS = ['BZD', 'BZ', 'BD', 'ZD', 'B', 'Z', 'D'].map(code => ({
+  code, eventImgId: 0, eventImgUrl: '',
+}));
+{
+  const revivalThumbs = {
+    BZD: [556576, 'revival-bzd-eyecatch.jpg'],
+    BZ:  [556575, 'revival-bz-eyecatch.jpg'],
+    BD:  [556574, 'revival-bd-eyecatch.jpg'],
+    ZD:  [556579, 'revival-zd-eyecatch.jpg'],
+    B:   [556573, 'revival-b-eyecatch.jpg'],
+    Z:   [556578, 'revival-z-eyecatch.jpg'],
+    D:   [556577, 'revival-d-eyecatch.jpg'],
+  };
+  REVIVAL_VARIANTS.forEach(v => {
+    const [id, filename] = revivalThumbs[v.code] || [];
+    if (id) {
+      v.eventImgId  = id;
+      v.eventImgUrl = `https://hisshobon-hall.info/wp-content/uploads/${filename}`;
+    }
+  });
+}
+let currentRevivalVariant = REVIVAL_VARIANTS[0].code;
+
+function onRevivalVariantChange(code) {
+  currentRevivalVariant = code;
+  const variant = REVIVAL_VARIANTS.find(v => v.code === code);
+  if (!variant) return;
+  SERIES_CONFIG.revival.name = 'リバイバル' + code;
+  SERIES_CONFIG.revival.eventImgId  = variant.eventImgId;
+  SERIES_CONFIG.revival.eventImgUrl = variant.eventImgUrl;
+  if (currentSeries === 'revival') {
+    FIXED.eventImgId  = variant.eventImgId;
+    FIXED.eventImgUrl = variant.eventImgUrl;
+    const fixedNote = document.querySelector('.img-fixed-note');
+    if (fixedNote) fixedNote.textContent = `🔒 ${FIXED.eventImgUrl ? FIXED.eventImgUrl.split('/').pop() : '（未設定）'}`;
+    initPreview();
+  }
+}
 
 let currentSeries = 'denkoisseki';
 
@@ -1632,6 +1722,18 @@ function onSeriesChange(val) {
   currentSeries = val;
   if (!allSeriesLibrary[currentSeries]) allSeriesLibrary[currentSeries] = {};
   libraryImages = allSeriesLibrary[currentSeries];
+  // リバイバル選択時は、現在選ばれているバリエーション（サムネ・表示名）を反映
+  if (val === 'revival') {
+    const variant = REVIVAL_VARIANTS.find(v => v.code === currentRevivalVariant);
+    if (variant) {
+      SERIES_CONFIG.revival.name = 'リバイバル' + variant.code;
+      SERIES_CONFIG.revival.eventImgId  = variant.eventImgId;
+      SERIES_CONFIG.revival.eventImgUrl = variant.eventImgUrl;
+    }
+  }
+  const revivalVariantEl = document.getElementById('revival-variant-select');
+  if (revivalVariantEl) revivalVariantEl.style.display = (val === 'revival') ? '' : 'none';
+
   const cfg = SERIES_CONFIG[val];
   FIXED.eventImgId  = cfg.eventImgId;
   FIXED.eventImgUrl = cfg.eventImgUrl;
@@ -1659,10 +1761,10 @@ function onSeriesChange(val) {
   const capSectionHeader = document.getElementById('cap-section-header');
   const rowsSection  = document.getElementById('machine-rows-section');
   const totalSection = document.getElementById('pachinko-total-section');
-  if (capSectionHeader) capSectionHeader.style.display = (val === 'tenkamusou') ? 'none' : '';
+  if (capSectionHeader) capSectionHeader.style.display = ((val === 'tenkamusou' || val === 'revival')) ? 'none' : '';
   if (rowsSection && totalSection) {
-    rowsSection.style.display  = (val === 'tenkamusou' || cfg.freeformCap) ? 'none' : '';
-    totalSection.style.display = (val === 'tenkamusou') ? 'none' : (cfg.freeformCap ? '' : 'none');
+    rowsSection.style.display  = ((val === 'tenkamusou' || val === 'revival') || cfg.freeformCap) ? 'none' : '';
+    totalSection.style.display = ((val === 'tenkamusou' || val === 'revival')) ? 'none' : (cfg.freeformCap ? '' : 'none');
   }
 
   // 並び人数セクションの表示切り替え（showLineupBox が true のシリーズのみ）
@@ -1673,7 +1775,7 @@ function onSeriesChange(val) {
 
   // 天下無双専用：機種別平均差枚ランキング一括生成ボタンの表示切り替え
   const tenkamusouBatchRow = document.getElementById('tenkamusou-batch-row');
-  if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = (val === 'tenkamusou') ? '' : 'none';
+  if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = ((val === 'tenkamusou' || val === 'revival')) ? '' : 'none';
 
   // 機種一覧をシリーズのデフォルトにリセット
   const machineRows = document.getElementById('machine-rows');
@@ -1807,7 +1909,7 @@ function getTemplateTexts() {
       : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
       : currentSeries === 'hyakkaryoran' ? ['まずは設置機種を確認していきましょう🔍', 'まずは取材対象となるハナ系機種の設置台数をごらんください✋'][Math.floor(Math.random() * 2)]
       : currentSeries === 'ikkyunyukon' ? `それではまず、パチンコ設置台数の確認から📷`
-      : currentSeries === 'tenkamusou' ? `それでは早速【機種別差枚ランキング】をチェックしていきましょう🙆‍♀️`
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival') ? `それでは早速【機種別差枚ランキング】をチェックしていきましょう🙆‍♀️`
       : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
@@ -1920,7 +2022,7 @@ async function generateWithAI() {
       ? ['b3','b5','b9','b13','b14','b15']
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
-      : currentSeries === 'tenkamusou'
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival')
       ? ['b2','b5','b6','b13','b14','b15']
       : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
@@ -1932,7 +2034,7 @@ async function generateWithAI() {
       const b6El = document.querySelector('[data-key="b6"]');
       if (b6El) b6El.innerHTML = '';
     }
-    if (currentSeries === 'tenkamusou') {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival')) {
       // b2に統合したのでb3は使わない（固定プレースホルダーが残らないようクリア）
       const b3El = document.querySelector('[data-key="b3"]');
       if (b3El) b3El.innerHTML = '';
@@ -2286,7 +2388,7 @@ function generate() {
   // 天下無双：機種別ランキング画像をWPアップロード済みなら、その全枚数を画像ブロックとして並べる。
   // 未生成・未アップロードならこれまで通り単一のランキング画像ブロック。
   function rankImageBlocks() {
-    if (currentSeries === 'tenkamusou' && tenkamusouRankImages.length) {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival') && tenkamusouRankImages.length) {
       const uploaded = tenkamusouRankImages.filter(item => item.wpId && item.wpUrl);
       if (uploaded.length) {
         const blocks = uploaded.map(item => wpImage(item.wpId, item.wpUrl));
@@ -2321,11 +2423,11 @@ function generate() {
     lineupBoxMaybe(),
     balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
-    currentSeries === 'tenkamusou' ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
-    currentSeries === 'tenkamusou' ? '' : balloonMaybe(bHtml('b8')),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : balloonMaybe(bHtml('b8')),
     ...((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks(), balloonMaybe(bHtml('b9'))]
-      : currentSeries === 'tenkamusou'
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival')
       ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks()]
       : [balloonMaybe(bHtml('b9')), balloonMaybe(bHtml('b10')), ...rankImageBlocks()]),
     balloonMaybe(bHtml('b11')),
@@ -2395,7 +2497,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
   // 天下無双：機種別ランキング画像を一括生成済みなら、その全枚数を並べて表示。
   // 未生成ならこれまで通り単一のランキング画像スロットを表示する。
   function rankImagesPrevHtml(singleUrl) {
-    if (currentSeries === 'tenkamusou' && tenkamusouRankImages.length) {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival') && tenkamusouRankImages.length) {
       const mainImgsHtml = tenkamusouRankImages.map(item => `<img src="${item.wpUrl || item.dataUrl}" class="prev-img">`).join('\n    ');
       let otherHtml = '';
       if (tenkamusouOtherImages.length) {
@@ -2453,10 +2555,10 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
 
   const html = `<div class="prev-body">
     ${imgPrev(storeImgUrl, '店舗外観画像', 'store-img-id', 'store-img-url')}
-    ${currentSeries === 'tenkamusou'
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival')
       ? bl(bHtmlPrev('b1'), 'b1')
       : bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
-    ${currentSeries === 'tenkamusou'
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival')
       ? bl(bHtmlPrev('b2'), 'b2')
       : bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
     ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
@@ -2466,14 +2568,14 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${lineupPrevHtml()}
     ${bl(bHtmlPrev('b6'), 'b6')}
     ${bl(bHtmlPrev('b7'), 'b7')}
-    ${currentSeries === 'tenkamusou' ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
     </div>`}
-    ${currentSeries === 'tenkamusou' ? '' : bl(bHtmlPrev('b8'), 'b8')}
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : bl(bHtmlPrev('b8'), 'b8')}
     ${(currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}\n    ${bl(bHtmlPrev('b9'), 'b9')}`
-      : currentSeries === 'tenkamusou'
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`
       : `${bl(bHtmlPrev('b9'), 'b9')}\n    ${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`}
     ${bl(bHtmlPrev('b11'), 'b11')}
@@ -2860,7 +2962,7 @@ async function submitWpPost() {
 // ============================================================
 function copyCode() {
   generate(); // コピー直前に必ず最新の内容で作り直す（天下無双の一括生成画像など、反映漏れを防ぐ）
-  if (currentSeries === 'tenkamusou') {
+  if ((currentSeries === 'tenkamusou' || currentSeries === 'revival')) {
     const rid = document.getElementById('input-rank-img-id')?.value;
     if (!rid || rid === 'RANKING_IMG_ID') {
       showToast('⚠️ 店内差枚数ランキング画像が未生成です（先に「ランキング画像を生成」を押してください）');
