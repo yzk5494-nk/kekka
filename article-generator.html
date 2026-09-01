@@ -1720,6 +1720,11 @@ let currentSeries = 'denkoisseki';
 function onSeriesChange(val) {
   allSeriesLibrary[currentSeries] = libraryImages; // 切り替え前のシリーズを保存
   currentSeries = val;
+  // リバイバルは天下無双と対象機種が同一のため、代表機種（画像・表示名）を天下無双と共有する
+  if (val === 'revival') {
+    if (!allSeriesLibrary.tenkamusou) allSeriesLibrary.tenkamusou = {};
+    allSeriesLibrary.revival = allSeriesLibrary.tenkamusou;
+  }
   if (!allSeriesLibrary[currentSeries]) allSeriesLibrary[currentSeries] = {};
   libraryImages = allSeriesLibrary[currentSeries];
   // リバイバル選択時は、現在選ばれているバリエーション（サムネ・表示名）を反映
