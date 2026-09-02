@@ -924,7 +924,7 @@
           <input type="checkbox" id="tenkamusou-manual-mode" onchange="toggleTenkamusouManualMode()">
           手動で機種を選択する（設置3台以上の機種のみ表示）
         </label>
-        <div id="tenkamusou-manual-list" style="display:none;max-height:180px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
+        <div id="tenkamusou-manual-list" style="display:none;max-height:320px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
         <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成（WPへ自動アップロード）</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
         <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
@@ -1627,6 +1627,8 @@ const SERIES_CONFIG = {
         b8:  ['その他の機種の差枚はコチラ❗️', 'その他の機種の差枚はコチラ🌟'][Math.floor(Math.random() * 2)],
         // b9はランキング画像一覧の最後（店内差枚数ランキング画像の直前）に表示位置を変更済み
         b9:  ['また、この日の店内差枚数ランキングがこちら❗️', 'そして、全体の差枚ランキングです🌟'][Math.floor(Math.random() * 2)],
+        // b7で既に「機種別差枚ランキングをチェック」と案内済みのため、同じ意味のb10は出力しない
+        b10: '',
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに天下無双の名にふさわしい結果ではないでしょうか🔥`,
         b14: isFirstTime
           ? '初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での天下無双次回開催もかなり期待できそうです！'
@@ -1647,7 +1649,8 @@ const SERIES_CONFIG = {
     sheetKeyword: 'リバイバル',
     machineEmoji: '♻️',
     rankingTitle: '店内差枚数ランキング',
-    headerImgUrl: '',
+    // 専用ヘッダー画像は未用意のため、対象機種が同一の天下無双のヘッダー画像を流用
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenkamusou-header.jpg',
     capLabel: '取材対象機種設置台数',
     capColor: '#2f855a', capBg: '#f0fff4', capHeaderColor: '#2f855a',
     defaultMachines: [],
@@ -1666,6 +1669,8 @@ const SERIES_CONFIG = {
         b5:  `今回も全国各地で${nm}参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆`,
         b8:  ['その他の機種の差枚はコチラ❗️', 'その他の機種の差枚はコチラ🌟'][Math.floor(Math.random() * 2)],
         b9:  ['また、この日の店内差枚数ランキングがこちら❗️', 'そして、全体の差枚ランキングです🌟'][Math.floor(Math.random() * 2)],
+        // b7で既に「機種別差枚ランキングをチェック」と案内済みのため、同じ意味のb10は出力しない
+        b10: '',
         b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに${nm}の名にふさわしい結果ではないでしょうか🔥`,
         b14: isFirstTime
           ? `初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での${nm}次回開催もかなり期待できそうです！`
@@ -1918,7 +1923,7 @@ function getTemplateTexts() {
       : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
-    b10: seriesTexts.b10 || `それでは、差枚ランキングをご覧ください✋`,
+    b10: seriesTexts.b10 !== undefined ? seriesTexts.b10 : `それでは、差枚ランキングをご覧ください✋`,
     b11: seriesTexts.b11 || ((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei') ? `この日のトップ差枚は【${t1num}番台】で${t1d}👍` : `この日のトップ差枚は【${t1n}・${t1num}番台】で${t1d}👍`),
     b12: (currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `また、2位には【${t2num}番台】の${t2d}、そして3位には【${t3num}番台】の${t3d}がランクインですっ❗️`
@@ -2128,8 +2133,9 @@ function buildBlockList() {
   const container = document.getElementById('block-list');
   const texts = getTemplateTexts();
   const showLineup = !!SERIES_CONFIG[currentSeries].showLineupBox;
+  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival';
 
-  BLOCK_DEFS.filter(def => def.type !== 'lineup' || showLineup).forEach((def, idx) => {
+  BLOCK_DEFS.filter(def => (def.type !== 'lineup' || showLineup) && (def.id !== 'b-end-img' || !isTenkamusouLike)).forEach((def, idx) => {
     const item = document.createElement('div');
     item.className = 'block-item';
     item.id = 'block-' + def.id;
@@ -2439,7 +2445,7 @@ function generate() {
     balloonMaybe(bHtml('b12')),
     balloonMaybe(bHtml('b13')),
     balloonMaybe(bHtml('b14')),
-    wpImage(endImgId, endImgUrl),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : wpImage(endImgId, endImgUrl),
     balloonMaybe(bHtml('b15')),
     wpParagraph(paraWP),
     `<!-- wp:paragraph -->\n<p></p>\n<!-- /wp:paragraph -->`,
@@ -2587,7 +2593,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${bl(bHtmlPrev('b12'), 'b12')}
     ${bl(bHtmlPrev('b13'), 'b13')}
     ${bl(bHtmlPrev('b14'), 'b14')}
-    ${imgPrev(endImgUrl, '締め用機種画像', 'end-img-id', 'end-img-url')}
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival') ? '' : imgPrev(endImgUrl, '締め用機種画像', 'end-img-id', 'end-img-url')}
     ${bl(bHtmlPrev('b15'), 'b15')}
     <div class="prev-paragraph prev-editable" contenteditable="true" data-key="para"
          onfocus="showEditToolbar()" onblur="hideEditToolbar()">
@@ -3493,6 +3499,27 @@ function resolveLibraryEntry(name) {
   return null;
 }
 
+// 代表機種として登録済みか（nicknameの有無は問わない。displayName()と同じ照合ロジックを流用）
+function isRegisteredMachine(name) {
+  if (libraryImages[name]) return true;
+  for (const key of Object.keys(libraryImages)) {
+    if (libraryImages[key].aliases?.includes(name)) return true;
+  }
+  const cleaned = cleanName(name);
+  if (libraryImages[cleaned]) return true;
+  for (const key of Object.keys(libraryImages)) {
+    if (cleanName(key) === cleaned) return true;
+  }
+  const stripped = cleaned.replace(/\s+[A-Z]{2,3}$/, '');
+  if (stripped !== cleaned) {
+    if (libraryImages[stripped]) return true;
+    for (const key of Object.keys(libraryImages)) {
+      if (cleanName(key) === stripped) return true;
+    }
+  }
+  return false;
+}
+
 // 機種名→表示名変換（nicknameが登録されていれば優先。別名(aliases)経由も解決）
 // 代表機種として登録済みなら、表示名(nickname)未設定でも代表名自体をフォールバックとして使う
 function displayName(name) {
@@ -3853,7 +3880,9 @@ async function generateRankingImage() {
   if (machines[2]) { document.getElementById('f-top3-name').value = displayName(machines[2].機種名); document.getElementById('f-top3-num').value = machines[2].台番; document.getElementById('f-top3-diff').value = fmtDiff(machines[2].差); }
 
   // 締め用機種画像をRANK1機種の登録画像で自動設定（締め用複数あればランダム、なければバナー用を使用）
-  const rank1Info = rank1Name && resolveLibraryEntry(rank1Name);
+  // 天下無双・リバイバルは〆画像ブロック自体を出力しないため設定不要
+  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival';
+  const rank1Info = !isTenkamusouLike && rank1Name && resolveLibraryEntry(rank1Name);
   const endImgs = rank1Info?.endImages?.length ? rank1Info.endImages : (rank1Info?.url ? [rank1Info.url] : []);
   const rank1Img = endImgs.length ? endImgs[Math.floor(Math.random() * endImgs.length)] : null;
   if (rank1Img) {
@@ -4138,12 +4167,18 @@ function refreshTenkamusouManualList() {
   const groups = new Map();
   allMachineData.forEach(m => {
     const name = displayName(m.機種名);
-    if (!groups.has(name)) groups.set(name, []);
-    groups.get(name).push(m);
+    if (!groups.has(name)) groups.set(name, { units: [], rawNames: new Set() });
+    groups.get(name).units.push(m);
+    groups.get(name).rawNames.add(m.機種名);
   });
   const entries = [...groups.entries()]
-    .filter(([, units]) => units.length >= 3)
-    .map(([name, units]) => ({ name, count: units.length, avg: Math.round(units.reduce((s, u) => s + u.差, 0) / units.length) }))
+    .filter(([, g]) => g.units.length >= 3)
+    .map(([name, g]) => ({
+      name,
+      count: g.units.length,
+      avg: Math.round(g.units.reduce((s, u) => s + u.差, 0) / g.units.length),
+      registered: [...g.rawNames].some(isRegisteredMachine),
+    }))
     .sort((a, b) => b.avg - a.avg);
 
   if (!entries.length) {
@@ -4153,7 +4188,7 @@ function refreshTenkamusouManualList() {
   listEl.innerHTML = entries.map(e => `
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;">
       <input type="checkbox" value="${e.name.replace(/"/g, '&quot;')}" ${prevChecked.has(e.name) ? 'checked' : ''}>
-      <span style="flex:1;">${e.name}</span>
+      <span style="flex:1;${e.registered ? '' : 'color:#d32f2f;font-weight:bold;'}">${e.name}</span>
       <span style="color:#999;">${e.count}台・平均${e.avg >= 0 ? '+' : ''}${e.avg}枚</span>
     </label>`).join('');
 }
