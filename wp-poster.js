@@ -1200,8 +1200,8 @@ const server = http.createServer(async (req, res) => {
       const todayTone = tones[Math.floor(Math.random() * tones.length)];
       const eventName = data.eventName || '戦極～電光石火～';
       const series = data.series || '';
-      // リバイバルは天下無双と同一挙動のため、天下無双判定に相乗り
-      const isTenkamusouLike = series === 'tenkamusou' || series === 'revival';
+      // リバイバル・女神の加護は天下無双と同一挙動のため、天下無双判定に相乗り
+      const isTenkamusouLike = series === 'tenkamusou' || series === 'revival' || series === 'megaminokago';
       const adjMul = data.adjMultiplier || 1;
       const bodyUnit = data.bodyUnit || '枚';
       const pastArticles = data.pastArticles || [];
