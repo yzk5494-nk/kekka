@@ -800,6 +800,7 @@
                 { id: 'col-BIG',   label: 'BIG',     def: 'D',    optional: true  },
                 { id: 'col-REG',   label: 'REG',     def: 'E',    optional: true  },
                 { id: 'col-合算',  label: '合算',    def: 'none', optional: true  },
+                { id: 'col-ART',   label: 'ART',     def: 'none', optional: true  },
                 { id: 'col-差',    label: '差枚数',  def: 'G',    optional: false },
               ];
               const letters = Array.from({length:26}, (_,i) => String.fromCharCode(65+i));
@@ -3096,6 +3097,7 @@ function cleanName(name) {
 let allMachineData = [];
 let hasBigReg = true;
 let hasG = true;
+let hasART = false; // 女神の加護など、ARTデータがある場合のみ機種別カード画像にART列を追加
 let bannerDataUrl = null;
 let lastLoadedFile = null;
 let detectedFileDate = null; // { mm, dd } ファイル名から検出した日付
@@ -3207,6 +3209,7 @@ const COL_KEYWORDS = {
   BIG:  ['big', 'ビッグ', 'bb', '特賞回数', 'bb回数'],
   REG:  ['reg', 'レギュラー', 'rb', 'rb回数', 'rb回数'],
   合算:  ['合算', '総合', 'ボーナス確率'],
+  ART:  ['art', 'art回数', 'art回', 'アート回数'],
   差:   ['差枚数', '差枚', '差'],
 };
 function detectColumns(headerRow) {
@@ -3232,7 +3235,7 @@ function detectColumnsFromRows(rows) {
   }
   if (best === null) {
     const iCol = id => { const v = document.getElementById('col-' + id)?.value ?? ''; return v === 'none' ? -1 : colToIndex(v); };
-    return { 台番: iCol('台番'), 機種名: iCol('機種名'), G: iCol('G'), BIG: iCol('BIG'), REG: iCol('REG'), 合算: iCol('合算'), 差: iCol('差') };
+    return { 台番: iCol('台番'), 機種名: iCol('機種名'), G: iCol('G'), BIG: iCol('BIG'), REG: iCol('REG'), 合算: iCol('合算'), ART: iCol('ART'), 差: iCol('差') };
   }
   return detectColumns(rows[best].map(c => String(c ?? '')));
 }
@@ -3398,6 +3401,7 @@ async function pisionFetchResults() {
     }));
     hasBigReg = machines.some(m => m.BIG !== null && m.REG !== null);
     hasG = machines.some(m => m.G);
+    hasART = false; // P-PROデータにARTは含まれない
 
     detectedFileDate = { mm: dateVal.slice(5, 7), dd: dateVal.slice(8, 10) };
 
@@ -3446,6 +3450,7 @@ function processDataFile(file) {
       const C = detectColumnsFromRows(lines.slice(0, 20).map(l => splitLine(l)));
       hasBigReg = C.BIG >= 0 && C.REG >= 0;
       hasG = C.G >= 0;
+      hasART = C.ART >= 0;
       let debugShown = false;
       for (const line of lines) {
         const trimmed = line.trim();
@@ -3467,6 +3472,7 @@ function processDataFile(file) {
           BIG:    num(row[C.BIG]),
           REG:    num(row[C.REG]),
           合算Den: C.合算 >= 0 ? num(row[C.合算]) : 0,
+          ART:    C.ART >= 0 ? num(row[C.ART]) : null,
           差:      roundUp50(num(row[C.差])),
         });
       }
@@ -3487,6 +3493,7 @@ function processDataFile(file) {
       const C = detectColumnsFromRows(rows.slice(0, 20));
       hasBigReg = C.BIG >= 0 && C.REG >= 0;
       hasG = C.G >= 0;
+      hasART = C.ART >= 0;
       // ヘッダー行をスキップ（台番列が数値でない行）
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -3499,6 +3506,7 @@ function processDataFile(file) {
           BIG:    C.BIG >= 0 ? Number(row[C.BIG]) || 0 : null,
           REG:    C.REG >= 0 ? Number(row[C.REG]) || 0 : null,
           合算Den: C.合算 >= 0 ? Number(row[C.合算]) || 0 : 0,
+          ART:    C.ART >= 0 ? Number(row[C.ART]) || 0 : null,
           差:      roundUp50(Number(row[C.差]) || 0),
         });
       }
@@ -3582,13 +3590,13 @@ function renderDataTable(machines) {
   const tbody = document.getElementById('data-tbody');
   tbody.innerHTML = '';
   // ヘッダー更新
-  document.getElementById('data-table-head').innerHTML = `<tr><th>台番</th><th>機種名</th>${hasG ? '<th>G数</th>' : ''}${hasBigReg ? `<th>BIG</th><th>REG</th>${hasG ? '<th>合算</th>' : ''}` : ''}<th>差枚数</th></tr>`;
+  document.getElementById('data-table-head').innerHTML = `<tr><th>台番</th><th>機種名</th>${hasG ? '<th>G数</th>' : ''}${hasBigReg ? `<th>BIG</th><th>REG</th>${hasG ? '<th>合算</th>' : ''}` : ''}${hasART ? '<th>ART</th>' : ''}<th>差枚数</th></tr>`;
   machines.slice(0, count).forEach((m) => {
     const diff = m.差;
     const diffStr = diff >= 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
     const cls = diff >= 0 ? 'diff-plus' : 'diff-minus';
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${m.台番}</td><td title="${m.機種名}">${displayName(m.機種名)}</td>${hasG ? `<td>${Math.round(m.G||0).toLocaleString()}</td>` : ''}${hasBigReg ? `<td>${m.BIG??0}</td><td>${m.REG??0}</td>${hasG ? `<td>${formatGasso(m)}</td>` : ''}` : ''}<td class="${cls}">${diffStr}枚</td>`;
+    tr.innerHTML = `<td>${m.台番}</td><td title="${m.機種名}">${displayName(m.機種名)}</td>${hasG ? `<td>${Math.round(m.G||0).toLocaleString()}</td>` : ''}${hasBigReg ? `<td>${m.BIG??0}</td><td>${m.REG??0}</td>${hasG ? `<td>${formatGasso(m)}</td>` : ''}` : ''}${hasART ? `<td>${m.ART??0}</td>` : ''}<td class="${cls}">${diffStr}枚</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('data-table-wrap').style.display = 'block';
@@ -3954,7 +3962,8 @@ async function copyRankingImage() {
 // rawName: Excel/P-PRO由来の元の機種名（画像ライブラリはこのキーで登録されているため、ニックネーム変換後のtitleでは引けない）
 async function renderMachineRankCard(title, machines, unit, rawName) {
   const SCALE     = 2;
-  const W         = 730;
+  const ART_W     = 74; // ART列を追加する分の幅（女神の加護など、ARTデータがある場合のみ）
+  const W         = 730 + (hasART ? ART_W : 0);
   const OUTER_PAD = 10;
   const TOTAL_W   = W + OUTER_PAD * 2;
   const bannerUrl = resolveLibraryEntry(rawName)?.url || resolveLibraryEntry(title)?.url || null;
@@ -4035,11 +4044,17 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     名:   { x: 158, w: 458 },
     差:   { x: 616, w: 114 },
   };
-  const cx = key => C[key].x + C[key].w / 2;
   const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
              : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
              : !hasBigReg && hasG ? [78, 158, 520, 616]
              :                      [78, 158, 616];
+  // ART列は「差」の直前に差し込み、以降の幅・区切り線を後ろにずらす（女神の加護など、ARTデータがある場合のみ）
+  if (hasART) {
+    C.ART = { x: C.差.x, w: ART_W };
+    C.差  = { x: C.差.x + ART_W, w: C.差.w };
+    SEPS.push(C.ART.x + ART_W);
+  }
+  const cx = key => C[key].x + C[key].w / 2;
 
   function fitText(text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
@@ -4092,11 +4107,14 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   ctx.font = `bold 13px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['BIG','BIG'],['REG','REG'],['合','合算確率'],['差',`差${unit}数`]]
-   : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
-   : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
-   :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]]
-  ).forEach(([k, label]) => {
+  (() => {
+    const headerCols = hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['BIG','BIG'],['REG','REG'],['合','合算確率'],['差',`差${unit}数`]]
+     : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
+     : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
+     :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]];
+    if (hasART) headerCols.splice(headerCols.length - 1, 0, ['ART', 'ART']);
+    return headerCols;
+  })().forEach(([k, label]) => {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(C[k].x + CP, y + CP, C[k].w - CP * 2, THEAD_H - CP * 2);
     ctx.strokeStyle = '#8478c9';
@@ -4153,6 +4171,8 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     }
 
     if (hasBigReg && hasG) ctx.fillText(formatGasso(m), cx('合'), ry + ROW_H / 2);
+
+    if (hasART) ctx.fillText(String(m.ART ?? 0), cx('ART'), ry + ROW_H / 2);
 
     const diff = m.差;
     ctx.fillStyle = '#111111';
@@ -4223,6 +4243,7 @@ function refreshTenkamusouManualList() {
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
+  hasART = document.getElementById('col-ART')?.value !== 'none';
   if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
   if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
 
