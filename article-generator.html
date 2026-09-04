@@ -926,6 +926,10 @@
           <input type="checkbox" id="tenkamusou-manual-mode" onchange="toggleTenkamusouManualMode()">
           手動で機種を選択する（設置3台以上の機種のみ表示）
         </label>
+        <label id="tenkamusou-art-toggle-row" style="display:none;align-items:center;gap:6px;font-size:12px;color:#444;margin-bottom:8px;">
+          <input type="checkbox" id="tenkamusou-art-toggle" checked>
+          ART列を表示する（データにARTがある場合のみ）
+        </label>
         <div id="tenkamusou-manual-list" style="display:none;max-height:320px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
         <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成（WPへ自動アップロード）</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
@@ -1828,6 +1832,8 @@ function onSeriesChange(val) {
   // 天下無双専用：機種別平均差枚ランキング一括生成ボタンの表示切り替え
   const tenkamusouBatchRow = document.getElementById('tenkamusou-batch-row');
   if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago')) ? '' : 'none';
+  const artToggleRow = document.getElementById('tenkamusou-art-toggle-row');
+  if (artToggleRow) artToggleRow.style.display = (val === 'megaminokago') ? 'flex' : 'none';
 
   // 機種一覧をシリーズのデフォルトにリセット
   const machineRows = document.getElementById('machine-rows');
@@ -4245,8 +4251,11 @@ function refreshTenkamusouManualList() {
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
-  // col-ARTのデフォルトは「なし」のまま運用されるため、UIの選択値ではなく実データの有無で判定する
-  hasART = currentSeries === 'megaminokago' && allMachineData.some(m => m.ART != null);
+  // col-ARTのデフォルトは「なし」のまま運用されるため、UIの選択値ではなく実データの有無で判定する。
+  // 加えて「ART列を表示する」チェックがONの場合のみ表示（データがあっても手動でOFFにできる）
+  hasART = currentSeries === 'megaminokago'
+    && allMachineData.some(m => m.ART != null)
+    && (document.getElementById('tenkamusou-art-toggle')?.checked ?? true);
   if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
   if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
 
