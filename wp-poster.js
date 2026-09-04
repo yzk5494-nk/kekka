@@ -1824,6 +1824,7 @@ JSONのみを返してください（説明文・コードブロック不要）:
         G数: d.games ?? null,
         BB: d.bb ?? null,
         RB: d.rb ?? null,
+        ART: d.art ?? null,
         points: d.points || [],
       })).sort((a, b) => a.台番 - b.台番);
       return sendJson(200, { hall: result.hall, targetDate: result.targetDate, machines });
@@ -1844,6 +1845,7 @@ JSONのみを返してください（説明文・コードブロック不要）:
         G数: d.games ?? null,
         BB: d.bb ?? null,
         RB: d.rb ?? null,
+        ART: d.art ?? null,
         points: d.points || [],
       })).sort((a, b) => a.台番 - b.台番);
       return sendJson(200, { hall: result.hall, targetDate: result.targetDate, machines });

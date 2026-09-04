@@ -3397,11 +3397,12 @@ async function pisionFetchResults() {
       G:      m.G数 ?? 0,
       BIG:    m.BB ?? null,
       REG:    m.RB ?? null,
+      ART:    m.ART ?? null,
       差:      roundUp50(m.差 ?? 0),
     }));
     hasBigReg = machines.some(m => m.BIG !== null && m.REG !== null);
     hasG = machines.some(m => m.G);
-    hasART = false; // P-PROデータにARTは含まれない
+    hasART = currentSeries === 'megaminokago' && machines.some(m => m.ART != null);
 
     detectedFileDate = { mm: dateVal.slice(5, 7), dd: dateVal.slice(8, 10) };
 
