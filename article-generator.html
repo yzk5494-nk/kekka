@@ -2981,12 +2981,8 @@ async function submitWpPost() {
   btn.textContent = '⏳ 投稿中…';
 
   try {
-    let date = null;
-    if (resolvedPostDate) {
-      const now = new Date();
-      const hms = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-      date = `${resolvedPostDate}T${hms}`;
-    }
+    // 投稿日時は常に投稿ボタンを押した時刻にする（開催日を投稿日に使うと、ファイル名からの日付検出成否で投稿日がバラつくため）
+    const date = null;
     const res = await fetch('/api/create-hb-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -3103,7 +3099,6 @@ let hasG = true;
 let bannerDataUrl = null;
 let lastLoadedFile = null;
 let detectedFileDate = null; // { mm, dd } ファイル名から検出した日付
-let resolvedPostDate = null; // 'YYYY-MM-DD' WP投稿の実際の日付に使う（Excel検出 or P-PRO指定日）
 
 // ── RANKセル画像 ─────────────────────────────────────────────
 // rankImgUrls[1] = '/rank-images/rank1.png' など（サーバー保存済みURL）
@@ -3404,7 +3399,6 @@ async function pisionFetchResults() {
     hasBigReg = machines.some(m => m.BIG !== null && m.REG !== null);
     hasG = machines.some(m => m.G);
 
-    resolvedPostDate = dateVal;
     detectedFileDate = { mm: dateVal.slice(5, 7), dd: dateVal.slice(8, 10) };
 
     const loaded = finishMachinesLoad(machines, 'P-PRO');
@@ -3434,15 +3428,6 @@ function roundUp50(v) { return v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 
 
 function processDataFile(file) {
   detectedFileDate = detectDateFromFilename(file.name);
-  resolvedPostDate = null;
-  if (detectedFileDate) {
-    const now = new Date();
-    let year = now.getFullYear();
-    // 検出した月日が今日より未来なら前年のデータとみなす（年末年始のファイル対策）
-    const candidate = new Date(year, Number(detectedFileDate.mm) - 1, Number(detectedFileDate.dd));
-    if (candidate.getTime() - now.getTime() > 24 * 60 * 60 * 1000) year -= 1;
-    resolvedPostDate = `${year}-${detectedFileDate.mm}-${detectedFileDate.dd}`;
-  }
   const reader = new FileReader();
   const isText = file.name.endsWith('.txt') || file.name.endsWith('.csv');
 
