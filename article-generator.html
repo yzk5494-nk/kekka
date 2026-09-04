@@ -3450,7 +3450,7 @@ function processDataFile(file) {
       const C = detectColumnsFromRows(lines.slice(0, 20).map(l => splitLine(l)));
       hasBigReg = C.BIG >= 0 && C.REG >= 0;
       hasG = C.G >= 0;
-      hasART = C.ART >= 0;
+      hasART = C.ART >= 0 && currentSeries === 'megaminokago';
       let debugShown = false;
       for (const line of lines) {
         const trimmed = line.trim();
@@ -3493,7 +3493,7 @@ function processDataFile(file) {
       const C = detectColumnsFromRows(rows.slice(0, 20));
       hasBigReg = C.BIG >= 0 && C.REG >= 0;
       hasG = C.G >= 0;
-      hasART = C.ART >= 0;
+      hasART = C.ART >= 0 && currentSeries === 'megaminokago';
       // ヘッダー行をスキップ（台番列が数値でない行）
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -3962,8 +3962,9 @@ async function copyRankingImage() {
 // rawName: Excel/P-PRO由来の元の機種名（画像ライブラリはこのキーで登録されているため、ニックネーム変換後のtitleでは引けない）
 async function renderMachineRankCard(title, machines, unit, rawName) {
   const SCALE     = 2;
-  const ART_W     = 74; // ART列を追加する分の幅（女神の加護など、ARTデータがある場合のみ）
-  const W         = 730 + (hasART ? ART_W : 0);
+  const ART_W     = 74; // ART列を追加する分の幅（女神の加護限定）
+  const artEnabled = hasART && currentSeries === 'megaminokago';
+  const W         = 730 + (artEnabled ? ART_W : 0);
   const OUTER_PAD = 10;
   const TOTAL_W   = W + OUTER_PAD * 2;
   const bannerUrl = resolveLibraryEntry(rawName)?.url || resolveLibraryEntry(title)?.url || null;
@@ -4048,8 +4049,8 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
              : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
              : !hasBigReg && hasG ? [78, 158, 520, 616]
              :                      [78, 158, 616];
-  // ART列は「差」の直前に差し込み、以降の幅・区切り線を後ろにずらす（女神の加護など、ARTデータがある場合のみ）
-  if (hasART) {
+  // ART列は「差」の直前に差し込み、以降の幅・区切り線を後ろにずらす（女神の加護限定）
+  if (artEnabled) {
     C.ART = { x: C.差.x, w: ART_W };
     C.差  = { x: C.差.x + ART_W, w: C.差.w };
     SEPS.push(C.ART.x + ART_W);
@@ -4112,7 +4113,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
      : hasBigReg && !hasG ? [['rank','RANK'],['台番','台番'],['名','機種名'],['BIG','BIG'],['REG','REG'],['差',`差${unit}数`]]
      : !hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','ゲーム数'],['差',`差${unit}数`]]
      :                        [['rank','RANK'],['台番','台番'],['名','機種名'],['差',`差${unit}数`]];
-    if (hasART) headerCols.splice(headerCols.length - 1, 0, ['ART', 'ART']);
+    if (artEnabled) headerCols.splice(headerCols.length - 1, 0, ['ART', 'ART']);
     return headerCols;
   })().forEach(([k, label]) => {
     ctx.fillStyle = '#ffffff';
@@ -4172,7 +4173,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
     if (hasBigReg && hasG) ctx.fillText(formatGasso(m), cx('合'), ry + ROW_H / 2);
 
-    if (hasART) ctx.fillText(String(m.ART ?? 0), cx('ART'), ry + ROW_H / 2);
+    if (artEnabled) ctx.fillText(String(m.ART ?? 0), cx('ART'), ry + ROW_H / 2);
 
     const diff = m.差;
     ctx.fillStyle = '#111111';
@@ -4243,7 +4244,7 @@ function refreshTenkamusouManualList() {
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
-  hasART = document.getElementById('col-ART')?.value !== 'none';
+  hasART = document.getElementById('col-ART')?.value !== 'none' && currentSeries === 'megaminokago';
   if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
   if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
 
