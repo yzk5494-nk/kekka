@@ -4244,7 +4244,8 @@ function refreshTenkamusouManualList() {
 async function generateTenkamusouMachineRankings() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
   hasG = document.getElementById('col-G')?.value !== 'none';
-  hasART = document.getElementById('col-ART')?.value !== 'none' && currentSeries === 'megaminokago';
+  // col-ARTのデフォルトは「なし」のまま運用されるため、UIの選択値ではなく実データの有無で判定する
+  hasART = currentSeries === 'megaminokago' && allMachineData.some(m => m.ART != null);
   if (SERIES_CONFIG[currentSeries]?.hideBigReg) hasBigReg = false;
   if (SERIES_CONFIG[currentSeries]?.hideG) hasG = false;
 
