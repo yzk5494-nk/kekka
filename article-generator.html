@@ -3819,8 +3819,8 @@ async function generateRankingImage() {
   // 行全体を白で塗りつぶし（すき間の地色）
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
-  // 各列のBROWNセルをCP内側に描画
-  ctx.font = `bold 18px ${font}`;
+  // 各列のBROWNセルをCP内側に描画（BIG/REG列がある従来レイアウトは列が狭いため13pxのまま）
+  ctx.font = `bold ${hasBigReg ? 13 : 18}px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
@@ -3873,9 +3873,12 @@ async function generateRankingImage() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // BIG/REG列がある従来レイアウトは列が狭いため16pxのまま、無いレイアウト（天下無双・リバイバル系）だけExcel版に合わせ22px
+    const dataFontSize = hasBigReg ? 16 : 22;
+
     // 台番
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 22px ${font}`;
+    ctx.font = `bold ${dataFontSize}px ${font}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     // 機種名〜合算（台番と同じフォント）
@@ -3897,7 +3900,7 @@ async function generateRankingImage() {
     // 差枚数
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 22px ${font}`;
+    ctx.font = `bold ${dataFontSize}px ${font}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
@@ -4143,7 +4146,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
-  ctx.font = `bold 18px ${font}`;
+  ctx.font = `bold ${hasBigReg ? 13 : 18}px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (() => {
@@ -4195,8 +4198,11 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // BIG/REG列がある従来レイアウトは列が狭いため16pxのまま、無いレイアウト（天下無双・リバイバル系）だけExcel版に合わせ22px
+    const dataFontSize = hasBigReg ? 16 : 22;
+
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 22px ${font}`;
+    ctx.font = `bold ${dataFontSize}px ${font}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     const dName = displayName(m.機種名);
@@ -4215,7 +4221,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 22px ${font}`;
+    ctx.font = `bold ${dataFontSize}px ${font}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
