@@ -4098,7 +4098,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   }
 
   // タイトルバー（天下無双専用の枠画像＋機種名テキスト。枠画像が読み込めなければ従来の茶色帯）
-  const TITLE_LEFT_PAD = 24;
+  const TITLE_LEFT_PAD = 60;
   if (headerFrameImg) {
     ctx.drawImage(headerFrameImg, 0, 0, TOTAL_W, TITLE_H);
     ctx.fillStyle = '#2a1a00';
