@@ -3722,14 +3722,14 @@ async function generateRankingImage() {
 
   // 列定義（BIG/REGあり/なし × G数あり/なし の4パターン）
   const C = hasBigReg && hasG ? {
-    rank: { x: 0,   w: 78  },
-    台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 202 },
-    G:    { x: 345, w: 85  },
-    BIG:  { x: 430, w: 50  },
-    REG:  { x: 480, w: 50  },
-    合:   { x: 530, w: 80  },
-    差:   { x: 610, w: 120 },
+    rank: { x: 0,   w: 72  },
+    台番: { x: 72,  w: 61  },
+    名:   { x: 133, w: 190 },
+    G:    { x: 323, w: 93  },
+    BIG:  { x: 416, w: 55  },
+    REG:  { x: 471, w: 55  },
+    合:   { x: 526, w: 97  },
+    差:   { x: 623, w: 107 },
   } : hasBigReg && !hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
@@ -3750,7 +3750,7 @@ async function generateRankingImage() {
     差:   { x: 616, w: 114 },
   };
   const cx = key => C[key].x + C[key].w / 2;
-  const SEPS = hasBigReg && hasG  ? [78, 143, 345, 430, 480, 530, 610]
+  const SEPS = hasBigReg && hasG  ? [72, 133, 323, 416, 471, 526, 623]
              : hasBigReg && !hasG ? [78, 143, 510, 560, 610]
              : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
@@ -4057,14 +4057,14 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   }
 
   const C = hasBigReg && hasG ? {
-    rank: { x: 0,   w: 78  },
-    台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 202 },
-    G:    { x: 345, w: 85  },
-    BIG:  { x: 430, w: 50  },
-    REG:  { x: 480, w: 50  },
-    合:   { x: 530, w: 80  },
-    差:   { x: 610, w: 120 },
+    rank: { x: 0,   w: 72  },
+    台番: { x: 72,  w: 61  },
+    名:   { x: 133, w: 190 },
+    G:    { x: 323, w: 93  },
+    BIG:  { x: 416, w: 55  },
+    REG:  { x: 471, w: 55  },
+    合:   { x: 526, w: 97  },
+    差:   { x: 623, w: 107 },
   } : hasBigReg && !hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
@@ -4084,7 +4084,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     名:   { x: 158, w: 458 },
     差:   { x: 616, w: 114 },
   };
-  const SEPS = hasBigReg && hasG  ? [78, 143, 345, 430, 480, 530, 610]
+  const SEPS = hasBigReg && hasG  ? [72, 133, 323, 416, 471, 526, 623]
              : hasBigReg && !hasG ? [78, 143, 510, 560, 610]
              : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
