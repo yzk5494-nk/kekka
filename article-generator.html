@@ -3724,19 +3724,19 @@ async function generateRankingImage() {
   const C = hasBigReg && hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 197 },
-    G:    { x: 340, w: 81  },
-    BIG:  { x: 421, w: 70  },
-    REG:  { x: 491, w: 70  },
-    合:   { x: 561, w: 70  },
-    差:   { x: 631, w: 99  },
+    名:   { x: 143, w: 202 },
+    G:    { x: 345, w: 85  },
+    BIG:  { x: 430, w: 50  },
+    REG:  { x: 480, w: 50  },
+    合:   { x: 530, w: 80  },
+    差:   { x: 610, w: 120 },
   } : hasBigReg && !hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 348 },
-    BIG:  { x: 491, w: 70  },
-    REG:  { x: 561, w: 70  },
-    差:   { x: 631, w: 99  },
+    名:   { x: 143, w: 367 },
+    BIG:  { x: 510, w: 50  },
+    REG:  { x: 560, w: 50  },
+    差:   { x: 610, w: 120 },
   } : !hasBigReg && hasG ? {
     rank: { x: 0,   w: 100 },
     台番: { x: 100, w: 86  },
@@ -3750,8 +3750,8 @@ async function generateRankingImage() {
     差:   { x: 616, w: 114 },
   };
   const cx = key => C[key].x + C[key].w / 2;
-  const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
-             : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
+  const SEPS = hasBigReg && hasG  ? [78, 143, 345, 430, 480, 530, 610]
+             : hasBigReg && !hasG ? [78, 143, 510, 560, 610]
              : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
 
@@ -3819,8 +3819,8 @@ async function generateRankingImage() {
   // 行全体を白で塗りつぶし（すき間の地色）
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
-  // 各列のBROWNセルをCP内側に描画（BIG/REG列がある従来レイアウトは列が狭いため13pxのまま）
-  ctx.font = `bold ${hasBigReg ? 13 : 18}px ${font}`;
+  // 各列のBROWNセルをCP内側に描画
+  ctx.font = `bold 18px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
@@ -3873,8 +3873,7 @@ async function generateRankingImage() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // BIG/REG列がある従来レイアウトは列が狭いため16pxのまま、無いレイアウト（天下無双・リバイバル系）だけExcel版に合わせ22px
-    const dataFontSize = hasBigReg ? 16 : 22;
+    const dataFontSize = 22;
 
     // 台番
     ctx.fillStyle = '#111111';
@@ -4060,19 +4059,19 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   const C = hasBigReg && hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 197 },
-    G:    { x: 340, w: 81  },
-    BIG:  { x: 421, w: 70  },
-    REG:  { x: 491, w: 70  },
-    合:   { x: 561, w: 70  },
-    差:   { x: 631, w: 99  },
+    名:   { x: 143, w: 202 },
+    G:    { x: 345, w: 85  },
+    BIG:  { x: 430, w: 50  },
+    REG:  { x: 480, w: 50  },
+    合:   { x: 530, w: 80  },
+    差:   { x: 610, w: 120 },
   } : hasBigReg && !hasG ? {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 65  },
-    名:   { x: 143, w: 348 },
-    BIG:  { x: 491, w: 70  },
-    REG:  { x: 561, w: 70  },
-    差:   { x: 631, w: 99  },
+    名:   { x: 143, w: 367 },
+    BIG:  { x: 510, w: 50  },
+    REG:  { x: 560, w: 50  },
+    差:   { x: 610, w: 120 },
   } : !hasBigReg && hasG ? {
     rank: { x: 0,   w: 100 },
     台番: { x: 100, w: 86  },
@@ -4085,8 +4084,8 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     名:   { x: 158, w: 458 },
     差:   { x: 616, w: 114 },
   };
-  const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
-             : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
+  const SEPS = hasBigReg && hasG  ? [78, 143, 345, 430, 480, 530, 610]
+             : hasBigReg && !hasG ? [78, 143, 510, 560, 610]
              : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
   // ART列は「差」の直前に差し込み、以降の幅・区切り線を後ろにずらす（女神の加護限定）
@@ -4146,7 +4145,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
-  ctx.font = `bold ${hasBigReg ? 13 : 18}px ${font}`;
+  ctx.font = `bold 18px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (() => {
@@ -4198,8 +4197,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // BIG/REG列がある従来レイアウトは列が狭いため16pxのまま、無いレイアウト（天下無双・リバイバル系）だけExcel版に合わせ22px
-    const dataFontSize = hasBigReg ? 16 : 22;
+    const dataFontSize = 22;
 
     ctx.fillStyle = '#111111';
     ctx.font = `bold ${dataFontSize}px ${font}`;
