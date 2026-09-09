@@ -6,7 +6,11 @@
   "hisshobon": {
     "url": "https://hisshobon-hall.info",
     "username": "k.nakamoto",
-    "password": "BlWV PdHo Vay7 x35N 6bvN ITTy"
+    "password": "BlWV PdHo Vay7 x35N 6bvN ITTy",
+    "posters": [
+      { "name": "中元", "username": "k.nakamoto", "password": "BlWV PdHo Vay7 x35N 6bvN ITTy" },
+      { "name": "邪王", "username": "n.kojima", "password": "oOQl sCBV Kb6U 5WaG enpU 9vGw" }
+    ]
   },
   "yg": {
     "url": "https://yg-blog.com",

@@ -139,6 +139,13 @@ function writeStoreMemory(data) {
 const HB = config.hisshobon;
 const HB_AUTH = Buffer.from(`${HB.username}:${HB.password}`).toString('base64');
 
+// 投稿者切り替え：wp-config.json の hisshobon.posters から名前で該当アカウントの認証ヘッダーを作る
+function hbAuthHeaderFor(posterName) {
+  const poster = (HB.posters || []).find(p => p.name === posterName);
+  if (!poster) return null;
+  return { Authorization: 'Basic ' + Buffer.from(`${poster.username}:${poster.password}`).toString('base64') };
+}
+
 // hisshobonカテゴリー・タグのキャッシュ（毎回WPへ取りに行かず、手動更新ボタンで再取得するまで使い回す）
 const HB_CACHE_FILE = path.join(DATA_DIR, 'hb-cache.json');
 function readHbCache() {
@@ -1158,17 +1165,23 @@ const server = http.createServer(async (req, res) => {
       return sendJson(200, all);
     }
 
+    // ── hisshobon 投稿者一覧（切り替え用。パスワードは含めない） ─────────
+    if (req.method === 'GET' && parsed.pathname === '/api/hb-posters') {
+      return sendJson(200, (HB.posters || []).map(p => ({ name: p.name })));
+    }
+
     // ── hisshobon レポート投稿 ──────────────────────────────────
     if (req.method === 'POST' && parsed.pathname === '/api/create-hb-post') {
       const buf = await collectBody(req);
-      const { title, content, status, categories, tags, featured_media, date } = JSON.parse(buf.toString('utf8'));
+      const { title, content, status, categories, tags, featured_media, date, poster } = JSON.parse(buf.toString('utf8'));
       const body = { title, content, status: status || 'draft' };
       if (categories && categories.length) body.categories = categories;
       if (tags && tags.length) body.tags = tags;
       if (featured_media) body.featured_media = featured_media;
       if (date) body.date = date;
-      const r = await hbRequest('POST', 'report', body);
-      console.log(`[hb-report] status=${r.status} title="${title}"`);
+      const authHeader = poster ? hbAuthHeaderFor(poster) : null;
+      const r = await hbRequest('POST', 'report', body, authHeader || undefined);
+      console.log(`[hb-report] status=${r.status} title="${title}" poster="${poster || HB.username}"`);
       return sendJson(r.status, r.data);
     }
 

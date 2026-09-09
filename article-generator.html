@@ -1262,6 +1262,10 @@
           <button onclick="openCatTagModal()" style="padding:6px 12px;font-size:12px;border:1px solid #0073aa;border-radius:5px;background:#fff;color:#0073aa;cursor:pointer;font-family:inherit;white-space:nowrap;">✏️ 選択</button>
         </div>
       </div>
+      <div>
+        <div style="font-size:11px;color:#777;margin-bottom:4px;">投稿者</div>
+        <select id="wp-post-poster" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;"></select>
+      </div>
       <div style="font-size:11px;color:#888;background:#f5f5f5;padding:8px 10px;border-radius:5px;">
         投稿先：<strong>hisshobon-hall.info</strong>
       </div>
@@ -2750,6 +2754,20 @@ function openWpPostModal() {
   document.getElementById('wp-post-result').style.display = 'none';
   document.getElementById('wp-post-modal').classList.add('show');
   loadHbCatsAndTags();
+  loadHbPosters();
+}
+
+// 投稿者セレクトを毎回サーバーから取得して反映（wp-config.jsonのposters追加だけで増減に対応するため）
+async function loadHbPosters() {
+  const sel = document.getElementById('wp-post-poster');
+  if (!sel) return;
+  const prevValue = sel.value;
+  try {
+    const r = await fetch('/api/hb-posters');
+    const posters = await r.json();
+    sel.innerHTML = (Array.isArray(posters) ? posters : []).map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    if (prevValue && [...sel.options].some(o => o.value === prevValue)) sel.value = prevValue;
+  } catch(e) { console.warn('投稿者一覧の取得に失敗しました:', e); }
 }
 
 function closeWpPostModal() {
@@ -2997,10 +3015,11 @@ async function submitWpPost() {
   try {
     // 投稿日時は常に投稿ボタンを押した時刻にする（開催日を投稿日に使うと、ファイル名からの日付検出成否で投稿日がバラつくため）
     const date = null;
+    const poster = document.getElementById('wp-post-poster')?.value || '';
     const res = await fetch('/api/create-hb-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, status, categories, tags, featured_media: FIXED.eventImgId, date }),
+      body: JSON.stringify({ title, content, status, categories, tags, featured_media: FIXED.eventImgId, date, poster }),
     });
     const data = await res.json();
     const resultEl = document.getElementById('wp-post-result');
