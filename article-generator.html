@@ -3639,6 +3639,15 @@ function renderDataTable(machines) {
   document.getElementById('data-table-wrap').style.display = 'block';
 }
 
+// CSSのobject-fit:coverと同様に、縦横比を保ったまま中央基準で切り抜いて描画する（img.drawImageの単純な引き伸ばしだと歪むため）
+function drawImageCover(ctx, img, dx, dy, dw, dh) {
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (!iw || !ih) { ctx.drawImage(img, dx, dy, dw, dh); return; }
+  const scale = Math.max(dw / iw, dh / ih);
+  const sw = dw / scale, sh = dh / scale;
+  const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
 
 async function generateRankingImage() {
   if (!allMachineData.length) { showToast('先にデータファイルを読み込んでください'); return; }
@@ -3781,7 +3790,7 @@ async function generateRankingImage() {
     await Promise.all([autoBannerUrl, rank2BannerUrl].map((src, i) => new Promise(resolve => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { ctx.drawImage(img, i * halfW, TITLE_H, halfW, BANNER_H); resolve(); };
+      img.onload = () => { drawImageCover(ctx, img, i * halfW, TITLE_H, halfW, BANNER_H); resolve(); };
       img.onerror = () => resolve();
       img.src = src;
     })));
@@ -3791,7 +3800,7 @@ async function generateRankingImage() {
     await new Promise(resolve => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { ctx.drawImage(img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
+      img.onload = () => { drawImageCover(ctx, img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
       img.onerror = () => resolve();
       img.src = effectiveBanner;
     });
@@ -4127,7 +4136,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     await new Promise(resolve => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { ctx.drawImage(img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
+      img.onload = () => { drawImageCover(ctx, img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
       img.onerror = () => resolve();
       img.src = bannerUrl;
     });
