@@ -3705,9 +3705,9 @@ async function generateRankingImage() {
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
 
-  const font = '"Yu Mincho","MS Mincho","Hiragino Mincho ProN",serif'; // タイトル文字は正解例に合わせ明朝体Boldにする
+  const font = '"Yu Mincho Demibold","Yu Mincho","MS Mincho",serif'; // タイトル文字は正解例に合わせ明朝体Boldにする
   const tableFont = '"Yu Gothic","Meiryo",sans-serif'; // ヘッダー行・RANKバッジは装飾フォントを使わないゴシック体のまま
-  const dataFont = '"Yu Mincho","MS Mincho","Hiragino Mincho ProN",serif'; // データ行（台番・機種名・ゲーム数・差枚数）は正解例に合わせ明朝体にする
+  const dataFont = '"Yu Mincho Demibold","Yu Mincho","MS Mincho",serif'; // データ行（台番・機種名・ゲーム数・差枚数）は正解例に合わせ明朝体にする
   const BROWN = '#5C2A0A'; // ダークチョコレート（ヘッダー・RANK列）
 
   // 茶色グラデーション生成（y1〜y2の範囲）
@@ -3767,7 +3767,7 @@ async function generateRankingImage() {
     ctx.fillStyle = BROWN;
     ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `16px ${font}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(title, TOTAL_W / 2, TITLE_H / 2);
@@ -3874,7 +3874,7 @@ async function generateRankingImage() {
 
     // 台番
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${dataFont}`;
+    ctx.font = `16px ${dataFont}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     // 機種名〜合算（台番と同じフォント）
@@ -3896,7 +3896,7 @@ async function generateRankingImage() {
     // 差枚数
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${dataFont}`;
+    ctx.font = `16px ${dataFont}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
@@ -4042,9 +4042,9 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
 
-  const font  = '"Yu Mincho","MS Mincho","Hiragino Mincho ProN",serif'; // タイトル文字は正解例に合わせ明朝体Boldにする
+  const font  = '"Yu Mincho Demibold","Yu Mincho","MS Mincho",serif'; // タイトル文字は正解例に合わせ明朝体Boldにする
   const tableFont = '"Yu Gothic","Meiryo",sans-serif'; // ヘッダー行・RANKバッジは装飾フォントを使わないゴシック体のまま
-  const dataFont = '"Yu Mincho","MS Mincho","Hiragino Mincho ProN",serif'; // データ行（台番・機種名・ゲーム数・差枚数）は正解例に合わせ明朝体にする
+  const dataFont = '"Yu Mincho Demibold","Yu Mincho","MS Mincho",serif'; // データ行（台番・機種名・ゲーム数・差枚数）は正解例に合わせ明朝体にする
   const BROWN = '#5C2A0A';
 
   function brownGrad(y1, y2) {
@@ -4106,7 +4106,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   if (headerFrameImg) {
     ctx.drawImage(headerFrameImg, 0, 0, TOTAL_W, TITLE_H);
     ctx.fillStyle = '#2a1a00';
-    ctx.font = `bold ${Math.round(TITLE_H * 0.42)}px ${font}`;
+    ctx.font = `${Math.round(TITLE_H * 0.42)}px ${font}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(fitText(title, TOTAL_W - TITLE_LEFT_PAD - 40), TITLE_LEFT_PAD, TITLE_H / 2);
@@ -4114,7 +4114,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     ctx.fillStyle = BROWN;
     ctx.fillRect(0, 0, TOTAL_W, TITLE_H);
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `16px ${font}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(fitText(title, TOTAL_W - TITLE_LEFT_PAD - 40), TITLE_LEFT_PAD, TITLE_H / 2);
@@ -4197,7 +4197,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     ctx.textBaseline = 'middle';
 
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${dataFont}`;
+    ctx.font = `16px ${dataFont}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     const dName = displayName(m.機種名);
@@ -4216,7 +4216,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${dataFont}`;
+    ctx.font = `16px ${dataFont}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
