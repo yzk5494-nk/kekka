@@ -3705,7 +3705,7 @@ async function generateRankingImage() {
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
 
-  const font = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  const font = '"DFPロマン雪W9","Yu Gothic","Meiryo",sans-serif';
   const BROWN = '#5C2A0A'; // ダークチョコレート（ヘッダー・RANK列）
 
   // 茶色グラデーション生成（y1〜y2の範囲）
@@ -3872,7 +3872,7 @@ async function generateRankingImage() {
 
     // 台番
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `bold 22px ${font}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     // 機種名〜合算（台番と同じフォント）
@@ -3894,7 +3894,7 @@ async function generateRankingImage() {
     // 差枚数
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `bold 22px ${font}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
@@ -4040,7 +4040,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
 
-  const font  = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  const font  = '"DFPロマン雪W9","Yu Gothic","Meiryo",sans-serif';
   const BROWN = '#5C2A0A';
 
   function brownGrad(y1, y2) {
@@ -4193,7 +4193,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     ctx.textBaseline = 'middle';
 
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `bold 22px ${font}`;
     ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
 
     const dName = displayName(m.機種名);
@@ -4212,7 +4212,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
     const diff = m.差;
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 16px ${font}`;
+    ctx.font = `bold 22px ${font}`;
     ctx.fillText((diff >= 0 ? '+' : '') + diff.toLocaleString() + unit, cx('差'), ry + ROW_H / 2);
   });
 
@@ -4399,7 +4399,7 @@ async function renderOtherMachinesImage(groups, unit) {
   const ROW_H       = 36;
   const GROUP_GAP   = 14;
   const PURPLE      = '#6f3fc4';
-  const font        = '"DFGロマン雪W9","Yu Gothic","Meiryo",sans-serif';
+  const font        = '"DFPロマン雪W9","Yu Gothic","Meiryo",sans-serif';
   // WP自動リサイズ閾値(物理2560px = SCALE2で論理1280px)に対して十分な余裕を持たせた1ページあたりの最大高さ
   const MAX_PAGE_H  = 1100;
 
