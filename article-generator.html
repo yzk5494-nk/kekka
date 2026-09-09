@@ -3735,11 +3735,11 @@ async function generateRankingImage() {
     REG:  { x: 561, w: 70  },
     差:   { x: 631, w: 99  },
   } : !hasBigReg && hasG ? {
-    rank: { x: 0,   w: 78  },
-    台番: { x: 78,  w: 80  },
-    名:   { x: 158, w: 362 },
-    G:    { x: 520, w: 96  },
-    差:   { x: 616, w: 114 },
+    rank: { x: 0,   w: 100 },
+    台番: { x: 100, w: 86  },
+    名:   { x: 186, w: 266 },
+    G:    { x: 452, w: 130 },
+    差:   { x: 582, w: 148 },
   } : {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 80  },
@@ -3749,7 +3749,7 @@ async function generateRankingImage() {
   const cx = key => C[key].x + C[key].w / 2;
   const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
              : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
-             : !hasBigReg && hasG ? [78, 158, 520, 616]
+             : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
 
   function fitText(text, maxW) {
@@ -3817,7 +3817,7 @@ async function generateRankingImage() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
   // 各列のBROWNセルをCP内側に描画
-  ctx.font = `bold 13px ${font}`;
+  ctx.font = `bold 18px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (hasBigReg && hasG  ? [['rank','RANK'],['台番','台番'],['名','機種名'],['G','G数'],['BIG','BIG'],['REG','REG'],['合','合算'],['差',`差${unit}数`]]
@@ -4068,11 +4068,11 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
     REG:  { x: 561, w: 70  },
     差:   { x: 631, w: 99  },
   } : !hasBigReg && hasG ? {
-    rank: { x: 0,   w: 78  },
-    台番: { x: 78,  w: 80  },
-    名:   { x: 158, w: 362 },
-    G:    { x: 520, w: 96  },
-    差:   { x: 616, w: 114 },
+    rank: { x: 0,   w: 100 },
+    台番: { x: 100, w: 86  },
+    名:   { x: 186, w: 266 },
+    G:    { x: 452, w: 130 },
+    差:   { x: 582, w: 148 },
   } : {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 80  },
@@ -4081,7 +4081,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
   };
   const SEPS = hasBigReg && hasG  ? [78, 143, 340, 421, 491, 561, 631]
              : hasBigReg && !hasG ? [78, 143, 491, 561, 631]
-             : !hasBigReg && hasG ? [78, 158, 520, 616]
+             : !hasBigReg && hasG ? [100, 186, 452, 582]
              :                      [78, 158, 616];
   // ART列は「差」の直前に差し込み、以降の幅・区切り線を後ろにずらす（女神の加護限定）
   if (artEnabled) {
@@ -4140,7 +4140,7 @@ async function renderMachineRankCard(title, machines, unit, rawName) {
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, y, W, THEAD_H);
-  ctx.font = `bold 13px ${font}`;
+  ctx.font = `bold 18px ${font}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   (() => {
