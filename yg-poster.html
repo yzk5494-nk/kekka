@@ -4236,6 +4236,7 @@ function applyBulkInput() {
 
 function clearBulkInput() {
   document.getElementById('bulkInput').value = '';
+  document.getElementById('searchInput').value = '';
   window._bulkSet = new Set();
   selectedOrder.length = 0;
   document.getElementById('selectedCount').textContent = '0台';
