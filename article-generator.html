@@ -3152,8 +3152,9 @@ let tenkamusouRankImages = [];
 // { dataUrl, wpId, wpUrl }[]
 let tenkamusouOtherImages = [];
 
-// 天下無双：機種別ランキング画像で「BIG/REG列を強制非表示にする」と手動チェックされた機種名（displayName後の名前）
-let tenkamusouNoBigMachines = new Set();
+// 女神の加護：機種別ランキング画像で「BIG/REG/合算列を表示する」と手動チェックされた機種名（displayName後の名前）。
+// 表示する機種の方が少ないため、デフォルト非表示・チェックしたものだけ表示という設計
+let tenkamusouShowBigMachines = new Set();
 
 async function initRankImgSlots() {
   // サーバーに保存済みのrank1〜rank10を確認してスロット生成
@@ -4296,13 +4297,13 @@ function refreshTenkamusouManualList(listElId, minUnits) {
     listEl.innerHTML = `<div style="font-size:11px;color:#999;">対象機種がありません（設置${minUnits}台以上の機種なし）</div>`;
     return;
   }
-  const showNoBigToggle = currentSeries === 'megaminokago';
+  const showBigToggleUi = currentSeries === 'megaminokago';
   listEl.innerHTML = entries.map(e => {
     const nameAttr = e.name.replace(/"/g, '&quot;');
     const nameJs = e.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const noBigToggle = showNoBigToggle ? `
+    const showBigToggle = showBigToggleUi ? `
       <label style="display:flex;align-items:center;gap:3px;color:#b8860b;font-size:11px;white-space:nowrap;">
-        <input type="checkbox" ${tenkamusouNoBigMachines.has(e.name) ? 'checked' : ''} onchange="toggleTenkamusouNoBig('${nameJs}', this.checked)">BIG・REG・合算なし
+        <input type="checkbox" ${tenkamusouShowBigMachines.has(e.name) ? 'checked' : ''} onchange="toggleTenkamusouShowBig('${nameJs}', this.checked)">BIG・REG・合算あり
       </label>` : '';
     return `
     <div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
@@ -4311,15 +4312,15 @@ function refreshTenkamusouManualList(listElId, minUnits) {
         <span style="flex:1;${e.registered ? '' : 'color:#d32f2f;font-weight:bold;'}">${e.name}</span>
         <span style="color:#999;white-space:nowrap;">${e.count}台・平均${e.avg >= 0 ? '+' : ''}${e.avg}枚</span>
       </label>
-      ${noBigToggle}
+      ${showBigToggle}
     </div>`;
   }).join('');
 }
 
-// 機種別ランキング画像で特定の機種のBIG/REG/合算列を強制非表示にするかどうかを切り替える
-function toggleTenkamusouNoBig(name, checked) {
-  if (checked) tenkamusouNoBigMachines.add(name);
-  else tenkamusouNoBigMachines.delete(name);
+// 機種別ランキング画像で特定の機種のBIG/REG/合算列を表示するかどうかを切り替える（女神の加護限定。デフォルト非表示）
+function toggleTenkamusouShowBig(name, checked) {
+  if (checked) tenkamusouShowBigMachines.add(name);
+  else tenkamusouShowBigMachines.delete(name);
 }
 
 // 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出（または手動選択された機種）→機種ごとに1枚ずつ画像を生成し、その場でWPにアップロード
@@ -4378,10 +4379,10 @@ async function generateTenkamusouMachineRankings() {
     const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差).slice(0, 20);
     if (!cardMachines.length) continue;
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
-    // 女神の加護限定：この機種のデータに実際にBIG/REGがある場合のみ表示。手動で「BIG・REG・合算なし」がチェックされていれば強制非表示
-    // 他シリーズは従来通り全カード共通のhasBigRegを使う
+    // 女神の加護限定：表示する機種の方が少ないため、デフォルト非表示。手動で「BIG・REG・合算あり」がチェックされた機種だけ、
+    // かつ実際にBIG/REGデータがある場合のみ表示する。他シリーズは従来通り全カード共通のhasBigRegを使う
     const cardHasBigReg = currentSeries === 'megaminokago'
-      ? (hasBigReg && group.units.some(u => u.BIG != null && u.REG != null) && !tenkamusouNoBigMachines.has(group.name))
+      ? (hasBigReg && group.units.some(u => u.BIG != null && u.REG != null) && tenkamusouShowBigMachines.has(group.name))
       : hasBigReg;
     const dataUrl = await renderMachineRankCard(group.name, cardMachines, unit, cardMachines[0].機種名, cardHasBigReg);
 
