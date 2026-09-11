@@ -4318,9 +4318,28 @@ function refreshTenkamusouManualList(listElId, minUnits) {
 }
 
 // 機種別ランキング画像で特定の機種のBIG/REG/合算列を表示するかどうかを切り替える（女神の加護限定。デフォルト非表示）
+// チェック状態はサーバーに保存し、次回以降も記憶する
 function toggleTenkamusouShowBig(name, checked) {
   if (checked) tenkamusouShowBigMachines.add(name);
   else tenkamusouShowBigMachines.delete(name);
+  saveTenkamusouShowBig();
+}
+
+async function saveTenkamusouShowBig() {
+  try {
+    await fetch('/api/tenkamusou-show-big', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: [...tenkamusouShowBigMachines] }),
+    });
+  } catch (e) { /* 保存失敗してもUI操作は継続させる */ }
+}
+
+async function loadTenkamusouShowBig() {
+  try {
+    const res = await fetch('/api/tenkamusou-show-big');
+    const data = await res.json();
+    tenkamusouShowBigMachines = new Set(data.names || []);
+  } catch (e) { /* 取得失敗時は空のまま（デフォルト非表示）で継続 */ }
 }
 
 // 全読み込みデータを機種名でグループ化→平均差枚数の高い順に上位N機種を選出（または手動選択された機種）→機種ごとに1枚ずつ画像を生成し、その場でWPにアップロード
@@ -5850,6 +5869,10 @@ async function deleteStoreCard(name) {
   initPreview();
   loadStores();
   initRankImgSlots();
+  loadTenkamusouShowBig().then(() => {
+    if (document.getElementById('tenkamusou-manual-mode')?.checked) refreshTenkamusouManualList('tenkamusou-manual-list', 3);
+    if (document.getElementById('tenkamusou-manual-mode-2')?.checked) refreshTenkamusouManualList('tenkamusou-manual-list-2', 2);
+  });
 
   // 機種台数の変更を自動でプレビューに反映
   document.getElementById('machine-rows').addEventListener('input', () => initPreview());

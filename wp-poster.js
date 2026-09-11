@@ -24,7 +24,7 @@ function seedIfMissing(relPath) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(src, dest);
 }
-['x-library.json', 'store-memory.json', 'article-data/library.json', 'pickup-data/library.json'].forEach(seedIfMissing);
+['x-library.json', 'store-memory.json', 'article-data/library.json', 'pickup-data/library.json', 'article-data/tenkamusou-show-big.json'].forEach(seedIfMissing);
 
 // 起動時: ライブラリ画像がまだbase64埋め込みのままなら個別ファイルに変換しておく
 // （初回デプロイ時点の永続ボリューム上の既存データを1回だけ軽量化するため。変換済みなら何もしない）
@@ -739,6 +739,24 @@ const server = http.createServer(async (req, res) => {
       convertImagesTree(data.images, 'pickup', false);
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
       fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
+      return sendJson(200, { ok: true });
+    }
+
+    // ── 女神の加護：機種別ランキング画像で「BIG・REG・合算あり」にした機種名の記憶（article-data/tenkamusou-show-big.json）──
+    if (req.method === 'GET' && parsed.pathname === '/api/tenkamusou-show-big') {
+      const filePath = path.join(DATA_DIR, 'article-data', 'tenkamusou-show-big.json');
+      if (fs.existsSync(filePath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        return res.end(fs.readFileSync(filePath, 'utf8'));
+      }
+      return sendJson(200, { names: [] });
+    }
+    if (req.method === 'POST' && parsed.pathname === '/api/tenkamusou-show-big') {
+      const buf = await collectBody(req);
+      const { names } = JSON.parse(buf.toString('utf8'));
+      const filePath = path.join(DATA_DIR, 'article-data', 'tenkamusou-show-big.json');
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify({ names: Array.isArray(names) ? names : [] }), 'utf8');
       return sendJson(200, { ok: true });
     }
 
