@@ -3996,16 +3996,22 @@ async function copyRankingImage() {
   const canvas = document.getElementById('rank-canvas');
   const btn = document.getElementById('rank-copy-btn');
   if (!canvas.width || !canvas.height) { showToast('先にランキング画像を生成してください'); return; }
-  canvas.toBlob(async blob => {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      const orig = btn.textContent;
-      btn.textContent = '✓ コピーしました';
-      setTimeout(() => { btn.textContent = orig; }, 2000);
-    } catch (e) {
-      alert('コピーに失敗しました。ブラウザがClipboard APIに対応していない可能性があります。');
-    }
-  }, 'image/png');
+  const orig = btn.textContent;
+  try {
+    const blobPromise = new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  } catch (e) {
+    canvas.toBlob(blob => {
+      const link = document.createElement('a');
+      link.download = 'ランキング画像.png';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }, 'image/png');
+    showToast('コピーができない環境のため、画像をダウンロードしました');
+  }
 }
 
 // ===== 天下無双専用：機種別平均差枚ランキング一括生成 =====

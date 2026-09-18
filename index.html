@@ -2386,15 +2386,21 @@ function downloadRankingImage() {
 async function copyRankingImage() {
   const canvas = document.getElementById('rankingCanvas');
   const btn = document.getElementById('rankingCopyBtn');
-  canvas.toBlob(async blob => {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      btn.textContent = '✓ コピーしました';
-      setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
-    } catch (e) {
-      alert('コピーに失敗しました。ブラウザがClipboard APIに対応していない可能性があります。');
-    }
-  }, 'image/png');
+  try {
+    const blobPromise = new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
+  } catch (e) {
+    canvas.toBlob(blob => {
+      const link = document.createElement('a');
+      link.download = '差枚数ランキング.png';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }, 'image/png');
+    alert('コピーができない環境のため、画像をダウンロードしました。');
+  }
 }
 
 // ===== 自動ピックアップ（画像生成②） =====
@@ -5604,15 +5610,21 @@ function adjustColor(hex, amount) {
 async function copyImage() {
   const canvas = document.getElementById('previewCanvas');
   const btn = document.getElementById('copyBtn');
-  canvas.toBlob(async blob => {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-      btn.textContent = '✓ コピーしました';
-      setTimeout(() => { btn.textContent = '📋 PNG コピー'; }, 2000);
-    } catch (e) {
-      alert('コピーに失敗しました。ブラウザがClipboard APIに対応していない可能性があります。');
-    }
-  }, 'image/png');
+  try {
+    const blobPromise = new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png': blobPromise})]);
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => { btn.textContent = '📋 PNG コピー'; }, 2000);
+  } catch (e) {
+    canvas.toBlob(blob => {
+      const link = document.createElement('a');
+      link.download = '優秀台ピックアップ.png';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }, 'image/png');
+    alert('コピーができない環境のため、画像をダウンロードしました。');
+  }
 }
 
 // ===== 集計結果を画像コピー =====
