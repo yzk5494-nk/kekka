@@ -3301,6 +3301,13 @@ function detectDateFromFilename(filename) {
   return null;
 }
 
+// ジャグラー系か判定（「マイジャグV」「ネオアイム」「ファンキー2」「ウルミラ」などの略称表記も対象）
+const JUGGLER_KEYWORDS = ['ジャグ', 'アイム', 'ファンキー', 'ウルミラ'];
+function isJugglerName(name) {
+  const n = String(name || '').normalize('NFKC');
+  return JUGGLER_KEYWORDS.some(kw => n.includes(kw));
+}
+
 // ===== ジャグラー除外リスト（部分一致でExcel読み込み時に除外） =====
 const JUGGLER_EXCLUDE_KEY = 'jugglerExcludeList';
 
@@ -3335,7 +3342,7 @@ function finishMachinesLoad(machines, sourceLabel) {
   if (otherStatusEl) otherStatusEl.textContent = '';
 
   if (document.getElementById('juggler-only-filter')?.checked) {
-    machines = machines.filter(m => m.機種名.normalize('NFKC').includes('ジャグラー'));
+    machines = machines.filter(m => isJugglerName(m.機種名));
   }
 
   const excludeList = getJugglerExcludeList();
@@ -4974,7 +4981,7 @@ function renderMachineImgList() {
   const _allowed = _scfg?.allowedMachines;
   const excelNames = allMachineData.length
     ? [...new Set(allMachineData.map(m => m.機種名).filter(n => {
-        if (_scfg?.jugglerOnly) return n.includes('ジャグラー');
+        if (_scfg?.jugglerOnly) return isJugglerName(n);
         if (_allowed?.length) return _allowed.some(a => n.normalize('NFKC').includes(a.normalize('NFKC')));
         return true;
       }))]
@@ -5368,7 +5375,7 @@ async function deleteNonTargetMachines() {
   const cfg = SERIES_CONFIG[currentSeries];
   let targets;
   if (cfg?.jugglerOnly) {
-    targets = Object.keys(libraryImages).filter(k => !k.includes('ジャグラー'));
+    targets = Object.keys(libraryImages).filter(k => !isJugglerName(k));
   } else if (cfg?.allowedMachines?.length) {
     targets = Object.keys(libraryImages).filter(k =>
       !cfg.allowedMachines.some(a => k.normalize('NFKC').includes(a.normalize('NFKC')))
