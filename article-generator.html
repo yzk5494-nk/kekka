@@ -1097,7 +1097,7 @@
 <!-- ===== 機種管理ページ（振り分け専用） ===== -->
 <div id="page-machines" class="page-section hidden">
   <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px 16px; background:#f0f2f5; overflow-y:auto;">
-    <div class="modal" style="position:static; width:100%; max-width:860px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+    <div class="modal" style="position:static; width:100%; max-width:1200px; max-height:none; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
       <div class="modal-header">
         <h3>🎰 機種の振り分け <span id="machines-page-series-label" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
       </div>
@@ -1111,7 +1111,7 @@
           <span style="color:#4a9a30;">■</span> 振り分け済み　<span style="color:#bbb;">■</span> 未振り分け
         </span>
       </div>
-      <div class="machine-img-list" id="machine-img-list" style="display:block; max-height:65vh; overflow-y:auto;">
+      <div class="machine-img-list" id="machine-img-list" style="display:block; max-height:calc(100vh - 230px); overflow-y:auto;">
         <div class="machine-img-empty">データを読み込むか、代表機種タブで登録してください</div>
       </div>
     </div>
@@ -5057,8 +5057,8 @@ function renderMachineImgList() {
             <span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未振り分け</span>
           </div>
         </div>
-        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" list="registered-machine-datalist" style="min-width:160px;">
-        <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})">振り分ける</button>
+        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" list="registered-machine-datalist" autocomplete="off" style="flex:2;min-width:280px;font-size:14px;padding:8px 10px;">
+        <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})" style="font-size:14px;padding:8px 16px;">振り分ける</button>
       </div>
     </div>`;
   }).join('');
