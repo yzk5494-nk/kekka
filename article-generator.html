@@ -5057,7 +5057,7 @@ function renderMachineImgList() {
             <span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未振り分け</span>
           </div>
         </div>
-        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" list="registered-machine-datalist" autocomplete="off" style="flex:2;min-width:280px;font-size:14px;padding:8px 10px;">
+        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" data-alias-idx="${idx}" autocomplete="off" style="flex:2;min-width:280px;font-size:14px;padding:8px 10px;">
         <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})" style="font-size:14px;padding:8px 16px;">振り分ける</button>
       </div>
     </div>`;
@@ -5095,6 +5095,85 @@ async function makeAliasOfExisting(idx) {
   refreshMachineViews();
   showToast(`「${name}」を「${target}」に振り分けました`);
 }
+
+// ===== 振り分け先の代表機種候補リスト（ブラウザ標準のdatalistは小さく大きさを変えられないため自前で表示） =====
+let _aliasSuggestEl = null, _aliasSuggestInput = null, _aliasSuggestActive = -1;
+function _aliasNorm(s) { return String(s || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ''); }
+function showAliasSuggest(input) {
+  if (!_aliasSuggestEl) {
+    _aliasSuggestEl = document.createElement('div');
+    _aliasSuggestEl.style.cssText = 'position:fixed;z-index:3000;background:#fff;border:1px solid #d4a827;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow-y:auto;display:none;';
+    // mousedownで選ぶ（blurより先に処理するため）
+    _aliasSuggestEl.addEventListener('mousedown', e => {
+      const item = e.target.closest('[data-suggest]');
+      if (!item) return;
+      e.preventDefault();
+      pickAliasSuggest(item.dataset.suggest);
+    });
+    document.body.appendChild(_aliasSuggestEl);
+  }
+  _aliasSuggestInput = input;
+  _aliasSuggestActive = -1;
+  const q = _aliasNorm(input.value);
+  const names = Object.keys(libraryImages)
+    .filter(n => !q || _aliasNorm(n).includes(q) || _aliasNorm(libraryImages[n].nickname).includes(q))
+    .sort((a, b) => a.localeCompare(b, 'ja'));
+  if (!names.length) {
+    _aliasSuggestEl.innerHTML = '<div style="padding:14px 16px;font-size:14px;color:#aaa;">該当する代表機種がありません</div>';
+  } else {
+    _aliasSuggestEl.innerHTML = names.map((n, i) => {
+      const nn = libraryImages[n].nickname;
+      return `<div data-suggest="${ea(n)}" data-i="${i}" style="padding:11px 16px;font-size:15px;color:#333;cursor:pointer;border-bottom:1px solid #f3f3f3;" onmouseover="setAliasSuggestActive(${i})">${ea(n)}${nn && nn !== n ? ` <span style="font-size:12px;color:#d4a827;">（${ea(nn)}）</span>` : ''}</div>`;
+    }).join('');
+  }
+  const r = input.getBoundingClientRect();
+  const below = window.innerHeight - r.bottom - 12;
+  const above = r.top - 12;
+  const useAbove = below < 220 && above > below;
+  const maxH = Math.min(420, useAbove ? above : below);
+  _aliasSuggestEl.style.left = r.left + 'px';
+  _aliasSuggestEl.style.width = Math.max(r.width, 360) + 'px';
+  _aliasSuggestEl.style.maxHeight = maxH + 'px';
+  _aliasSuggestEl.style.top = useAbove ? '' : (r.bottom + 4) + 'px';
+  _aliasSuggestEl.style.bottom = useAbove ? (window.innerHeight - r.top + 4) + 'px' : '';
+  _aliasSuggestEl.style.display = 'block';
+}
+function hideAliasSuggest() {
+  if (_aliasSuggestEl) _aliasSuggestEl.style.display = 'none';
+  _aliasSuggestInput = null;
+}
+function setAliasSuggestActive(i) {
+  if (!_aliasSuggestEl) return;
+  const items = _aliasSuggestEl.querySelectorAll('[data-suggest]');
+  if (!items.length) return;
+  _aliasSuggestActive = (i + items.length) % items.length;
+  items.forEach((el, k) => { el.style.background = k === _aliasSuggestActive ? '#fff6d6' : ''; });
+  items[_aliasSuggestActive].scrollIntoView({ block: 'nearest' });
+}
+function pickAliasSuggest(name) {
+  if (!_aliasSuggestInput) return;
+  _aliasSuggestInput.value = name;
+  hideAliasSuggest();
+}
+document.addEventListener('focusin', e => { if (e.target.matches?.('input[data-alias-idx]')) showAliasSuggest(e.target); });
+document.addEventListener('input', e => { if (e.target.matches?.('input[data-alias-idx]')) showAliasSuggest(e.target); });
+document.addEventListener('focusout', e => { if (e.target === _aliasSuggestInput) hideAliasSuggest(); });
+document.addEventListener('keydown', e => {
+  const input = e.target;
+  if (!input.matches?.('input[data-alias-idx]')) return;
+  const open = _aliasSuggestEl && _aliasSuggestEl.style.display !== 'none';
+  if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) showAliasSuggest(input); setAliasSuggestActive(_aliasSuggestActive + 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); if (open) setAliasSuggestActive(_aliasSuggestActive - 1); }
+  else if (e.key === 'Escape') { hideAliasSuggest(); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const items = open ? _aliasSuggestEl.querySelectorAll('[data-suggest]') : [];
+    if (open && _aliasSuggestActive >= 0 && items[_aliasSuggestActive]) pickAliasSuggest(items[_aliasSuggestActive].dataset.suggest);
+    else { hideAliasSuggest(); makeAliasOfExisting(Number(input.dataset.aliasIdx)); }
+  }
+});
+// 一覧をスクロールしたら候補リストの位置がずれるので閉じる
+document.addEventListener('scroll', e => { if (_aliasSuggestEl && !_aliasSuggestEl.contains(e.target)) hideAliasSuggest(); }, true);
 
 // 振り分け設定を解除
 async function unlinkMachineAlias(name) {
