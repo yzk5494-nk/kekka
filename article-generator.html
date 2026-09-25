@@ -1719,6 +1719,8 @@ const SERIES_CONFIG = {
     rankingTitle: '店内差枚数ランキング',
     // ランキングヘッダー枠は天下無双と共通の画像を使用
     headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenkamusou-header.jpg',
+    // 機種別ランキング画像のタイトル枠は女神の加護専用（未設定のシリーズは天下無双の枠）
+    cardHeaderImg: '/assets/megaminokago-header.png',
     capLabel: '取材対象機種設置台数',
     capColor: '#b8860b', capBg: '#fffaf0', capHeaderColor: '#b8860b',
     defaultMachines: [],
@@ -4047,11 +4049,12 @@ async function renderMachineRankCard(title, machines, unit, rawName, cardHasBigR
   const ROW_H     = 40;
 
   // 天下無双専用の枠画像（白×ゴールドの装飾フレーム）にタイトル文字を重ねる。読み込めなければ従来の茶色帯にフォールバック
+  // シリーズ専用の枠（cardHeaderImg）があればそちらを使う（女神の加護）
   const headerFrameImg = await new Promise(resolve => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = '/assets/tenkamusou-header.jpg';
+    img.src = SERIES_CONFIG[currentSeries]?.cardHeaderImg || '/assets/tenkamusou-header.jpg';
   });
   const TITLE_H = headerFrameImg ? Math.round(W * headerFrameImg.naturalHeight / headerFrameImg.naturalWidth) : 52;
 
