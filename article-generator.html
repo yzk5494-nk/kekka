@@ -930,6 +930,11 @@
           <input type="checkbox" id="tenkamusou-manual-mode-2" onchange="toggleTenkamusouManualMode(2)">
           手動で機種を選択する（設置2台以上の機種のみ表示）
         </label>
+        <div id="card-frame-row" style="display:none;align-items:center;gap:8px;font-size:12px;color:#444;margin-bottom:8px;flex-wrap:wrap;">
+          <span>タイトル枠</span>
+          <select id="card-frame-select" onchange="onCardFrameChange()" style="font-size:12px;padding:3px 6px;border:1px solid #ccc;border-radius:5px;font-family:inherit;"></select>
+          <img id="card-frame-preview" style="height:26px;max-width:100%;border-radius:3px;" alt="">
+        </div>
         <label id="tenkamusou-art-toggle-row" style="display:none;align-items:center;gap:6px;font-size:12px;color:#444;margin-bottom:8px;">
           <input type="checkbox" id="tenkamusou-art-toggle" checked>
           ART列を表示する（データにARTがある場合のみ）
@@ -1721,6 +1726,12 @@ const SERIES_CONFIG = {
     headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenkamusou-header.jpg',
     // 機種別ランキング画像のタイトル枠は女神の加護専用（未設定のシリーズは天下無双の枠）
     cardHeaderImg: '/assets/megaminokago-header.png',
+    // 記事作成時に選べるタイトル枠（先頭がデフォルト。画像を assets/ に置いてここに足せば選択肢が増える）
+    cardHeaderChoices: [
+      { id: 'gold',       label: 'ゴールド',           src: '/assets/megaminokago-header.png' },
+      { id: 'black',      label: 'ブラック×ゴールド', src: '/assets/megaminokago-header-black.png' },
+      { id: 'tenkamusou', label: '天下無双と同じ枠',   src: '/assets/tenkamusou-header.jpg' },
+    ],
     capLabel: '取材対象機種設置台数',
     capColor: '#b8860b', capBg: '#fffaf0', capHeaderColor: '#b8860b',
     defaultMachines: [],
@@ -1849,6 +1860,7 @@ function onSeriesChange(val) {
   if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago')) ? '' : 'none';
   const artToggleRow = document.getElementById('tenkamusou-art-toggle-row');
   if (artToggleRow) artToggleRow.style.display = (val === 'megaminokago') ? 'flex' : 'none';
+  renderCardFrameSelect();
 
   // 機種一覧をシリーズのデフォルトにリセット
   const machineRows = document.getElementById('machine-rows');
@@ -4036,6 +4048,40 @@ async function copyRankingImage() {
 
 // 1機種ぶんのランキングカード画像を描画してdataURLを返す（generateRankingImage()と同じ見た目のロジックを流用）
 // rawName: Excel/P-PRO由来の元の機種名（画像ライブラリはこのキーで登録されているため、ニックネーム変換後のtitleでは引けない）
+// ===== 機種別ランキング画像のタイトル枠の選択（cardHeaderChoices があるシリーズのみ。今は女神の加護） =====
+// 最後に選んだ枠はブラウザごとに記憶する
+function cardFrameStorageKey() { return 'cardFrame:' + currentSeries; }
+function renderCardFrameSelect() {
+  const row = document.getElementById('card-frame-row');
+  const sel = document.getElementById('card-frame-select');
+  if (!row || !sel) return;
+  const choices = SERIES_CONFIG[currentSeries]?.cardHeaderChoices;
+  if (!choices?.length) { row.style.display = 'none'; return; }
+  let saved = null;
+  try { saved = localStorage.getItem(cardFrameStorageKey()); } catch {}
+  sel.innerHTML = choices.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+  sel.value = choices.some(c => c.id === saved) ? saved : choices[0].id;
+  row.style.display = 'flex';
+  updateCardFramePreview();
+}
+function onCardFrameChange() {
+  try { localStorage.setItem(cardFrameStorageKey(), document.getElementById('card-frame-select').value); } catch {}
+  updateCardFramePreview();
+}
+function updateCardFramePreview() {
+  const img = document.getElementById('card-frame-preview');
+  if (img) img.src = selectedCardFrameSrc();
+}
+function selectedCardFrameSrc() {
+  const cfg = SERIES_CONFIG[currentSeries];
+  const choices = cfg?.cardHeaderChoices;
+  if (choices?.length) {
+    const id = document.getElementById('card-frame-select')?.value;
+    return (choices.find(c => c.id === id) || choices[0]).src;
+  }
+  return cfg?.cardHeaderImg || '/assets/tenkamusou-header.jpg';
+}
+
 async function renderMachineRankCard(title, machines, unit, rawName, cardHasBigReg = hasBigReg) {
   const SCALE     = 2;
   const ART_W     = 74; // ART列を追加する分の幅（女神の加護限定）
@@ -4054,7 +4100,7 @@ async function renderMachineRankCard(title, machines, unit, rawName, cardHasBigR
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = SERIES_CONFIG[currentSeries]?.cardHeaderImg || '/assets/tenkamusou-header.jpg';
+    img.src = selectedCardFrameSrc();
   });
   const TITLE_H = headerFrameImg ? Math.round(W * headerFrameImg.naturalHeight / headerFrameImg.naturalWidth) : 52;
 
