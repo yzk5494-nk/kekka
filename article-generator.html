@@ -3582,58 +3582,93 @@ function processDataFile(file) {
   else reader.readAsArrayBuffer(file);
 }
 
-// 完全一致 → 別名(aliases)から逆引き、の順で登録情報（画像・表示名）を解決
-function resolveLibraryEntry(name) {
-  if (libraryImages[name]) return libraryImages[name];
-  for (const val of Object.values(libraryImages)) {
-    if (val.aliases?.includes(name)) return val;
+// ===== 代表機種の照合 =====
+// 登録簿はシリーズごと。今のシリーズで見つからない機種だけ、ほかのシリーズの登録を借りて使う
+// （今のシリーズの登録が常に優先されるので、既存シリーズの表示名・画像は変わらない）
+// リバイバル・女神の加護は天下無双と登録簿を共有しているため、保存データ上の古い写しは参照しない
+const LIBRARY_SHARED_WITH_TENKAMUSOU = ['revival', 'megaminokago'];
+function fallbackLibraries() {
+  const own = libraryImages;
+  const order = ['tenkamusou', ...Object.keys(allSeriesLibrary).filter(s => s !== 'tenkamusou')];
+  return order
+    .filter(s => !LIBRARY_SHARED_WITH_TENKAMUSOU.includes(s) && allSeriesLibrary[s] && allSeriesLibrary[s] !== own)
+    .map(s => ({ series: s, lib: allSeriesLibrary[s] }));
+}
+function libraryChain() {
+  return [{ series: currentSeries, lib: libraryImages }, ...fallbackLibraries()];
+}
+
+// 1つの登録簿の中で、機種名に当たる代表機種名を探す（完全一致 → 別名 → 表記ゆれを除いて一致）
+function findRepIn(lib, name, { fuzzy = true } = {}) {
+  if (lib[name]) return name;
+  for (const [key, val] of Object.entries(lib)) {
+    if (val.aliases?.includes(name)) return key;
+  }
+  if (!fuzzy) return null;
+  const cleaned = cleanName(name);
+  if (lib[cleaned]) return cleaned;
+  for (const key of Object.keys(lib)) {
+    if (cleanName(key) === cleaned) return key;
+  }
+  // 末尾の「スペース+2-3英字サフィックス」を除いて再試行（例: "V III EA" → "V III"）
+  const stripped = cleaned.replace(/\s+[A-Z]{2,3}$/, '');
+  if (stripped !== cleaned) {
+    if (lib[stripped]) return stripped;
+    for (const key of Object.keys(lib)) {
+      if (cleanName(key) === stripped) return key;
+    }
   }
   return null;
 }
 
-// 代表機種として登録済みか（nicknameの有無は問わない。displayName()と同じ照合ロジックを流用）
+// 今のシリーズ → ほかのシリーズの順で探す。見つかれば { series, key, entry }
+function findLibraryMatch(name, opts) {
+  if (!name) return null;
+  for (const { series, lib } of libraryChain()) {
+    const key = findRepIn(lib, name, opts);
+    if (key) return { series, key, entry: lib[key] };
+  }
+  return null;
+}
+
+// 完全一致 → 別名(aliases)から逆引き、の順で登録情報（画像・表示名）を解決
+function resolveLibraryEntry(name) {
+  return findLibraryMatch(name, { fuzzy: false })?.entry || null;
+}
+
+// 代表機種として登録済みか（nicknameの有無は問わない）
 function isRegisteredMachine(name) {
-  if (libraryImages[name]) return true;
-  for (const key of Object.keys(libraryImages)) {
-    if (libraryImages[key].aliases?.includes(name)) return true;
-  }
-  const cleaned = cleanName(name);
-  if (libraryImages[cleaned]) return true;
-  for (const key of Object.keys(libraryImages)) {
-    if (cleanName(key) === cleaned) return true;
-  }
-  const stripped = cleaned.replace(/\s+[A-Z]{2,3}$/, '');
-  if (stripped !== cleaned) {
-    if (libraryImages[stripped]) return true;
-    for (const key of Object.keys(libraryImages)) {
-      if (cleanName(key) === stripped) return true;
-    }
-  }
-  return false;
+  return !!findLibraryMatch(name);
 }
 
 // 機種名→表示名変換（nicknameが登録されていれば優先。別名(aliases)経由も解決）
 // 代表機種として登録済みなら、表示名(nickname)未設定でも代表名自体をフォールバックとして使う
 function displayName(name) {
-  if (libraryImages[name]) return libraryImages[name].nickname || name;
-  for (const [key, val] of Object.entries(libraryImages)) {
+  for (const { lib } of libraryChain()) {
+    const dn = displayNameIn(lib, name);
+    if (dn) return dn;
+  }
+  return name;
+}
+function displayNameIn(lib, name) {
+  if (lib[name]) return lib[name].nickname || name;
+  for (const [key, val] of Object.entries(lib)) {
     if (val.aliases?.includes(name)) return val.nickname || key;
   }
+  // 表記ゆれを除いた一致は、表示名(nickname)が登録されている場合のみ採用
   const cleaned = cleanName(name);
-  if (libraryImages[cleaned]?.nickname) return libraryImages[cleaned].nickname;
-  // ライブラリキーをcleanNameで正規化して逆引き
-  for (const [key, val] of Object.entries(libraryImages)) {
+  if (lib[cleaned]?.nickname) return lib[cleaned].nickname;
+  for (const [key, val] of Object.entries(lib)) {
     if (val.nickname && cleanName(key) === cleaned) return val.nickname;
   }
-  // 末尾の「スペース+2-3英字サフィックス」を除いて再試行（例: "V III EA" → "V III"）
   const stripped = cleaned.replace(/\s+[A-Z]{2,3}$/, '');
   if (stripped !== cleaned) {
-    if (libraryImages[stripped]?.nickname) return libraryImages[stripped].nickname;
-    for (const [key, val] of Object.entries(libraryImages)) {
+    if (lib[stripped]?.nickname) return lib[stripped].nickname;
+    for (const [key, val] of Object.entries(lib)) {
       if (val.nickname && cleanName(key) === stripped) return val.nickname;
     }
   }
-  return name;
+  return null;
 }
 
 function formatGasso(m) {
@@ -5058,6 +5093,27 @@ function renderMachineImgList() {
       </div>`;
     }
 
+    // このシリーズでは未登録だが、ほかのシリーズの登録を借りて表示できている機種
+    const fb = findLibraryMatch(name);
+    if (fb) {
+      return `
+    <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #f0e2b8;border-radius:7px;background:#fffcf2;overflow:hidden;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;flex-wrap:wrap;">
+        ${fb.entry.url
+          ? `<img id="mimg-${idx}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;background:#eee;flex-shrink:0;">`
+          : `<div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>`}
+        <div style="flex:1;min-width:140px;">
+          <div style="font-size:13px;font-weight:bold;color:#333;">${ea(name)}
+            <span style="font-size:10px;background:#fff1c9;color:#a07800;border-radius:3px;padding:1px 5px;margin-left:5px;">他シリーズの登録を使用中</span>
+          </div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">→ ${ea(SERIES_CONFIG[fb.series]?.name || fb.series)}の「${ea(fb.key)}」${fb.entry.nickname ? `（表示名：${ea(fb.entry.nickname)}）` : ''}を使用。別の代表機種にしたい場合だけ振り分けてください</div>
+        </div>
+        <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" data-alias-idx="${idx}" autocomplete="off" style="flex:2;min-width:280px;font-size:14px;padding:8px 10px;">
+        <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})" style="font-size:14px;padding:8px 16px;">振り分ける</button>
+      </div>
+    </div>`;
+    }
+
     return `
     <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
       <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;flex-wrap:wrap;">
@@ -5076,7 +5132,7 @@ function renderMachineImgList() {
   // base64画像はinnerHTMLに埋め込まず、後からsrcをセット
   allNames.forEach((name, idx) => {
     if (aliasTargetOf[name]) return;
-    const url = libraryImages[name]?.url;
+    const url = libraryImages[name]?.url || (!libraryImages[name] && findLibraryMatch(name)?.entry.url);
     if (url) {
       const img = document.getElementById('mimg-' + idx);
       if (img) img.src = url;
@@ -5098,7 +5154,12 @@ async function makeAliasOfExisting(idx) {
   const target = input.value.trim();
   if (!target) return;
   if (target === name) { showToast('自分自身は振り分け先にできません'); return; }
-  if (!libraryImages[target]) { showToast(`「${target}」はまだ代表機種として登録されていません`); return; }
+  if (!libraryImages[target]) {
+    // ほかのシリーズの代表機種を選んだ場合は、画像・表示名ごとこのシリーズにも登録してから振り分ける
+    const other = fallbackLibraries().find(({ lib }) => lib[target]);
+    if (!other) { showToast(`「${target}」はまだ代表機種として登録されていません`); return; }
+    libraryImages[target] = JSON.parse(JSON.stringify(other.lib[target]));
+  }
   if (!libraryImages[target].aliases) libraryImages[target].aliases = [];
   if (!libraryImages[target].aliases.includes(name)) libraryImages[target].aliases.push(name);
   await saveMachineImages();
@@ -5125,15 +5186,25 @@ function showAliasSuggest(input) {
   _aliasSuggestInput = input;
   _aliasSuggestActive = -1;
   const q = _aliasNorm(input.value);
-  const names = Object.keys(libraryImages)
-    .filter(n => !q || _aliasNorm(n).includes(q) || _aliasNorm(libraryImages[n].nickname).includes(q))
-    .sort((a, b) => a.localeCompare(b, 'ja'));
+  // このシリーズの代表機種を先に、ほかのシリーズだけにある代表機種を後ろに並べる
+  const entryOf = {}, fromSeries = {};
+  Object.keys(libraryImages).forEach(n => { entryOf[n] = libraryImages[n]; });
+  fallbackLibraries().forEach(({ series, lib }) => Object.keys(lib).forEach(n => {
+    if (!entryOf[n]) { entryOf[n] = lib[n]; fromSeries[n] = series; }
+  }));
+  const hit = n => !q || _aliasNorm(n).includes(q) || _aliasNorm(entryOf[n].nickname).includes(q);
+  const byName = (a, b) => a.localeCompare(b, 'ja');
+  const names = [
+    ...Object.keys(libraryImages).filter(hit).sort(byName),
+    ...Object.keys(fromSeries).filter(hit).sort(byName),
+  ];
   if (!names.length) {
     _aliasSuggestEl.innerHTML = '<div style="padding:14px 16px;font-size:14px;color:#aaa;">該当する代表機種がありません</div>';
   } else {
     _aliasSuggestEl.innerHTML = names.map((n, i) => {
-      const nn = libraryImages[n].nickname;
-      return `<div data-suggest="${ea(n)}" data-i="${i}" style="padding:11px 16px;font-size:15px;color:#333;cursor:pointer;border-bottom:1px solid #f3f3f3;" onmouseover="setAliasSuggestActive(${i})">${ea(n)}${nn && nn !== n ? ` <span style="font-size:12px;color:#d4a827;">（${ea(nn)}）</span>` : ''}</div>`;
+      const nn = entryOf[n].nickname;
+      const src = fromSeries[n] ? ` <span style="font-size:11px;color:#999;background:#f3f3f3;border-radius:3px;padding:1px 6px;margin-left:4px;">${ea(SERIES_CONFIG[fromSeries[n]]?.name || fromSeries[n])}の登録</span>` : '';
+      return `<div data-suggest="${ea(n)}" data-i="${i}" style="padding:11px 16px;font-size:15px;color:#333;cursor:pointer;border-bottom:1px solid #f3f3f3;" onmouseover="setAliasSuggestActive(${i})">${ea(n)}${nn && nn !== n ? ` <span style="font-size:12px;color:#d4a827;">（${ea(nn)}）</span>` : ''}${src}</div>`;
     }).join('');
   }
   const r = input.getBoundingClientRect();
