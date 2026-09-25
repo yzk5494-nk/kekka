@@ -2051,9 +2051,9 @@ async function generateWithAI() {
   const rankInTop = Object.entries(rankInCount).sort((a,b)=>b[1]-a[1]).slice(0,3)
     .map(([n,c]) => `${n}(${c}台)`).join('、');
 
-  // 合算確率トップ機種（BIG+REGがある場合のみ）
+  // 合算確率トップ機種（BIG+REGがある場合のみ）。合算確率が参考になるのはジャグラー（電光石火）だけなので、他シリーズではAIに渡さない
   let gassoTop = '';
-  if (hasBigReg) {
+  if (hasBigReg && currentSeries === 'denkoisseki') {
     const gassoMap = {};
     rankData.forEach(m => {
       const total = (m.BIG||0) + (m.REG||0);
