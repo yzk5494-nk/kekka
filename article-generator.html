@@ -738,7 +738,8 @@
     <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
     <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')">🏪 店舗管理</button>
     <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')">🎰 機種管理</button>
-    <button class="page-nav-btn" id="nav-canonical" onclick="switchPage('canonical')">🏷 代表機種</button>
+    <button class="page-nav-btn" id="nav-canonical" onclick="openCanonical('slot')">🏷 スロット代表機種</button>
+    <button class="page-nav-btn" id="nav-canonical-pachinko" onclick="openCanonical('pachinko')">🏷 パチンコ代表機種</button>
     <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()">🎫 パチンコ機種管理</button>
   </div>
 </header>
@@ -4921,6 +4922,7 @@ function confirmMediaSelect() {
   // 機種画像登録の場合
   if (targetIdKey === '__machine_img__' && pendingMachineName) {
     libraryImages[pendingMachineName] = {
+      ...kindField(),
       id: selectedId, url: selectedUrl,
       ...(pendingMachineNickname ? { nickname: pendingMachineNickname } : {}),
     };
@@ -5017,6 +5019,8 @@ function migrateSeriesLibraries(seriesMap) {
     }
     if (aliases.length) entry.aliases = aliases; else delete entry.aliases;
     if (endImages.length) entry.endImages = endImages; else delete entry.endImages;
+    // パチンコ（一球入魂）で登録されていた機種は種類をパチンコにする
+    if (members.every(n => n.series === 'ikkyunyukon')) entry.kind = 'pachinko';
     library[base.key] = entry;
 
     // 表示名の候補（各代表機種の表示名、未設定なら代表名そのもの）
@@ -5032,6 +5036,14 @@ function migrateSeriesLibraries(seriesMap) {
   }
   return { library, reviewGroups };
 }
+
+// 代表機種の種類（パチンコ／スロット）。登録簿は共通だが、振り分け・一覧は今のシリーズの種類だけに絞る
+// entry.kind === 'pachinko' がパチンコ、未設定はスロット。パチンコのシリーズは単位が「玉」のもの（一球入魂）
+function currentMachineKind() { return SERIES_CONFIG[currentSeries]?.unitLabel === '玉' ? 'pachinko' : 'slot'; }
+function entryKind(entry) { return entry?.kind === 'pachinko' ? 'pachinko' : 'slot'; }
+function isCurrentKindEntry(name) { return entryKind(libraryImages[name]) === currentMachineKind(); }
+// 機種管理画面から登録するときに付ける種類（今のシリーズに合わせる。代表機種ページからの登録は開いているタブの種類）
+function kindField() { return currentMachineKind() === 'pachinko' ? { kind: 'pachinko' } : {}; }
 
 // 今のシリーズの対象機種か（ジャグラー限定・機種限定のシリーズのみ絞り込む）
 function isSeriesTargetName(name) {
@@ -5119,7 +5131,7 @@ function renderMachineImgList() {
   // Excelの機種（重複なし・シリーズに応じて絞り込み）
   const excelNames = [...new Set(allMachineData.map(m => m.機種名).filter(isSeriesTargetName))];
   // Excel以外の登録済み機種（代表機種として単独登録されているもの）
-  const otherRegNames = Object.keys(libraryImages).filter(n => !excelNames.includes(n) && isSeriesTargetName(n));
+  const otherRegNames = Object.keys(libraryImages).filter(n => !excelNames.includes(n) && isCurrentKindEntry(n) && isSeriesTargetName(n));
 
   const allNames = [...excelNames, ...otherRegNames];
   _machineListNames = allNames;
@@ -5248,6 +5260,7 @@ function showAliasSuggest(input) {
   _aliasSuggestActive = -1;
   const q = _aliasNorm(input.value);
   const names = Object.keys(libraryImages)
+    .filter(isCurrentKindEntry)
     .filter(n => !q || _aliasNorm(n).includes(q) || _aliasNorm(libraryImages[n].nickname).includes(q))
     .sort((a, b) => a.localeCompare(b, 'ja'));
   if (!names.length) {
@@ -5325,7 +5338,7 @@ let _canonicalListNames = [];
 
 function renderCanonicalList() {
   const list = document.getElementById('canonical-list');
-  const names = Object.keys(libraryImages).sort((a, b) => a.localeCompare(b, 'ja'));
+  const names = Object.keys(libraryImages).filter(n => entryKind(libraryImages[n]) === canonicalKind).sort((a, b) => a.localeCompare(b, 'ja'));
   _canonicalListNames = names;
 
   if (!names.length) {
@@ -5549,6 +5562,7 @@ async function registerNewMachine() {
   const nickname = document.getElementById('new-machine-nickname').value.trim() || null;
   const existing = libraryImages[name] || {};
   libraryImages[name] = {
+    ...(libraryImages[name] || canonicalKind !== 'pachinko' ? {} : { kind: 'pachinko' }),
     ...existing,
     ...(pendingNewMachineBanner ? { url: pendingNewMachineBanner } : {}),
     ...(nickname ? { nickname } : {}),
@@ -5870,7 +5884,16 @@ async function saveStores() {
 // ============================================================
 // ページ切り替え
 // ============================================================
-function switchPage(name) {
+// 代表機種ページはスロット用・パチンコ用の2つのタブで共用する。表示中の種類
+let canonicalKind = 'slot';
+function openCanonical(kind) {
+  canonicalKind = kind;
+  switchPage('canonical', true);
+}
+
+// keepCanonicalKind: 代表機種ページを開くとき、種類を今のシリーズに合わせず openCanonical() で指定したものを使う
+function switchPage(name, keepCanonicalKind = false) {
+  if (name === 'canonical' && !keepCanonicalKind) canonicalKind = currentMachineKind();
   ['article', 'stores', 'machines', 'canonical'].forEach(p => {
     const sec = document.getElementById('page-' + p);
     const btn = document.getElementById('nav-' + p);
@@ -5889,9 +5912,12 @@ function switchPage(name) {
     try { renderMachineImgList(); } catch(e) { console.error('renderMachineImgList error:', e); }
     try { renderMachineFromData(); } catch(e) { console.error('renderMachineFromData error:', e); }
   }
+  // 代表機種ページはスロット／パチンコどちらのタブを光らせるか
+  document.getElementById('nav-canonical')?.classList.toggle('active', name === 'canonical' && canonicalKind === 'slot');
+  document.getElementById('nav-canonical-pachinko')?.classList.toggle('active', name === 'canonical' && canonicalKind === 'pachinko');
   if (name === 'canonical') {
     const label = document.getElementById('canonical-page-series-label');
-    if (label) label.textContent = '（全シリーズ共通）';
+    if (label) label.textContent = canonicalKind === 'pachinko' ? '（パチンコ・全シリーズ共通）' : '（スロット・全シリーズ共通）';
     try { renderCanonicalList(); } catch(e) { console.error('renderCanonicalList error:', e); }
   }
 }

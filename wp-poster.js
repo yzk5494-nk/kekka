@@ -43,6 +43,35 @@ function migrateLibraryImagesOnBoot(relFile, subdir, nested) {
   }
 }
 migrateLibraryImagesOnBoot('article-data/library.json', 'article', true);
+
+// 記事ジェネレーターの代表機種は全シリーズ共通の登録簿（images.shared）に統合済みだが、統合時にパチンコ／スロットの
+// 区別を付けていなかったため、統合前の控え（library.before-shared.json）で一球入魂に登録されていた機種に kind:'pachinko' を付ける。
+// 付け足すだけなので毎回起動時に実行しても結果は同じ
+function markPachinkoKindsOnBoot() {
+  try {
+    const libPath = path.join(DATA_DIR, 'article-data', 'library.json');
+    const backupPath = path.join(DATA_DIR, 'article-data', 'library.before-shared.json');
+    if (!fs.existsSync(libPath) || !fs.existsSync(backupPath)) return;
+    const data = JSON.parse(fs.readFileSync(libPath, 'utf8'));
+    const shared = data.images?.shared;
+    const pachinkoLib = JSON.parse(fs.readFileSync(backupPath, 'utf8')).images?.ikkyunyukon;
+    if (!shared || !pachinkoLib) return;
+    const pachinkoNames = new Set();
+    for (const [key, entry] of Object.entries(pachinkoLib)) [key, ...(entry?.aliases || [])].forEach(n => pachinkoNames.add(n));
+    let marked = 0;
+    for (const [key, entry] of Object.entries(shared)) {
+      if (!entry || entry.kind === 'pachinko') continue;
+      if ([key, ...(entry.aliases || [])].some(n => pachinkoNames.has(n))) { entry.kind = 'pachinko'; marked++; }
+    }
+    if (marked > 0) {
+      fs.writeFileSync(libPath, JSON.stringify(data), 'utf8');
+      console.log(`[起動時移行] 代表機種${marked}件にパチンコの種類を付けました`);
+    }
+  } catch (e) {
+    console.error('[起動時移行] パチンコ種類付けに失敗:', e.message);
+  }
+}
+markPachinkoKindsOnBoot();
 migrateLibraryImagesOnBoot('pickup-data/library.json', 'pickup', false);
 
 // Xポストライブラリ
