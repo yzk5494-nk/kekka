@@ -713,6 +713,18 @@ const server = http.createServer(async (req, res) => {
       const buf = await collectBody(req);
       const libPath = path.join(DATA_DIR, 'article-data', 'library.json');
       const data = JSON.parse(buf.toString('utf8'));
+      // 代表機種は全シリーズ共通の登録簿（images.shared）に統合済み。
+      // 統合前のページを開いたままのタブから旧形式（シリーズ別）で上書きされないよう拒否する
+      let current = null;
+      try { current = JSON.parse(fs.readFileSync(libPath, 'utf8')); } catch {}
+      if (current?.images?.shared && !data.images?.shared) {
+        return sendJson(409, { error: 'ページが古いままです。再読み込みしてください' });
+      }
+      // 初めて共通の登録簿で保存するときは、統合前のデータを控えておく
+      if (current && !current.images?.shared && data.images?.shared) {
+        const backupPath = path.join(DATA_DIR, 'article-data', 'library.before-shared.json');
+        if (!fs.existsSync(backupPath)) fs.writeFileSync(backupPath, JSON.stringify(current), 'utf8');
+      }
       // 新しく登録された画像（base64埋め込み）はファイルに保存し、JSONには参照だけ残す
       convertImagesTree(data.images, 'article', true);
       fs.mkdirSync(path.dirname(libPath), { recursive: true });
