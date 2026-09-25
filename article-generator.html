@@ -2492,9 +2492,9 @@ function generate() {
       .replace(/class="has-swl-deep-01-color"/g, 'class="swl-inline-color has-swl-deep-01-color"')),
     balloonMaybe(bHtml('b4')
       .replace(/class="has-swl-deep-02-color"/g, 'class="swl-inline-color has-swl-deep-02-color"')),
-    balloonMaybe(bHtml('b5')),
+    isLineupTextHidden() ? '' : balloonMaybe(bHtml('b5')),
     lineupBoxMaybe(),
-    balloonMaybe(bHtml('b6')),
+    isLineupTextHidden() ? '' : balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
     (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
     (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : balloonMaybe(bHtml('b8')),
@@ -2594,13 +2594,13 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     if (!enabled) {
       return `<div class="prev-cap-box" style="border-color:#333;">
         <div class="prev-cap-title" style="background:#333;">並び人数（本文に記載しない設定）</div>
-        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルの「本文に記載する」をONにすると表示されます</div>
+        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">前後の「朝イチの並びをチェック」「総入場数のお礼」の文章も含めて記事には出力されません。左パネルの「本文に記載する」をONにすると表示されます</div>
       </div>`;
     }
     if (!lottery && !general && !units) {
       return `<div class="prev-cap-box" style="border-color:#333;">
         <div class="prev-cap-title" style="background:#333;">並び人数（未入力）</div>
-        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">左パネルの「🚶 並び人数」で入力すると本文に表示されます</div>
+        <div class="prev-cap-content" style="background:#f5f5f5;color:#bbb;">未入力のため、前後の「朝イチの並びをチェック」「総入場数のお礼」の文章も含めて記事には出力されません。左パネルの「🚶 並び人数」で入力すると本文に表示されます</div>
       </div>`;
     }
     const total = (parseInt(lottery) || 0) + (parseInt(general) || 0);
@@ -2637,9 +2637,9 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
     ${bl(bHtmlPrev('b3'), 'b3')}
     ${bl(bHtmlPrev('b4'), 'b4')}
-    ${bl(bHtmlPrev('b5'), 'b5')}
+    ${isLineupTextHidden() ? '' : bl(bHtmlPrev('b5'), 'b5')}
     ${lineupPrevHtml()}
-    ${bl(bHtmlPrev('b6'), 'b6')}
+    ${isLineupTextHidden() ? '' : bl(bHtmlPrev('b6'), 'b6')}
     ${bl(bHtmlPrev('b7'), 'b7')}
     ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
@@ -2698,6 +2698,16 @@ function wpImageMaybe(id, url) {
   return (id && url) ? wpImage(id, url) : '';
 }
 // 並び人数ボックス。「本文に記載する」がOFF、または3項目とも未入力なら何も出力しない
+// 並び人数を本文に出すか（「本文に記載する」OFF、または人数が未入力なら出さない）
+function isLineupShown() {
+  if (!SERIES_CONFIG[currentSeries].showLineupBox) return false;
+  if (!(document.getElementById('input-lineup-enabled')?.checked ?? true)) return false;
+  return !!(v('input-lineup-lottery') || v('input-lineup-general') || v('input-lineup-units'));
+}
+// 並び人数を出さないときは、前後の導入文(b5)・総入場数のお礼(b6)も一緒に消す
+function isLineupTextHidden() {
+  return !!SERIES_CONFIG[currentSeries].showLineupBox && !isLineupShown();
+}
 function lineupBoxMaybe() {
   if (!SERIES_CONFIG[currentSeries].showLineupBox) return '';
   if (!(document.getElementById('input-lineup-enabled')?.checked ?? true)) return '';
