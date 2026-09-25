@@ -4474,6 +4474,7 @@ async function generateTenkamusouMachineRankings() {
 // hisshobon-hall.infoの実記事にある同名セクション（紫ヘッダー・ランク/台番/機種名/ゲーム数/差枚数の5列）を踏襲
 // 1枚に収めると縦に長くなりすぎ、WordPressの自動リサイズ閾値(高さ2560px)で画像全体（横幅も）が縮小され
 // 読みづらくなるため、一定の高さを超える場合はグループ単位で複数枚に分割して返す（dataURLの配列）
+// ※現在は SPLIT_PAGES=false で分割せず常に1枚（配列の要素は1つ）
 async function renderOtherMachinesImage(groups, unit) {
   const SCALE       = 2;
   const W           = 730;
@@ -4484,6 +4485,8 @@ async function renderOtherMachinesImage(groups, unit) {
   const GROUP_GAP   = 14;
   const PURPLE      = '#6f3fc4';
   const font        = '"DFPRomanYuki-W9","Yu Gothic","Meiryo",sans-serif';
+  // 複数枚に分割するか。2026-09-25 ユーザー希望で「分けずに1枚」に変更（将来また分割に戻す可能性あり → true に戻すだけで復活）
+  const SPLIT_PAGES = false;
   // WP自動リサイズ閾値(物理2560px = SCALE2で論理1280px)に対して十分な余裕を持たせた1ページあたりの最大高さ
   const MAX_PAGE_H  = 1100;
 
@@ -4504,7 +4507,7 @@ async function renderOtherMachinesImage(groups, unit) {
   let pageH = OUTER_PAD * 2;
   groups.forEach(g => {
     const h = groupH(g) + GROUP_GAP;
-    if (page.length && pageH + h > MAX_PAGE_H) {
+    if (SPLIT_PAGES && page.length && pageH + h > MAX_PAGE_H) {
       pages.push(page);
       page = [];
       pageH = OUTER_PAD * 2;
