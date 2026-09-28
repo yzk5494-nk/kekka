@@ -2923,15 +2923,19 @@ function detectColumns(rawData) {
     const cells = rawData[row];
     if (!cells) continue;
     let 台番Col = -1, 機種名Col = -1, 差Col = -1, G数Col = -1, BBCol = -1, RBCol = -1;
+    let G数ColLoose = -1; // 「通常中ゲーム数」など、完全一致の列が無いときだけ使うゲーム数列
     for (let col = 0; col < cells.length; col++) {
-      const cell = String(cells[col] || '').trim();
+      // 全角英数（ＢＢ回数など）も拾えるよう半角に正規化してから判定
+      const cell = String(cells[col] || '').normalize('NFKC').trim();
       if ((cell === '台番' || cell === '台番号' || cell === '台No' || cell === '台no') && 台番Col < 0) 台番Col = col;
       if (cell.includes('機種') && 機種名Col < 0) 機種名Col = col;
-      if ((cell === '差' || cell === '差枚数' || cell === '差枚') && 差Col < 0) 差Col = col;
-      if ((cell === 'G数' || cell === 'ゲーム数' || cell === 'ゲーム' || cell === 'G') && G数Col < 0) G数Col = col;
-      if ((cell === 'BB' || cell === 'BB回数' || cell === 'BB数' || cell === 'BIG') && BBCol < 0) BBCol = col;
-      if ((cell === 'RB' || cell === 'RB回数' || cell === 'RB数' || cell === 'REG') && RBCol < 0) RBCol = col;
+      if ((cell === '差' || cell === '差枚数' || cell === '差枚' || cell === '差玉' || cell === '差玉数') && 差Col < 0) 差Col = col;
+      if ((cell === 'G数' || cell === 'ゲーム数' || cell === 'ゲーム' || cell === 'G' || cell === '総ゲーム数') && G数Col < 0) G数Col = col;
+      if (cell.includes('ゲーム数') && G数ColLoose < 0) G数ColLoose = col;
+      if ((cell === 'BB' || cell === 'BB回数' || cell === 'BB数' || cell === 'BIG' || cell === 'BIG回数') && BBCol < 0) BBCol = col;
+      if ((cell === 'RB' || cell === 'RB回数' || cell === 'RB数' || cell === 'REG' || cell === 'REG回数') && RBCol < 0) RBCol = col;
     }
+    if (G数Col < 0) G数Col = G数ColLoose;
     if (台番Col >= 0 && 機種名Col >= 0 && 差Col >= 0) {
       return { dataStartRow: row + 1, 台番Col, 機種名Col, 差Col, G数Col, BBCol, RBCol, auto: true };
     }
@@ -5449,8 +5453,9 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
 
     // ②スロット時にG数/BB/RBカラムを追加するか判定
     const useSlot2Cols = (currentGenSlot >= 2 && currentGenSlot <= 4) && machines.some(m => m.G数 !== null);
-    // 画像生成静岡は列順・配色を専用デザインにする（台番/機種名/BB/RB/G数/差枚数）
-    const isShizuokaTable = currentGenSlot === 4 && useSlot2Cols;
+    // 画像生成静岡は列順・配色を専用デザインにする（台番/機種名/BB/RB/G数/差枚数）。
+    // G数などが無いExcelでも同じデザインにする（無い値は「-」表示）
+    const isShizuokaTable = currentGenSlot === 4;
 
     // テーブルヘッダー
     const tableTop = y;
