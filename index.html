@@ -5456,6 +5456,12 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     // 画像生成静岡は列順・配色を専用デザインにする（台番/機種名/BB/RB/G数/差枚数）。
     // G数などが無いExcelでも同じデザインにする（無い値は「-」表示）
     const isShizuokaTable = currentGenSlot === 4;
+    // BB/RBが無いデータ（G数だけある）ではBB/RB列を出さず、台番/機種名/G数/差枚数の4列にする
+    const hasBBRB = machines.some(m => m.BB !== null || m.RB !== null);
+    // 列の中心X（BB/RBありの6列 or なしの4列）
+    const S2 = hasBBRB
+      ? { 名: 280, G: 505, BB: 660, RB: 795, dividers: [140, 420, 590, 730, 860] }
+      : { 名: 380, G: 740, dividers: [140, 620, 860] };
 
     // テーブルヘッダー
     const tableTop = y;
@@ -5478,10 +5484,12 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
       const isYGCols = currentGenSlot === 3;
       ctx.font = '26px "Yu Gothic","Meiryo",sans-serif';
       ctx.fillText('台番',   70,  y + THEAD_H / 2);
-      ctx.fillText('機種名', 280, y + THEAD_H / 2);
-      ctx.fillText(isYGCols ? 'ゲーム数' : 'G数', 505, y + THEAD_H / 2);
-      ctx.fillText(isYGCols ? 'BIG' : 'BB',       660, y + THEAD_H / 2);
-      ctx.fillText(isYGCols ? 'REG' : 'RB',       795, y + THEAD_H / 2);
+      ctx.fillText('機種名', S2.名, y + THEAD_H / 2);
+      ctx.fillText(isYGCols ? 'ゲーム数' : 'G数', S2.G, y + THEAD_H / 2);
+      if (hasBBRB) {
+        ctx.fillText(isYGCols ? 'BIG' : 'BB',     S2.BB, y + THEAD_H / 2);
+        ctx.fillText(isYGCols ? 'REG' : 'RB',     S2.RB, y + THEAD_H / 2);
+      }
       ctx.fillText('差枚数', 970, y + THEAD_H / 2);
     } else {
       ctx.font = '30px "Yu Gothic","Meiryo",sans-serif';
@@ -5494,7 +5502,7 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
     if (!isShizuokaTable) {
       ctx.strokeStyle = '#ddd';
       ctx.lineWidth = 2;
-      const dividers = useSlot2Cols ? [140, 420, 590, 730, 860] : [310, 740];
+      const dividers = useSlot2Cols ? S2.dividers : [310, 740];
       dividers.forEach(x => {
         ctx.beginPath(); ctx.moveTo(x, tableTop); ctx.lineTo(x, H - 8); ctx.stroke();
       });
@@ -5550,13 +5558,15 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
 
           ctx.fillStyle = '#333';
           ctx.font = '600 22px "Yu Gothic","Meiryo",sans-serif';
-          ctx.fillText(getDisplayName(m.表示名), 280, mid);
+          ctx.fillText(getDisplayName(m.表示名), S2.名, mid);
 
           ctx.fillStyle = '#333';
           ctx.font = '600 22px "Yu Gothic","Meiryo",sans-serif';
-          ctx.fillText(m.G数 !== null ? m.G数.toLocaleString() + 'G' : '-', 505, mid);
-          ctx.fillText(m.BB  !== null ? m.BB  : '-', 660, mid);
-          ctx.fillText(m.RB  !== null ? m.RB  : '-', 795, mid);
+          ctx.fillText(m.G数 !== null ? m.G数.toLocaleString() + 'G' : '-', S2.G, mid);
+          if (hasBBRB) {
+            ctx.fillText(m.BB  !== null ? m.BB  : '-', S2.BB, mid);
+            ctx.fillText(m.RB  !== null ? m.RB  : '-', S2.RB, mid);
+          }
 
           ctx.fillStyle = diff > 0 ? colorPos : diff < 0 ? colorNeg : '#888';
           ctx.font = 'bold 30px "Yu Gothic","Meiryo",sans-serif';
