@@ -3764,6 +3764,8 @@ async function generateRankingImage() {
     return g;
   }
 
+  // パチンコ（一球入魂）は差玉が「+30,750玉」のように桁が多く窮屈なので、4列レイアウトでは差玉列を広げる
+  const wideDiffCol = currentSeries === 'ikkyunyukon';
   // 列定義（BIG/REGあり/なし × G数あり/なし の4パターン）
   const C = hasBigReg && hasG ? {
     rank: { x: 0,   w: 108 },
@@ -3787,6 +3789,11 @@ async function generateRankingImage() {
     名:   { x: 186, w: 266 },
     G:    { x: 452, w: 130 },
     差:   { x: 582, w: 148 },
+  } : wideDiffCol ? {
+    rank: { x: 0,   w: 78  },
+    台番: { x: 78,  w: 80  },
+    名:   { x: 158, w: 422 },
+    差:   { x: 580, w: 150 },
   } : {
     rank: { x: 0,   w: 78  },
     台番: { x: 78,  w: 80  },
@@ -3797,6 +3804,7 @@ async function generateRankingImage() {
   const SEPS = hasBigReg && hasG  ? [108, 200, 486, 626, 709, 792, 938]
              : hasBigReg && !hasG ? [78, 143, 510, 560, 610]
              : !hasBigReg && hasG ? [100, 186, 452, 582]
+             : wideDiffCol        ? [78, 158, 580]
              :                      [78, 158, 616];
 
   function fitText(text, maxW) {
@@ -3926,7 +3934,15 @@ async function generateRankingImage() {
 
     // 機種名〜合算（台番と同じフォント）
     const dName = displayName(m.機種名);
-    ctx.fillText(fitText(dName, C['名'].w - 8), cx('名'), ry + ROW_H / 2);
+    if (wideDiffCol) {
+      // 差玉列を広げた分、長い機種名は「…」で切る前に文字を少し小さくして収める（最小16px）
+      let fs = dataFontSize;
+      while (fs > 16 && ctx.measureText(dName).width > C['名'].w - 8) ctx.font = `bold ${--fs}px ${font}`;
+      ctx.fillText(fitText(dName, C['名'].w - 8), cx('名'), ry + ROW_H / 2);
+      ctx.font = `bold ${dataFontSize}px ${font}`;
+    } else {
+      ctx.fillText(fitText(dName, C['名'].w - 8), cx('名'), ry + ROW_H / 2);
+    }
 
     // G数
     if (hasG) ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
