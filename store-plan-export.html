@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店名・企画名書き出しツール</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Hiragino Sans", "Meiryo", sans-serif; background: #f4f5f7; color: #222; }
+  header { background: #1f2a44; color: #fff; padding: 14px 20px; font-size: 18px; font-weight: bold; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h3 { margin: 0 0 10px; font-size: 14px; color: #1f2a44; }
+  label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #444; }
+  .hint { font-size: 12px; color: #888; font-weight: normal; }
+  input[type=text], select { width: 100%; padding: 9px 10px; font-size: 14px; border: 1px solid #ccd; border-radius: 6px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 160px; }
+  .row + .row { margin-top: 10px; }
+  button { padding: 9px 16px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; background: #3b6fd8; color: #fff; font-weight: bold; }
+  button:hover { opacity: .88; }
+  button.sub { background: #e7ebf3; color: #234; }
+  .status { font-size: 13px; color: #666; margin-top: 8px; min-height: 18px; white-space: pre-line; }
+  .status.err { color: #c62828; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+  th { background: #f0f2f7; font-size: 12px; color: #555; }
+  td.chk, th.chk { width: 32px; text-align: center; }
+  td.pref { width: 70px; color: #777; font-size: 12px; white-space: nowrap; }
+  td.yg { width: 40px; text-align: center; color: #3b6fd8; font-weight: bold; }
+  tr.off td:not(.chk) { opacity: .35; }
+  textarea { width: 100%; min-height: 160px; font-size: 14px; padding: 10px; border: 1px solid #ccd; border-radius: 6px; font-family: inherit; }
+  textarea.small { min-height: 70px; font-size: 13px; }
+  textarea.out { min-height: 420px; }
+  .fmt { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 8px 0; }
+  .fmt label { display: inline; font-weight: normal; }
+  .check { font-weight: normal; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; margin-top: 10px; }
+  details summary { cursor: pointer; font-size: 14px; font-weight: bold; color: #1f2a44; }
+  details[open] summary { margin-bottom: 10px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: .92; }
+</style>
+</head>
+<body>
+<header>📋 店名・企画名書き出しツール</header>
+<main>
+  <div class="card">
+    <label>スプレッドシートのURL <span class="hint">（1行に1タブ。タブを開いた状態のURLを貼る）</span></label>
+    <textarea id="sheetUrls" class="small"></textarea>
+    <div style="margin-top:8px"><button onclick="loadSheets()">読み込み</button></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="pickCard" style="display:none">
+    <div class="row">
+      <div>
+        <label>日付</label>
+        <select id="dateSel" onchange="onDateChange()"></select>
+      </div>
+      <div>
+        <label>都道府県</label>
+        <select id="prefSel" onchange="renderList()"></select>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="ygOnly" checked onchange="renderList()"> YG一覧に〇がある店だけ</label>
+  </div>
+
+  <div class="card" id="listCard" style="display:none">
+    <table>
+      <thead><tr><th class="chk"><input type="checkbox" id="chkAll" checked onchange="toggleAll(this.checked)"></th><th>都道府県</th><th>店名</th><th>企画名</th><th>YG</th></tr></thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card" id="postCard" style="display:none">
+    <h3>ポストの設定</h3>
+    <div class="row">
+      <div>
+        <label>タイトル <span class="hint">（{日付} が 10/1 などに置き換わる）</span></label>
+        <input type="text" id="postTitle" oninput="saveSettings(); buildOutput()">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>マルハン店に付けるタグ</label>
+        <input type="text" id="tagMaruhan" placeholder="例: 1️⃣の日" oninput="buildOutput()">
+      </div>
+      <div>
+        <label>その他の店に付けるタグ</label>
+        <input type="text" id="tagOther" placeholder="例: 月初" oninput="buildOutput()">
+      </div>
+    </div>
+    <details style="margin-top:14px">
+      <summary>企画名の表記変換（シートの企画名 → ポストでの書き方）</summary>
+      <div class="hint" style="margin-bottom:6px">1行に1つ「シートの企画名=ポストでの書き方」。「来店」を含む企画には💫とタグを付けません。</div>
+      <textarea id="planMap" class="small" style="min-height:150px" oninput="saveSettings(); buildOutput()"></textarea>
+    </details>
+  </div>
+
+  <div class="card" id="outCard" style="display:none">
+    <label>書き出し結果 <span class="hint">（そのまま書き足し・修正できます）</span></label>
+    <div class="fmt">
+      <label><input type="radio" name="fmt" value="post" checked onchange="buildOutput()"> YGポスト形式</label>
+      <label><input type="radio" name="fmt" value="space" onchange="buildOutput()"> 店名　企画名</label>
+      <label><input type="radio" name="fmt" value="tab" onchange="buildOutput()"> タブ区切り（Excel/スプシ貼り付け用）</label>
+    </div>
+    <textarea id="output" class="out"></textarea>
+    <div style="margin-top:8px"><button onclick="copyText(document.getElementById('output').value)">📋 全部コピー</button></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// 【SNS】タブ（YGの店）を先に並べるため、こちらを1行目にしている
+const DEFAULT_URLS = [
+  'https://docs.google.com/spreadsheets/d/11XhABCZJr5a5PBg91ZaXz36bBavyfyGPT4t42wImPWY/edit?gid=603219537#gid=603219537',
+  'https://docs.google.com/spreadsheets/d/11XhABCZJr5a5PBg91ZaXz36bBavyfyGPT4t42wImPWY/edit?gid=2112181980#gid=2112181980',
+].join('\n');
+const DEFAULT_TITLE = '明日({日付})のYG';
+const DEFAULT_PLAN_MAP = [
+  '天下無双=⚔️天下無双',
+  '裏天下無双=⚔️裏・天下無双⚔️',
+  'マスターパピィ=🦹‍♀️マスターパピィ',
+  '若葉まいたけ来店=👧若葉まいたけ収録来店🎥',
+  '嵐・くりの銭バカ=嵐＆くり収録来店🎥',
+].join('\n');
+const PREF_ORDER = ['東京都', '神奈川県', '埼玉県', '千葉県'];
+const KEYS = { urls: 'storePlanExport_sheetUrls', title: 'storePlanExport_title', planMap: 'storePlanExport_planMap' };
+
+let entries = [];   // { date, pref, store, plan, yg, src }
+let current = [];
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+document.getElementById('sheetUrls').value = lsGet(KEYS.urls) || DEFAULT_URLS;
+document.getElementById('postTitle').value = lsGet(KEYS.title) || DEFAULT_TITLE;
+document.getElementById('planMap').value = lsGet(KEYS.planMap) || DEFAULT_PLAN_MAP;
+
+function saveSettings() {
+  lsSet(KEYS.title, document.getElementById('postTitle').value);
+  lsSet(KEYS.planMap, document.getElementById('planMap').value);
+}
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (isErr ? ' err' : '');
+}
+
+function parseSheetUrl(url) {
+  const id = (url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
+  const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || '0';
+  return id ? { id, gid } : null;
+}
+
+// file://からでもCORSに引っかからないよう、gvizのJSONP(responseHandler)で取得する
+let cbSeq = 0;
+function fetchSheetJsonp(id, gid) {
+  return new Promise((resolve, reject) => {
+    const cb = '__gvizCb' + Date.now() + '_' + (cbSeq++);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(new Error('タイムアウトしました')); }, 20000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; script.remove(); }
+    window[cb] = (res) => { cleanup(); resolve(res); };
+    script.onerror = () => { cleanup(); reject(new Error('読み込みに失敗しました（共有設定が「リンクを知っている全員」になっているか確認してください）')); };
+    script.src = 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:json;responseHandler:' + cb + '&headers=0&gid=' + gid;
+    document.body.appendChild(script);
+  });
+}
+
+function cellText(c) {
+  if (!c) return '';
+  const v = c.f != null ? c.f : c.v;
+  return v == null ? '' : String(v).trim();
+}
+
+const norm = s => s.replace(/\s+/g, '');
+
+// タブごとに列の並びが違う（通常/SNS/戦極）ので、見出し行から列を探す
+function detectColumns(rows) {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const heads = rows[i].map(norm);
+    const store = heads.findIndex(h => h === 'ホール' || h === '店名' || h === '店舗名');
+    if (store < 0) continue;
+    let plan = heads.findIndex(h => h.includes('企画'));
+    if (plan < 0) plan = heads.findIndex(h => h.includes('インフル') || h.includes('演者'));
+    const pref = heads.findIndex(h => h.includes('都道府県'));
+    let date = heads.findIndex(h => h.includes('日付'));
+    if (date < 0) date = 0;
+    // 通常タブは「YG」と「一覧」が2行に分かれているので、下の行とつなげて探す
+    const sub = (rows[i + 1] || []).map(norm);
+    const yg = heads.findIndex((h, j) => (h + (sub[j] || '')).includes('YG一覧') || h === 'YG一覧');
+    return { headerRow: i, date, store, plan, pref, yg };
+  }
+  return null;
+}
+
+async function loadSheets() {
+  const urls = document.getElementById('sheetUrls').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!urls.length) { setStatus('URLを入力してください', true); return; }
+  lsSet(KEYS.urls, urls.join('\n'));
+  setStatus('読み込み中…');
+  entries = [];
+  const msgs = [];
+  let hasErr = false;
+  for (let s = 0; s < urls.length; s++) {
+    const parsed = parseSheetUrl(urls[s]);
+    if (!parsed) { msgs.push((s + 1) + '行目: URLが正しくありません'); hasErr = true; continue; }
+    try {
+      const res = await fetchSheetJsonp(parsed.id, parsed.gid);
+      if (res.status !== 'ok') throw new Error((res.errors && res.errors[0] && res.errors[0].detailed_message) || '取得エラー');
+      const rows = res.table.rows.map(r => (r.c || []).map(cellText));
+      const cols = detectColumns(rows);
+      if (!cols) throw new Error('見出し行（「ホール」列）が見つかりませんでした');
+      if (cols.plan < 0) throw new Error('「企画」列が見つかりませんでした');
+      let n = 0;
+      for (let i = cols.headerRow + 1; i < rows.length; i++) {
+        const r = rows[i];
+        const store = (r[cols.store] || '').replace(/\s*\n\s*/g, ' ');
+        const date = r[cols.date] || '';
+        if (!store || !date) continue;
+        const plan = (r[cols.plan] || '').replace(/\s*\n\s*/g, ' ');
+        // SNSタブには同じ行が重複して入っていることがあるので除く
+        if (entries.some(e => e.date === date && e.store === store && e.plan === plan)) continue;
+        entries.push({
+          date, store, plan, src: s,
+          pref: cols.pref >= 0 ? (r[cols.pref] || '').replace(/\s/g, '') : '',
+          yg: cols.yg >= 0 && (r[cols.yg] || '').includes('〇'),
+        });
+        n++;
+      }
+      msgs.push((s + 1) + '行目: ' + n + '件');
+    } catch (e) {
+      msgs.push((s + 1) + '行目: ' + e.message);
+      hasErr = true;
+    }
+  }
+  setStatus(msgs.join('\n'), hasErr);
+  if (entries.length) buildDateOptions();
+}
+
+function dateKey(d) {
+  const m = d.match(/(\d{1,2})\/(\d{1,2})/);
+  return m ? (+m[1]) * 100 + (+m[2]) : 99999;   // 「未定」などは末尾へ
+}
+
+function buildDateOptions() {
+  const dates = [...new Set(entries.map(e => e.date))].sort((a, b) => dateKey(a) - dateKey(b));
+  const sel = document.getElementById('dateSel');
+  sel.innerHTML = dates.map(d => '<option value="' + esc(d) + '">' + esc(d) + '</option>').join('');
+  // 前日に投稿するので、明日の日付を初期選択
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  const tomorrow = dates.find(d => dateKey(d) === (t.getMonth() + 1) * 100 + t.getDate());
+  if (tomorrow) sel.value = tomorrow;
+  document.getElementById('pickCard').style.display = '';
+  onDateChange();
+}
+
+// 1日は「マルハン=1️⃣の日／その他=月初」。それ以外の日は手入力
+function onDateChange() {
+  const m = document.getElementById('dateSel').value.match(/\/(\d{1,2})/);
+  const day = m ? +m[1] : 0;
+  document.getElementById('tagMaruhan').value = day === 1 ? '1️⃣の日' : '';
+  document.getElementById('tagOther').value = day === 1 ? '月初' : '';
+  renderList();
+}
+
+function renderList() {
+  const date = document.getElementById('dateSel').value;
+  const ygOnly = document.getElementById('ygOnly').checked;
+  const dayEntries = entries.filter(e => e.date === date && (!ygOnly || e.yg));
+
+  const prefSel = document.getElementById('prefSel');
+  const prevPref = prefSel.value;
+  const prefs = [...new Set(dayEntries.map(e => e.pref).filter(Boolean))];
+  prefSel.innerHTML = '<option value="">すべて</option>' + prefs.map(p => '<option>' + esc(p) + '</option>').join('');
+  prefSel.value = prefs.includes(prevPref) ? prevPref : '';
+
+  const prefRank = p => { const i = PREF_ORDER.indexOf(p); return i < 0 ? PREF_ORDER.length : i; };
+  current = dayEntries
+    .filter(e => !prefSel.value || e.pref === prefSel.value)
+    .map((e, i) => ({ ...e, on: true, i }))
+    .sort((a, b) => prefRank(a.pref) - prefRank(b.pref) || a.src - b.src || a.i - b.i);
+
+  document.getElementById('listBody').innerHTML = current.map((e, i) =>
+    '<tr id="row' + i + '"><td class="chk"><input type="checkbox" checked onchange="toggleRow(' + i + ', this.checked)"></td>' +
+    '<td class="pref">' + esc(e.pref) + '</td><td>' + esc(e.store) + '</td><td>' + esc(e.plan) + '</td>' +
+    '<td class="yg">' + (e.yg ? '〇' : '') + '</td></tr>'
+  ).join('');
+  document.getElementById('chkAll').checked = true;
+  ['listCard', 'postCard', 'outCard'].forEach(id => document.getElementById(id).style.display = '');
+  buildOutput();
+}
+
+function toggleRow(i, on) {
+  current[i].on = on;
+  document.getElementById('row' + i).classList.toggle('off', !on);
+  buildOutput();
+}
+
+function toggleAll(on) {
+  current.forEach((e, i) => {
+    e.on = on;
+    const row = document.getElementById('row' + i);
+    row.classList.toggle('off', !on);
+    row.querySelector('input').checked = on;
+  });
+  buildOutput();
+}
+
+function parsePlanMap() {
+  const map = {};
+  document.getElementById('planMap').value.split('\n').forEach(line => {
+    const k = line.indexOf('=');
+    if (k > 0) map[norm(line.slice(0, k))] = line.slice(k + 1).trim();
+  });
+  return map;
+}
+
+// 1店舗分の「💫タグ✖企画」の行を作る
+function planLine(e, map) {
+  const isYgOnly = norm(e.plan).toUpperCase() === 'YG';   // SNSタブのYG店は企画名なし
+  const plan = isYgOnly ? '' : (map[norm(e.plan)] || e.plan);
+  if (plan.includes('来店')) return plan;
+  const tag = document.getElementById(e.store.includes('マルハン') ? 'tagMaruhan' : 'tagOther').value.trim();
+  const body = [tag, plan].filter(Boolean).join('✖');
+  return body ? '💫' + body : '';
+}
+
+function buildPostText(list) {
+  const map = parsePlanMap();
+  // 同じ都道府県で書く内容が同じ店はまとめる（例: ♦マルハン昭島 ♦マルハン大山 💫1️⃣の日）
+  const groups = [];
+  list.forEach(e => {
+    const line = planLine(e, map);
+    const g = groups.find(g => g.line === line && g.pref === e.pref);
+    if (g) g.stores.push(e.store); else groups.push({ line, pref: e.pref, stores: [e.store] });
+  });
+  const m = document.getElementById('dateSel').value.match(/\d{1,2}\/\d{1,2}/);
+  const title = document.getElementById('postTitle').value.replace('{日付}', m ? m[0] : '');
+  const blocks = groups.map(g => g.stores.map(s => '♦' + s).join('\n') + (g.line ? '\n' + g.line : ''));
+  return [title, ...blocks].join('\n\n');
+}
+
+function buildOutput() {
+  const fmt = document.querySelector('input[name=fmt]:checked').value;
+  const list = current.filter(e => e.on);
+  let text;
+  if (fmt === 'post') text = buildPostText(list);
+  else text = list.map(e => e.store + (fmt === 'tab' ? '\t' : '　') + e.plan).join('\n');
+  document.getElementById('output').value = text;
+}
+
+function copyText(text) {
+  const done = () => showToast('コピーしました');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); ta.remove(); done();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+loadSheets();
+</script>
+</body>
+</html>

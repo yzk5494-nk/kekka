@@ -462,6 +462,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(html);
     }
+    if (req.method === 'GET' && parsed.pathname === '/store-plan-export') {
+      const html = fs.readFileSync(path.join(__dirname, 'store-plan-export.html'), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
 
     // ── 静的ファイル（xlsx ライブラリ） ──────────────────────────────
     if (req.method === 'GET' && parsed.pathname === '/node_modules/xlsx/dist/xlsx.full.min.js') {
