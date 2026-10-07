@@ -1033,6 +1033,10 @@
           </select>
         </div>
         <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
+          <input type="checkbox" id="pisionMergeModels" onchange="updatePreview()">
+          機種が混ざっても1つにまとめる（グラフを1つの一覧に並べ、表も1つにする）
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:#555;cursor:pointer">
           <input type="checkbox" id="pisionForceVertical" onchange="updatePreview()">
           機種ごとに縦に並べる（複数機種選択時、2カラムにせず全幅で積む）
         </label>
@@ -4788,7 +4792,12 @@ function updatePreview(targetCanvas = null, targetMachineNums = null, targetCard
   // 「N台ずつグループ化する」がONの場合、機種に関わらず選択順にN台ずつ区切ってグループ化する
   const split4Regardless = !!document.getElementById('pisionSplit4')?.checked;
   const splitGroupSize = parseInt(document.getElementById('pisionSplit4Size')?.value) || 4;
+  // 「機種が混ざっても1つにまとめる」がONなら、機種で分けずに全台を1グループ（グラフ一覧＋表1つ）にする
+  const mergeAllModels = !!document.getElementById('pisionMergeModels')?.checked;
   function groupMachinesByModel(list) {
+    if (mergeAllModels) {
+      return [{ name: getDisplayName(list[0]?.表示名) || list[0]?.機種名 || '', machines: list }];
+    }
     if (split4Regardless) {
       const groups = [];
       for (let i = 0; i < list.length; i += splitGroupSize) {
