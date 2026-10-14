@@ -3713,7 +3713,19 @@ async function generateRankingImage() {
   const rank2BannerUrl = rank2Name && resolveLibraryEntry(rank2Name)?.url;
   const effectiveBanner = bannerDataUrl || autoBannerUrl || null;
   const isDualBanner = SERIES_CONFIG[currentSeries]?.dualBanner && !bannerDataUrl && autoBannerUrl && rank2BannerUrl;
-  const BANNER_H = (isDualBanner || effectiveBanner) ? 320 : 0;
+  // 1枚バナーは画像を先に読み込み、縦横比に合わせて高さを決める（固定320だと横長でない画像の上下が切れる）
+  const singleBannerImg = (!isDualBanner && effectiveBanner) ? await new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = effectiveBanner;
+  }) : null;
+  const BANNER_H = isDualBanner ? 320
+    : singleBannerImg?.naturalWidth
+      // 縦長すぎる画像で表が埋もれないよう16:9相当で頭打ち（超える分は上下を切る）
+      ? Math.min(Math.round(TOTAL_W * singleBannerImg.naturalHeight / singleBannerImg.naturalWidth), Math.round(TOTAL_W * 9 / 16))
+      : effectiveBanner ? 320 : 0;
   const THEAD_H  = 34;
   const ROW_H    = 40;
 
@@ -3845,13 +3857,7 @@ async function generateRankingImage() {
     bannerEndY = TITLE_H + BANNER_H;
     showToast(`RANK1「${rank1Name}」・RANK${rank2Idx >= 0 ? rank2Idx + 1 : 2}「${rank2Name}」の画像をバナーに自動設定しました`);
   } else if (effectiveBanner) {
-    await new Promise(resolve => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => { drawImageCover(ctx, img, 0, TITLE_H, TOTAL_W, BANNER_H); resolve(); };
-      img.onerror = () => resolve();
-      img.src = effectiveBanner;
-    });
+    if (singleBannerImg) drawImageCover(ctx, singleBannerImg, 0, TITLE_H, TOTAL_W, BANNER_H);
     bannerEndY = TITLE_H + BANNER_H;
     if (autoBannerUrl && !bannerDataUrl) {
       showToast(`RANK1「${rank1Name}」の画像をバナーに自動設定しました`);
