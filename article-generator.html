@@ -2705,6 +2705,11 @@ function fmt(cmd) {
 // WPブロック テンプレート
 // ============================================================
 function wpImage(id, url) {
+  // 店舗マスタの外観画像などURLだけでIDが無い画像は、IDなしの画像ブロックにする
+  // （IDの代わりに仮の文字が入るとWPで「想定されていないか無効なコンテンツ」になる）
+  if (!/^\d+$/.test(String(id))) {
+    return `<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->\n<figure class="wp-block-image size-full"><img src="${url}" alt=""/></figure>\n<!-- /wp:image -->`;
+  }
   return `<!-- wp:image {"id":${id},"sizeSlug":"full","linkDestination":"none"} -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="" class="wp-image-${id}"/></figure>\n<!-- /wp:image -->`;
 }
 // id/urlが未設定の任意画像スロット用。空なら何も出力しない
