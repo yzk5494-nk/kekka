@@ -225,12 +225,13 @@ function hbRequest(method, endpoint, body, extraHeaders) {
 
 // hisshobon-hall.info の全ページを取得（1ページ目で総ページ数を確認後、残りを並列取得）
 async function hbFetchAllPages(endpoint) {
-  const first = await hbRequest('GET', `${endpoint}?per_page=100&page=1`);
+  const sep = endpoint.includes('?') ? '&' : '?'; // 絞り込み条件付きのendpointにも対応
+  const first = await hbRequest('GET', `${endpoint}${sep}per_page=100&page=1`);
   const totalPages = parseInt(first.headers?.['x-wp-totalpages'] || '1', 10);
   let all = Array.isArray(first.data) ? first.data : [];
   if (totalPages > 1) {
     const rest = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) => hbRequest('GET', `${endpoint}?per_page=100&page=${i + 2}`))
+      Array.from({ length: totalPages - 1 }, (_, i) => hbRequest('GET', `${endpoint}${sep}per_page=100&page=${i + 2}`))
     );
     rest.forEach(r => { if (Array.isArray(r.data)) all = all.concat(r.data); });
   }
@@ -1253,6 +1254,30 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && parsed.pathname === '/api/hb-types') {
       const r = await hbRequest('GET', 'types');
       return sendJson(r.status, r.data);
+    }
+
+    // ── hisshobon エリア別スケジュール一覧（スプレッドシートのGAS用） ─────────
+    // 2026-10-28からXSERVER側のセキュリティ強化でGASからのページ取得が501で拒否されるようになったため、
+    // GASはこのAPI経由で取得する。カテゴリーページの「スケジュール」欄と同じ公開済みschedule投稿を、
+    // エリアのカテゴリー（子カテゴリー＝各ホールを含む）で絞って返す。
+    // タイトルはページの見出しと同じrendered値をそのまま使う（シート上の重複判定を従来と揃えるため）
+    if (req.method === 'GET' && parsed.pathname === '/api/hb-schedule') {
+      const area = parsed.searchParams.get('area');
+      if (!area) return sendJson(400, { error: 'area（エリアのカテゴリースラッグ。例: sizuoka, kansai）が必要です' });
+      const cat = (await getHbCategories()).find(c => c.slug === area);
+      if (!cat) return sendJson(404, { error: `カテゴリー「${area}」が見つかりません` });
+
+      const query = `status=publish&categories[terms]=${cat.id}&categories[include_children]=true&orderby=date&order=asc&_fields=id,title`;
+      const posts = await hbFetchAllPages(`schedule?${query}`).catch(() => null);
+      if (!posts) return sendJson(502, { error: 'スケジュールの取得に失敗しました' });
+
+      const entries = [];
+      posts.forEach(p => {
+        const m = (p.title?.rendered || '').match(/^(\d{2})\/(\d{2})｜([^｜]+)｜[^｜]+｜(.+)$/);
+        if (!m) return;
+        entries.push({ month: parseInt(m[1], 10), day: parseInt(m[2], 10), hallName: m[3].trim(), eventName: m[4].trim() });
+      });
+      return sendJson(200, { area, entries });
     }
 
     // ── Claude API で文章生成 ──────────────────────────────────────
