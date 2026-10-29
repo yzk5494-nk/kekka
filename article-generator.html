@@ -858,6 +858,10 @@
           <input type="date" id="pision-date-input" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;">
           <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#3a8a20;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap;">🔍 P-PROから取得</button>
         </div>
+        <label style="font-size:12px;color:#444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:6px;">
+          <input type="checkbox" id="pision-hide-bigreg" onchange="if (pisionLoaded) pisionFetchResults()">
+          BIG・REG・合算を表示しない
+        </label>
         <div id="pision-status" style="font-size:11px;color:#888;margin-top:4px;"></div>
       </div>
       <div style="margin-top:6px;">
@@ -3410,6 +3414,7 @@ function finishMachinesLoad(machines, sourceLabel) {
 // ===== P-PRO（PISION）連携 =====
 let pisionSelectedHallId = null;
 let pisionSearchTimer = null;
+let pisionLoaded = false; // 取得済みなら「BIG・REG・合算を表示しない」の切替時に取り直して反映する
 
 function switchDataMode(mode) {
   const fileBtn = document.getElementById('mode-file-btn');
@@ -3467,12 +3472,14 @@ async function pisionFetchResults() {
     const data = await res.json();
     if (!res.ok) { status.style.color = '#e74c3c'; status.textContent = '❌ ' + (data.error || '取得エラー'); return; }
 
+    // 「BIG・REG・合算を表示しない」がONなら、ExcelでBIG/REG列が無い時と同じ扱いにする（画像・表・AI文章の合算すべてから外れる）
+    const hideBigReg = document.getElementById('pision-hide-bigreg').checked;
     let machines = (data.machines || []).map(m => ({
       台番:   m.台番,
       機種名: cleanName(m.機種名 || ''),
       G:      m.G数 ?? 0,
-      BIG:    m.BB ?? null,
-      REG:    m.RB ?? null,
+      BIG:    hideBigReg ? null : (m.BB ?? null),
+      REG:    hideBigReg ? null : (m.RB ?? null),
       ART:    m.ART ?? null,
       差:      roundUp50(m.差 ?? 0),
     }));
@@ -3483,6 +3490,7 @@ async function pisionFetchResults() {
     detectedFileDate = { mm: dateVal.slice(5, 7), dd: dateVal.slice(8, 10) };
 
     const loaded = finishMachinesLoad(machines, 'P-PRO');
+    pisionLoaded = true;
     status.style.color = '#27ae60';
     status.textContent = `✓ ${data.hall?.name || ''}（${data.targetDate}）${loaded.length}台を取得しました`;
   } catch (e) {
