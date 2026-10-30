@@ -741,6 +741,7 @@
     <button class="page-nav-btn" id="nav-canonical" onclick="openCanonical('slot')">🏷 スロット代表機種</button>
     <button class="page-nav-btn" id="nav-canonical-pachinko" onclick="openCanonical('pachinko')">🏷 パチンコ代表機種</button>
     <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()">🎫 パチンコ機種管理</button>
+    <button class="page-nav-btn" id="nav-help" onclick="switchPage('help')">📖 使い方</button>
   </div>
 </header>
 
@@ -1100,6 +1101,178 @@
     <div class="store-grid-wrap">
       <div id="store-grid-mgr" style="display:flex;flex-direction:column;gap:4px;">
         <div class="store-empty">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 使い方ページ（別拠点のスタッフ向け。機能を追加・変更したらここも合わせて直す） ===== -->
+<div id="page-help" class="page-section hidden">
+  <style>
+    .help-wrap { flex:1; overflow-y:auto; background:#f0f2f5; padding:20px 16px 60px; }
+    .help-doc { max-width:880px; margin:0 auto; font-size:14px; line-height:1.85; color:#333; }
+    .help-doc h2 { font-size:20px; margin:0 0 6px; }
+    .help-toc { background:white; border-radius:10px; padding:14px 20px; margin:14px 0 18px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .help-toc a { color:#1e2a3a; text-decoration:none; display:inline-block; margin-right:14px; }
+    .help-toc a:hover { text-decoration:underline; }
+    .help-sec { background:white; border-radius:10px; padding:18px 22px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .help-sec h3 { font-size:17px; margin:0 0 10px; padding-bottom:8px; border-bottom:2px solid #d4a827; }
+    .help-sec h4 { font-size:14px; margin:14px 0 4px; color:#1e2a3a; }
+    .help-sec ol, .help-sec ul { margin:4px 0 8px; padding-left:1.6em; }
+    .help-sec li { margin:2px 0; }
+    .help-btn { display:inline-block; background:#eef1f5; border:1px solid #d5dbe3; border-radius:4px; padding:0 6px; font-size:13px; white-space:nowrap; }
+    .help-note { background:#fff8e1; border-left:4px solid #d4a827; padding:8px 12px; margin:8px 0; font-size:13px; }
+    .help-flow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 4px; }
+    .help-flow span { background:#1e2a3a; color:white; border-radius:6px; padding:4px 10px; font-size:13px; }
+    .help-flow i { font-style:normal; color:#999; }
+    .help-err td { padding:6px 8px; border-bottom:1px solid #eee; vertical-align:top; font-size:13px; }
+    .help-err td:first-child { width:42%; font-weight:bold; }
+  </style>
+  <div class="help-wrap">
+    <div class="help-doc">
+      <h2>📖 使い方</h2>
+      <div style="color:#666;">hisshobon-hall.info の結果記事を作って投稿するまでの手順です。やりたいことから読んでください。</div>
+
+      <div class="help-toc">
+        <a href="#help-flow">① 全体の流れ</a>
+        <a href="#help-article">② 記事を1本作る</a>
+        <a href="#help-data">③ データの読み込み</a>
+        <a href="#help-image">④ ランキング画像</a>
+        <a href="#help-store">⑤ 店舗の登録・編集</a>
+        <a href="#help-machine">⑥ 機種管理</a>
+        <a href="#help-trouble">⑦ 困ったとき</a>
+      </div>
+
+      <div class="help-sec" id="help-flow">
+        <h3>① 全体の流れ</h3>
+        <div class="help-flow">
+          <span>シリーズを選ぶ</span><i>→</i><span>店舗を選ぶ</span><i>→</i><span>データを読み込む</span><i>→</i>
+          <span>ランキング画像を作る</span><i>→</i><span>AI文章を作る</span><i>→</i><span>プレビューで確認</span><i>→</i><span>WPに投稿</span>
+        </div>
+        <div style="font-size:13px;color:#666;">画像は投稿するときに自動でWPへアップロードされます。先にアップロードしておく必要はありません。</div>
+      </div>
+
+      <div class="help-sec" id="help-article">
+        <h3>② 記事を1本作る</h3>
+        <ol>
+          <li><b>シリーズを選ぶ</b>：画面左上のプルダウンで企画（戦極～電光石火～ など）を選びます。リバイバルの場合は、横に出る種類（リバイバルBZD など）も選びます。</li>
+          <li><b>店舗を選ぶ</b>：<span class="help-btn">🏪 店舗を検索...</span> に店舗名を入れて候補から選びます。都道府県・担当者・p-world URL・カテゴリーなどが自動で入ります。<br>
+            見つからない店舗は、先に <a href="#help-store">⑤ 店舗の登録</a> をしてください。</li>
+          <li><b>データを読み込む</b>：Excelファイル、または P-PRO から読み込みます（<a href="#help-data">③ データの読み込み</a>）。</li>
+          <li><b>ランキング画像を作る</b>：<span class="help-btn">🖼 ランキング画像を生成</span> を押します。TOP1〜3の機種名・台番・差枚数が自動で入ります（<a href="#help-image">④ ランキング画像</a>）。</li>
+          <li><b>人数・台数を入れる（シリーズによる）</b>
+            <ul>
+              <li>天下無双・リバイバル・女神の加護：<b>🚶 並び人数</b>（抽選人数・一般人数・総台数）を入れます。</li>
+              <li>それ以外のシリーズ：<b>設置台数</b>の機種行を確認します。データを読み込むと自動で入りますが、足りなければ <span class="help-btn">＋ 機種を追加</span> で足します。</li>
+              <li>一球入魂（パチンコ）：<b>パチンコ設置台数</b>を入れるか、<span class="help-btn">🌐 p-worldから取得</span> を押します。</li>
+            </ul>
+          </li>
+          <li><b>AI文章を作る</b>：<span class="help-btn">🤖 AI文章生成</span> を押します。その店舗で初めての開催なら <span class="help-btn">🆕 初開催 AI文章生成</span> を押してください。</li>
+          <li><b>確認する</b>：右側の <span class="help-btn">👁 プレビュー</span> で内容を確認します。吹き出しの文章は左側で直接直せます。</li>
+          <li><b>投稿する</b>：<span class="help-btn">🚀 WPに投稿</span> を押し、次を確認して <span class="help-btn">投稿する</span> を押します。
+            <ul>
+              <li>記事タイトル（「日付｜シリーズ名｜店舗名｜県」が自動で入ります）</li>
+              <li>投稿ステータス（ふだんは<b>下書き</b>）</li>
+              <li>カテゴリー・タグ（シリーズ名のタグは自動でチェックされます）</li>
+              <li>投稿者</li>
+            </ul>
+            「✅ 投稿しました！」と出れば完了です。リンクからWPで最終確認してください。
+          </li>
+        </ol>
+        <div class="help-note">店舗名・担当者・TOP1〜3などを手で直したいときは、<b>⚙ 基本設定</b> を開くと入力欄があります。</div>
+      </div>
+
+      <div class="help-sec" id="help-data">
+        <h3>③ データの読み込み</h3>
+        <h4>Excel・テキストファイルから</h4>
+        <ol>
+          <li><span class="help-btn">📂 ファイル</span> を選び、ファイル（.xlsx / .txt / .csv）を選択します。</li>
+          <li>台番・機種名・差枚数などの列は自動で見つけます。ファイル名に日付があれば、日付も自動で入ります。</li>
+          <li>ファイルを直したときは <span class="help-btn">🔄 再読み込み</span> を押します。</li>
+        </ol>
+        <h4>P-PRO から</h4>
+        <ol>
+          <li><span class="help-btn">🔍 P-PRO</span> に切り替えます。</li>
+          <li>店舗名を入れて、出てきた候補から店舗を<b>クリックして選びます</b>（選ばないと取得できません）。</li>
+          <li>日付を指定して <span class="help-btn">🔍 P-PROから取得</span> を押します。</li>
+        </ol>
+        <div class="help-note"><b>BIG・REG・合算を画像に出したくないとき</b>：P-PROの下にある「BIG・REG・合算を表示しない」にチェックを入れます。取得した後にチェックしても、自動で取り直して反映されます。</div>
+        <h4>読み込む台を絞る</h4>
+        <ul>
+          <li><b>ジャグラーのみ読み込む</b>：シリーズに合わせて自動でON/OFFされます。</li>
+          <li><b>除外する機種名</b>：ランキングに入れたくない機種名をカンマ区切りで入れます（名前の一部でOK）。</li>
+          <li><b>表示件数</b>：ランキング画像に載せる順位（10位・20位・30位）を選びます。</li>
+        </ul>
+      </div>
+
+      <div class="help-sec" id="help-image">
+        <h3>④ ランキング画像</h3>
+        <h4>メインのランキング画像（全シリーズ）</h4>
+        <ol>
+          <li>必要なら <b>詳細設定</b> でタイトル文字・サブタイトル（店舗名・日付など）・バナー画像を変えます。バナー画像を選ばなければ、1位の機種の画像が自動で使われます。</li>
+          <li><span class="help-btn">🖼 ランキング画像を生成</span> を押します。</li>
+          <li>差枚のプラス・マイナスが逆になっているときは <span class="help-btn">± 符号反転</span> を押します。</li>
+        </ol>
+        <h4>機種別ランキング（天下無双・リバイバル・女神の加護のみ）</h4>
+        <ol>
+          <li><b>👑 機種別平均差枚ランキング画像</b> で、何機種ぶん作るか（上位○機種）を決めます。</li>
+          <li><span class="help-btn">🖼 機種別ランキング一括生成（WPへ自動アップロード）</span> を押します。この画像はその場でWPにアップロードされます。</li>
+          <li>続けて <span class="help-btn">🖼 その他の機種ランキング画像を生成</span> を押すと、残りの機種が1枚にまとまります（一括生成の後でないと押せません）。</li>
+        </ol>
+        <div class="help-note">画像を記事以外で使いたいときは <span class="help-btn">📋 この画像だけコピー</span> でコピーできます。</div>
+      </div>
+
+      <div class="help-sec" id="help-store">
+        <h3>⑤ 店舗の登録・編集</h3>
+        <div>上のメニューの <span class="help-btn">🏪 店舗管理</span> で行います。店舗は都道府県ごとに並んでいて、見出しを押すと開閉します。</div>
+        <h4>新しい店舗を追加する</h4>
+        <ol>
+          <li><span class="help-btn">＋ 店舗を追加</span> を押します。</li>
+          <li>店舗名・都道府県・市区名（「市」は付けない）を入れます。p-world URL・p-town(DMM) URL・hisshobon URL・店舗外観画像もわかれば入れます。</li>
+          <li><span class="help-btn">💾 保存</span> を押します。</li>
+        </ol>
+        <h4>登録済みの店舗を直す</h4>
+        <ul>
+          <li>店舗の <span class="help-btn">✏ 編集</span> で直せます。<span class="help-btn">削除</span> は元に戻せないので注意してください。</li>
+          <li><span class="help-btn">📋 hisshobon からインポート</span>：hisshobonに新しいホールが増えたときに押すと、まとめて取り込めます。</li>
+        </ul>
+        <h4>p-world / p-town の URL をまとめて入れる</h4>
+        <ol>
+          <li><span class="help-btn">🌐 p-world / p-town URL一括登録</span> を押し、上で p-world か p-town（DMM）を選びます。</li>
+          <li>結果が3つに分かれて出ます。
+            <ul>
+              <li>✅ <b>確定</b>：店舗名が一致したもの。最初からチェックが入っています。</li>
+              <li>🔶 <b>要確認</b>：似た名前の候補。リンクで確かめて、合っていればチェックします。</li>
+              <li>❌ <b>見つからず</b>：閉店・店名変更などの可能性があります。必要なら店舗編集から手で入れます。</li>
+            </ul>
+          </li>
+          <li><span class="help-btn">チェックした店舗を登録</span> を押します。すでにURLが入っている店舗は上書きされません。</li>
+        </ol>
+      </div>
+
+      <div class="help-sec" id="help-machine">
+        <h3>⑥ 機種管理</h3>
+        <div>データの機種名（「スマスロ北斗の拳」「L北斗の拳」など、店舗によって違う名前）を、決まった機種（代表機種）にまとめる画面です。まとめておくと、ランキング画像の機種名や機種画像が正しく出ます。</div>
+        <ol>
+          <li>上のメニューの <span class="help-btn">🎰 機種管理</span> を開きます。パチンコの機種は <span class="help-btn">🎫 パチンコ機種管理</span> を使います。</li>
+          <li>まだまとめていない機種の欄に、まとめ先の代表機種名を入れて <span class="help-btn">振り分ける</span> を押します。</li>
+          <li>間違えたときは <span class="help-btn">解除</span> で戻せます。</li>
+        </ol>
+        <div class="help-note">まとめ先の代表機種がまだ登録されていないとエラーになります。新しい機種を代表機種に追加したいときは、管理者に連絡してください。</div>
+      </div>
+
+      <div class="help-sec" id="help-trouble">
+        <h3>⑦ 困ったとき</h3>
+        <table class="help-err" style="width:100%;border-collapse:collapse;">
+          <tr><td>「先にデータファイルを読み込んでください」</td><td>データを読み込む前に画像生成を押しています。③の手順で先にデータを読み込んでください。</td></tr>
+          <tr><td>「先にデータを読み込んでください」（投稿時）</td><td>記事の中身がまだできていません。データ読み込みと画像生成をしてから投稿してください。</td></tr>
+          <tr><td>「先にメインの『機種別ランキング一括生成』を実行してください」</td><td>その他の機種の画像は、機種別ランキングの一括生成の後に作ります。</td></tr>
+          <tr><td>「⚠️ 店内差枚数ランキング画像が未生成です」</td><td>天下無双系で、メインのランキング画像を作っていません。<span class="help-btn">🖼 ランキング画像を生成</span> を押してください。</td></tr>
+          <tr><td>P-PROで「候補一覧から店舗を選択してください」</td><td>店舗名を入れた後、出てきた候補をクリックして選んでください。</td></tr>
+          <tr><td>「p-world URLが設定されていません」「p-town URLが設定されていません」</td><td>その店舗にURLが入っていません。⑤の手順で店舗に登録してください。</td></tr>
+          <tr><td>「⚠️ 画像アップロード失敗」「❌ 投稿に失敗しました」「❌ 通信エラー」</td><td>通信が一時的に切れた可能性があります。少し待ってからもう一度押してください。何度やっても出る場合は、表示された文をそのまま管理者に伝えてください。</td></tr>
+          <tr><td>「❌ AI生成エラー」</td><td>もう一度押してください。続く場合は管理者に連絡してください。</td></tr>
+        </table>
       </div>
     </div>
   </div>
@@ -5949,7 +6122,7 @@ function openCanonical(kind) {
 // keepCanonicalKind: 代表機種ページを開くとき、種類を今のシリーズに合わせず openCanonical() で指定したものを使う
 function switchPage(name, keepCanonicalKind = false) {
   if (name === 'canonical' && !keepCanonicalKind) canonicalKind = currentMachineKind();
-  ['article', 'stores', 'machines', 'canonical'].forEach(p => {
+  ['article', 'stores', 'machines', 'canonical', 'help'].forEach(p => {
     const sec = document.getElementById('page-' + p);
     const btn = document.getElementById('nav-' + p);
     if (p === name) {
