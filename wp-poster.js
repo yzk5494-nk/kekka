@@ -155,6 +155,73 @@ async function syncXLibrary() {
 setTimeout(syncXLibrary, 5000);
 setInterval(syncXLibrary, 60 * 60 * 1000);
 
+// ── p-world 全国ホール一覧（店舗のp-world URL一括登録用） ──────────────
+// 都道府県ごとの一覧ページ（/{pref}/halls?page=N、1ページ50件）を順に読み、店舗名とURLの対応表を作る。
+// 全国で150ページ前後。p-worldへの負担を抑えるため1ページごとに間隔をあけ、結果はファイルに保存して使い回す
+const PWORLD_HALLS_FILE = path.join(DATA_DIR, 'pworld-halls.json');
+const PWORLD_PREFS = {
+  hokkaido: '北海道', aomori: '青森県', iwate: '岩手県', miyagi: '宮城県', akita: '秋田県', yamagata: '山形県', fukushima: '福島県',
+  ibaraki: '茨城県', tochigi: '栃木県', gunma: '群馬県', saitama: '埼玉県', chiba: '千葉県', tokyo: '東京都', kanagawa: '神奈川県',
+  niigata: '新潟県', toyama: '富山県', ishikawa: '石川県', fukui: '福井県', yamanashi: '山梨県', nagano: '長野県', gifu: '岐阜県',
+  shizuoka: '静岡県', aichi: '愛知県', mie: '三重県', shiga: '滋賀県', kyoto: '京都府', osaka: '大阪府', hyogo: '兵庫県',
+  nara: '奈良県', wakayama: '和歌山県', tottori: '鳥取県', shimane: '島根県', okayama: '岡山県', hiroshima: '広島県', yamaguchi: '山口県',
+  tokushima: '徳島県', kagawa: '香川県', ehime: '愛媛県', kochi: '高知県', fukuoka: '福岡県', saga: '佐賀県', nagasaki: '長崎県',
+  kumamoto: '熊本県', oita: '大分県', miyazaki: '宮崎県', kagoshima: '鹿児島県', okinawa: '沖縄県',
+};
+const PWORLD_PAGE_INTERVAL_MS = 2000;
+let pworldDirJob = null; // 取得中の進捗 { running, prefDone, prefTotal, pages, halls, error }
+
+function readPworldHalls() {
+  try { return JSON.parse(fs.readFileSync(PWORLD_HALLS_FILE, 'utf8')); } catch { return null; }
+}
+
+function fetchPworldText(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; kekka-store-tool)' } }, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => res.statusCode === 200
+        ? resolve(Buffer.concat(chunks).toString('utf8'))
+        : reject(new Error(`p-world ${res.statusCode}: ${url}`)));
+    }).on('error', reject);
+  });
+}
+
+async function buildPworldDirectory() {
+  const slugs = Object.keys(PWORLD_PREFS);
+  pworldDirJob = { running: true, prefDone: 0, prefTotal: slugs.length, pages: 0, halls: 0, error: null };
+  const halls = [];
+  try {
+    for (const slug of slugs) {
+      const seen = new Set();
+      for (let page = 1; page <= 40; page++) {
+        const html = await fetchPworldText(`https://www.p-world.co.jp/${slug}/halls?page=${page}`);
+        pworldDirJob.pages++;
+        const re = new RegExp(`class="hallList-item-name-link" href="?https://www\\.p-world\\.co\\.jp/${slug}/([a-z0-9_-]+)\\.htm"?>([^<]+)<`, 'g');
+        let added = 0, m;
+        while ((m = re.exec(html))) {
+          if (seen.has(m[1])) continue;
+          seen.add(m[1]);
+          const name = m[2].trim().replace(/&amp;/g, '&').replace(/&#0?39;/g, "'").replace(/&quot;/g, '"');
+          halls.push({ pref: PWORLD_PREFS[slug], name, url: `https://www.p-world.co.jp/${slug}/${m[1]}.htm` });
+          added++;
+        }
+        pworldDirJob.halls = halls.length;
+        await new Promise(r => setTimeout(r, PWORLD_PAGE_INTERVAL_MS));
+        if (added < 50) break; // 50件未満＝最終ページ
+      }
+      pworldDirJob.prefDone++;
+    }
+    fs.writeFileSync(PWORLD_HALLS_FILE, JSON.stringify({ updatedAt: new Date().toISOString(), halls }), 'utf8');
+    console.log(`[pworld-dir] 取得完了 ${halls.length}店 / ${pworldDirJob.pages}ページ`);
+  } catch (e) {
+    pworldDirJob.error = e.message;
+    console.error('[pworld-dir] 取得失敗', e.message);
+  } finally {
+    pworldDirJob.running = false;
+  }
+}
+
 // 店舗記憶ファイル
 const STORE_MEMORY_FILE = path.join(DATA_DIR, 'store-memory.json');
 function readStoreMemory() {
@@ -1254,6 +1321,17 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && parsed.pathname === '/api/hb-types') {
       const r = await hbRequest('GET', 'types');
       return sendJson(r.status, r.data);
+    }
+
+    // ── p-world 全国ホール一覧（取得状況と、取得済みなら一覧本体） ──────────────
+    if (req.method === 'GET' && parsed.pathname === '/api/pworld-directory') {
+      const saved = readPworldHalls();
+      return sendJson(200, { job: pworldDirJob, updatedAt: saved?.updatedAt || null, halls: saved?.halls || [] });
+    }
+    // 全国ホール一覧の取り直しを開始（数分かかるのでバックグラウンドで実行し、上のGETで進捗を見る）
+    if (req.method === 'POST' && parsed.pathname === '/api/pworld-directory/refresh') {
+      if (!pworldDirJob?.running) buildPworldDirectory();
+      return sendJson(200, { job: pworldDirJob });
     }
 
     // ── hisshobon エリア別スケジュール一覧（スプレッドシートのGAS用） ─────────

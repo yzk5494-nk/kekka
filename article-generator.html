@@ -1093,6 +1093,7 @@
           style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;outline:none;width:200px;">
         <button class="btn-add-store" style="background:#4a7fa5;color:white;" onclick="importFromWordPress()">🌐 WPからインポート</button>
         <button class="btn-add-store" style="background:#c0392b;color:white;" onclick="importFromHisshobon()">📋 hisshobon からインポート</button>
+        <button class="btn-add-store" style="background:#1a5a1a;color:white;" onclick="openPworldBulkModal()">🌐 p-world URL一括登録</button>
         <button class="btn-add-store" onclick="openStoreModal()">＋ 店舗を追加</button>
       </div>
     </div>
@@ -1244,6 +1245,21 @@
 <div class="toast" id="toast"></div>
 
 <!-- WP投稿モーダル -->
+<!-- p-world URL一括登録 -->
+<div class="modal-overlay" id="pworld-bulk-modal">
+  <div class="modal" style="width:900px;">
+    <div class="modal-header">
+      <h3>🌐 p-world URL一括登録</h3>
+      <button class="modal-close" onclick="closePworldBulkModal()">✕</button>
+    </div>
+    <div id="pworld-bulk-body" class="modal-body" style="padding:16px 20px;overflow-y:auto;font-size:13px;"></div>
+    <div style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
+      <button onclick="closePworldBulkModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;font-family:inherit;">閉じる</button>
+      <button id="pworld-bulk-apply" onclick="applyPworldBulk()" disabled style="padding:8px 16px;border:none;border-radius:6px;background:#1a5a1a;color:white;font-weight:bold;cursor:pointer;font-family:inherit;opacity:0.4;">チェックした店舗を登録</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="wp-post-modal">
   <div class="modal" style="width:480px;">
     <div class="modal-header">
@@ -6187,6 +6203,158 @@ async function importFromHisshobon() {
   } catch(e) {
     showToast('インポート失敗: ' + e.message);
   }
+}
+
+// ===== p-world URL一括登録 =====
+// サーバーが集めたp-worldの全国ホール一覧と、p-world URL未設定の店舗を店舗名で照合する。
+// 同じ都道府県で名前が完全一致（表記ゆれ吸収後）→「確定」、部分一致や都道府県未設定→「要確認」。
+// 既にURLが入っている店舗は対象外（上書きしない）
+let pworldBulkResult = null; // { sure: [...], check: [...], none: [...] }
+let pworldBulkPollTimer = null;
+
+function pworldNormName(s) {
+  return String(s).normalize('NFKC').toLowerCase()
+    .replace(/[\s・\-－―ー'’"”.,、。()（）]/g, '')
+    .replace(/店$/, '');
+}
+
+function openPworldBulkModal() {
+  document.getElementById('pworld-bulk-modal').classList.add('show');
+  loadPworldDirectory();
+}
+
+function closePworldBulkModal() {
+  document.getElementById('pworld-bulk-modal').classList.remove('show');
+  if (pworldBulkPollTimer) { clearTimeout(pworldBulkPollTimer); pworldBulkPollTimer = null; }
+}
+
+function setPworldApplyEnabled(on) {
+  const btn = document.getElementById('pworld-bulk-apply');
+  btn.disabled = !on;
+  btn.style.opacity = on ? '1' : '0.4';
+}
+
+async function loadPworldDirectory() {
+  const body = document.getElementById('pworld-bulk-body');
+  setPworldApplyEnabled(false);
+  let data;
+  try {
+    const res = await fetch('/api/pworld-directory');
+    data = await res.json();
+  } catch (e) {
+    body.innerHTML = `<div style="color:#c0392b;">❌ 取得エラー: ${e.message}</div>`;
+    return;
+  }
+  const job = data.job;
+  if (job?.running) {
+    body.innerHTML = `<div style="padding:30px;text-align:center;line-height:1.9;">
+      ⏳ p-worldから全国のホール一覧を取得中です（全体で5〜10分ほど）<br>
+      都道府県 <b>${job.prefDone}</b> / ${job.prefTotal}　・　取得したホール <b>${job.halls}</b> 店<br>
+      <span style="color:#888;font-size:12px;">この画面を閉じても取得は続きます。あとで開き直せば続きから表示されます。</span></div>`;
+    pworldBulkPollTimer = setTimeout(loadPworldDirectory, 3000);
+    return;
+  }
+  const refreshBtn = `<button onclick="refreshPworldDirectory()" style="padding:6px 12px;border:none;border-radius:6px;background:#1a5a1a;color:white;font-weight:bold;cursor:pointer;font-family:inherit;">🔄 p-worldから全国一覧を取得${data.halls.length ? 'し直す' : 'する'}</button>`;
+  const errMsg = job?.error ? `<div style="color:#c0392b;margin-bottom:8px;">❌ 前回の取得が途中で失敗しました: ${job.error}</div>` : '';
+  if (!data.halls.length) {
+    body.innerHTML = `${errMsg}<div style="padding:30px;text-align:center;line-height:1.9;">
+      まだp-worldの全国ホール一覧を取得していません。<br>取得には5〜10分ほどかかります。<br><br>${refreshBtn}</div>`;
+    return;
+  }
+  pworldBulkResult = matchPworldHalls(data.halls);
+  renderPworldBulkResult(data, errMsg + refreshBtn);
+}
+
+async function refreshPworldDirectory() {
+  try {
+    await fetch('/api/pworld-directory/refresh', { method: 'POST' });
+  } catch (e) {
+    showToast('取得開始に失敗: ' + e.message);
+    return;
+  }
+  loadPworldDirectory();
+}
+
+function matchPworldHalls(halls) {
+  const byPref = {};
+  halls.forEach(h => {
+    h.norm = pworldNormName(h.name);
+    (byPref[h.pref] = byPref[h.pref] || []).push(h);
+  });
+  const sure = [], check = [], none = [];
+  Object.values(storeData).forEach(s => {
+    if (!s?.name || s.pworldUrl) return;
+    const key = pworldNormName(s.name);
+    if (!key) return;
+    const hasPref = !!byPref[s.pref];
+    const pool = hasPref ? byPref[s.pref] : halls;
+    const exact = pool.filter(h => h.norm === key);
+    if (hasPref && exact.length === 1) { sure.push({ store: s, hall: exact[0] }); return; }
+    if (exact.length) { check.push({ store: s, cands: exact.slice(0, 5) }); return; }
+    // 部分一致（「〇〇」と「〇〇スロット館」など）。短すぎる名前は誤爆しやすいので3文字以上のみ
+    const partial = key.length >= 3 ? pool.filter(h => h.norm.length >= 3 && (h.norm.includes(key) || key.includes(h.norm))) : [];
+    if (partial.length && (hasPref ? partial.length <= 5 : partial.length === 1)) { check.push({ store: s, cands: partial }); return; }
+    none.push({ store: s });
+  });
+  return { sure, check, none };
+}
+
+function renderPworldBulkResult(data, toolbarHtml) {
+  const { sure, check, none } = pworldBulkResult;
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const link = h => `<a href="${esc(h.url)}" target="_blank" style="color:#1a5a1a;">${esc(h.name)}</a>`;
+  const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleString('ja-JP') : '';
+  const sureRows = sure.map((r, i) => `<tr>
+      <td><input type="checkbox" class="pw-sure" data-i="${i}" checked></td>
+      <td>${esc(r.store.name)}<br><span style="color:#999;font-size:11px;">${esc(r.store.pref || '')}</span></td>
+      <td>${link(r.hall)}</td></tr>`).join('');
+  const checkRows = check.map((r, i) => `<tr>
+      <td><input type="checkbox" class="pw-check" data-i="${i}"></td>
+      <td>${esc(r.store.name)}<br><span style="color:#999;font-size:11px;">${esc(r.store.pref || '都道府県未設定')}</span></td>
+      <td>${r.cands.length === 1 ? link(r.cands[0]) + ` <span style="color:#999;font-size:11px;">${esc(r.cands[0].pref)}</span>`
+        : `<select class="pw-check-sel" data-i="${i}" style="padding:3px;font-family:inherit;max-width:100%;">${r.cands.map((h, j) => `<option value="${j}">${esc(h.name)}（${esc(h.pref)}）</option>`).join('')}</select>`}</td></tr>`).join('');
+  const noneList = none.map(r => `${esc(r.store.name)}<span style="color:#999;">（${esc(r.store.pref || '都道府県未設定')}）</span>`).join('、');
+  const th = '<tr style="background:#f5f5f5;"><th style="width:30px;"></th><th style="text-align:left;">登録店舗</th><th style="text-align:left;">p-worldのホール</th></tr>';
+  const table = rows => `<table style="width:100%;border-collapse:collapse;" class="pw-table">${th}${rows}</table>`;
+  document.getElementById('pworld-bulk-body').innerHTML = `
+    <style>.pw-table td,.pw-table th{padding:5px 6px;border-bottom:1px solid #eee;vertical-align:top;}</style>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="color:#666;">p-world全国一覧：${data.halls.length}店（${updated} 取得）</div>${toolbarHtml}
+    </div>
+    <div style="margin-bottom:8px;">p-world URL未設定の店舗 ${sure.length + check.length + none.length}件のうち、
+      ✅ 確定 <b>${sure.length}</b>件　🔶 要確認 <b>${check.length}</b>件　❌ 見つからず <b>${none.length}</b>件</div>
+    <details open style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:bold;">✅ 確定（同じ都道府県で店舗名が一致）${sure.length}件</summary>
+      ${sure.length ? table(sureRows) : '<div style="color:#999;padding:6px;">なし</div>'}</details>
+    <details open style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:bold;">🔶 要確認（合っていればチェック）${check.length}件</summary>
+      ${check.length ? table(checkRows) : '<div style="color:#999;padding:6px;">なし</div>'}</details>
+    <details><summary style="cursor:pointer;font-weight:bold;">❌ 見つからず ${none.length}件（手入力してください）</summary>
+      <div style="padding:6px;line-height:1.8;color:#555;">${noneList || 'なし'}</div></details>`;
+  setPworldApplyEnabled(sure.length + check.length > 0);
+}
+
+async function applyPworldBulk() {
+  if (!pworldBulkResult) return;
+  const picks = [];
+  document.querySelectorAll('.pw-sure:checked').forEach(cb => {
+    const r = pworldBulkResult.sure[+cb.dataset.i];
+    picks.push({ name: r.store.name, url: r.hall.url });
+  });
+  document.querySelectorAll('.pw-check:checked').forEach(cb => {
+    const r = pworldBulkResult.check[+cb.dataset.i];
+    const sel = document.querySelector(`.pw-check-sel[data-i="${cb.dataset.i}"]`);
+    picks.push({ name: r.store.name, url: r.cands[sel ? +sel.value : 0].url });
+  });
+  if (!picks.length) { showToast('チェックされた店舗がありません'); return; }
+  if (!confirm(`${picks.length}件の店舗にp-world URLを登録します。よろしいですか？`)) return;
+  let n = 0;
+  picks.forEach(p => {
+    // 照合後に別の画面で入力された場合に備え、未設定のままの店舗だけに入れる
+    if (storeData[p.name] && !storeData[p.name].pworldUrl) { storeData[p.name].pworldUrl = p.url; n++; }
+  });
+  await saveStores();
+  renderStoreGrid();
+  showToast(`p-world URLを${n}件登録しました`);
+  loadPworldDirectory();
 }
 
 async function deleteStoreCard(name) {
