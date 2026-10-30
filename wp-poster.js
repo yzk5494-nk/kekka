@@ -182,9 +182,59 @@ function fetchPworldText(url) {
       res.on('data', c => chunks.push(c));
       res.on('end', () => res.statusCode === 200
         ? resolve(Buffer.concat(chunks).toString('utf8'))
-        : reject(new Error(`p-world ${res.statusCode}: ${url}`)));
+        : reject(new Error(`${res.statusCode}: ${url}`)));
     }).on('error', reject);
   });
+}
+
+// ── p-town（DMM）全国ホール一覧 ──────────────────────────────────
+// p-townには都道府県単位の全件一覧が無いため、都道府県ページから市区町村（/shops/{pref}/area/{code}）の
+// リンクを集め、市区町村ごとの一覧を読む。全国で1,100ページ前後になるので、間隔をあけて30分前後かけて取る。
+// 都道府県のスラッグはp-worldと共通。キーワード検索ページはrobots.txtで禁止されているので使わない
+const PTOWN_HALLS_FILE = path.join(DATA_DIR, 'ptown-halls.json');
+const PTOWN_PAGE_INTERVAL_MS = 1500;
+let ptownDirJob = null; // 取得中の進捗 { running, prefDone, prefTotal, pages, halls, error }
+
+function readPtownHalls() {
+  try { return JSON.parse(fs.readFileSync(PTOWN_HALLS_FILE, 'utf8')); } catch { return null; }
+}
+
+async function buildPtownDirectory() {
+  const slugs = Object.keys(PWORLD_PREFS);
+  ptownDirJob = { running: true, prefDone: 0, prefTotal: slugs.length, pages: 0, halls: 0, error: null };
+  const halls = [];
+  const wait = () => new Promise(r => setTimeout(r, PTOWN_PAGE_INTERVAL_MS));
+  try {
+    for (const slug of slugs) {
+      const prefHtml = await fetchPworldText(`https://p-town.dmm.com/shops/${slug}`);
+      ptownDirJob.pages++;
+      await wait();
+      const areas = [...new Set([...prefHtml.matchAll(new RegExp(`href="/shops/${slug}/area/(\\d+)"`, 'g'))].map(m => m[1]))];
+      const seen = new Set();
+      for (const area of areas) {
+        const html = await fetchPworldText(`https://p-town.dmm.com/shops/${slug}/area/${area}`);
+        ptownDirJob.pages++;
+        const re = new RegExp(`<a class="title card-link" href="/shops/${slug}/(\\d+)">([^<]+)</a>`, 'g');
+        let m;
+        while ((m = re.exec(html))) {
+          if (seen.has(m[1])) continue;
+          seen.add(m[1]);
+          const name = m[2].trim().replace(/&amp;/g, '&').replace(/&#0?39;/g, "'").replace(/&quot;/g, '"');
+          halls.push({ pref: PWORLD_PREFS[slug], name, url: `https://p-town.dmm.com/shops/${slug}/${m[1]}` });
+        }
+        ptownDirJob.halls = halls.length;
+        await wait();
+      }
+      ptownDirJob.prefDone++;
+    }
+    fs.writeFileSync(PTOWN_HALLS_FILE, JSON.stringify({ updatedAt: new Date().toISOString(), halls }), 'utf8');
+    console.log(`[ptown-dir] 取得完了 ${halls.length}店 / ${ptownDirJob.pages}ページ`);
+  } catch (e) {
+    ptownDirJob.error = e.message;
+    console.error('[ptown-dir] 取得失敗', e.message);
+  } finally {
+    ptownDirJob.running = false;
+  }
 }
 
 async function buildPworldDirectory() {
@@ -1323,13 +1373,19 @@ const server = http.createServer(async (req, res) => {
       return sendJson(r.status, r.data);
     }
 
-    // ── p-world 全国ホール一覧（取得状況と、取得済みなら一覧本体） ──────────────
+    // ── p-world / p-town 全国ホール一覧（取得状況と、取得済みなら一覧本体） ──────────
+    // ?source=ptown で p-town、省略時は p-world
     if (req.method === 'GET' && parsed.pathname === '/api/pworld-directory') {
-      const saved = readPworldHalls();
-      return sendJson(200, { job: pworldDirJob, updatedAt: saved?.updatedAt || null, halls: saved?.halls || [] });
+      const isPtown = parsed.searchParams.get('source') === 'ptown';
+      const saved = isPtown ? readPtownHalls() : readPworldHalls();
+      return sendJson(200, { job: isPtown ? ptownDirJob : pworldDirJob, updatedAt: saved?.updatedAt || null, halls: saved?.halls || [] });
     }
-    // 全国ホール一覧の取り直しを開始（数分かかるのでバックグラウンドで実行し、上のGETで進捗を見る）
+    // 全国ホール一覧の取り直しを開始（数分〜数十分かかるのでバックグラウンドで実行し、上のGETで進捗を見る）
     if (req.method === 'POST' && parsed.pathname === '/api/pworld-directory/refresh') {
+      if (parsed.searchParams.get('source') === 'ptown') {
+        if (!ptownDirJob?.running) buildPtownDirectory();
+        return sendJson(200, { job: ptownDirJob });
+      }
       if (!pworldDirJob?.running) buildPworldDirectory();
       return sendJson(200, { job: pworldDirJob });
     }
