@@ -883,6 +883,7 @@
         <input type="number" id="rank-count" value="30" min="1" max="200" style="width:52px" onchange="if(allMachineData.length) renderDataTable(allMachineData)">
         <label>位まで</label>
         <div style="display:flex;gap:4px;margin-left:8px;">
+          <button onclick="setRankCount(5)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">5位</button>
           <button onclick="setRankCount(10)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">10位</button>
           <button onclick="setRankCount(20)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">20位</button>
           <button onclick="setRankCount(30)" style="padding:3px 8px;font-size:11px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-family:inherit;background:#f0f0f0;">30位</button>
@@ -1201,7 +1202,7 @@
         <ul>
           <li><b>ジャグラーのみ読み込む</b>：シリーズに合わせて自動でON/OFFされます。</li>
           <li><b>除外する機種名</b>：ランキングに入れたくない機種名をカンマ区切りで入れます（名前の一部でOK）。</li>
-          <li><b>表示件数</b>：ランキング画像に載せる順位（10位・20位・30位）を選びます。</li>
+          <li><b>表示件数</b>：ランキング画像に載せる順位（5位・10位・20位・30位）を選びます。</li>
         </ul>
       </div>
 
