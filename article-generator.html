@@ -704,10 +704,262 @@
       width: 100%; max-height: 60px; object-fit: cover;
       border-radius: 4px; margin-top: 4px; display: none;
     }
+
+    /* =====================================================================
+       ライト基調テーマ（2026-10 見た目改善）
+       ここから下は見た目だけの上書き。HTMLのinline styleを上書きするため !important を多用している。
+       基調色は緑1色。緑の塗りボタンは「ランキング画像を生成」「AI文章生成」「WPに投稿」の3つだけ。
+       ===================================================================== */
+    :root {
+      --ag-bg: #e2e9e4;        /* 背景（灰緑）。白いカードとの差をはっきりさせるため少し濃いめ */
+      --ag-head: #f1f6f3;      /* カード見出しの帯 */
+      --ag-shadow: 0 1px 3px rgba(29,42,36,0.10);
+      --ag-panel: #ffffff;
+      --ag-line: #cfd9d2;      /* 枠線 */
+      --ag-line-strong: #bccac0;
+      --ag-green: #1f7a4c;     /* 基調色 */
+      --ag-green-dark: #17603b;
+      --ag-green-soft: #e7f2eb;
+      --ag-label: #44544c;     /* ラベル */
+      --ag-text: #1d2a24;
+      --ag-muted: #6b7a72;
+      --ag-red: #c0392b;
+      --ag-red-soft: #fdeeec;
+    }
+    body { background: var(--ag-bg); color: var(--ag-text); font-family: "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", "Meiryo", sans-serif; }
+    .ic { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; margin-right: 6px; }
+
+    /* ── ヘッダー ── */
+    /* ヘッダーは画面の他の部分と分かれて見えるよう紺グレー（前の紺に近い色。緑は「押すボタン」専用にするため使わない） */
+    header { background: #2c3e50; color: #fff; border-bottom: none; box-shadow: 0 2px 6px rgba(29,42,36,0.18); position: relative; z-index: 20; padding: 0 18px; min-height: 60px; font-size: 17px; }
+    header select { height: 40px; padding: 0 10px !important; border: 1px solid transparent !important; border-radius: 8px !important; font-size: 14px !important; color: var(--ag-text); background: #fff; }
+    .page-nav { align-self: stretch; margin-left: 16px; flex-wrap: wrap; }
+    .page-nav-btn { color: #e8eef3; font-size: 15px; font-weight: 500; letter-spacing: 0.02em; padding: 0 14px; border-bottom: 3px solid transparent; display: inline-flex; align-items: center; min-height: 60px; }
+    .page-nav-btn .ic { margin-right: 6px; width: 17px; height: 17px; }
+    .page-nav-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    .page-nav-btn.active { color: #fff; border-bottom-color: #8fd4ac; font-weight: bold; background: rgba(255,255,255,0.10); }
+
+    /* ── 左パネル全体 ── */
+    .left-panel { background: var(--ag-bg); padding-bottom: 12px; }
+    .resize-handle { background: var(--ag-line); }
+    .resize-handle:hover, .resize-handle.dragging { background: var(--ag-green); }
+    .left-panel label { font-size: 14px !important; color: var(--ag-label) !important; }
+    .left-panel input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--ag-green); }
+
+    /* 入力欄：高さ44px・角丸8px・フォーカスで緑の枠 */
+    .left-panel input:not([type=checkbox]):not([type=file]):not([type=radio]),
+    .left-panel select, .left-panel textarea {
+      min-height: 44px; padding: 8px 12px !important; border: 1px solid var(--ag-line-strong) !important;
+      border-radius: 8px !important; font-size: 14px !important; color: var(--ag-text) !important;
+      background: #fff; font-family: inherit; outline: none;
+    }
+    .left-panel input:focus, .left-panel select:focus, .left-panel textarea:focus,
+    header select:focus {
+      border-color: var(--ag-green) !important; box-shadow: 0 0 0 3px var(--ag-green-soft); outline: none;
+    }
+
+    /* ボタン：基本は白地＋灰色の枠線 */
+    .left-panel button {
+      min-height: 44px; padding: 8px 14px !important; background: #fff !important; color: var(--ag-text) !important;
+      border: 1px solid var(--ag-line-strong) !important; border-radius: 8px !important;
+      font-size: 14px !important; font-weight: bold !important; display: inline-flex; align-items: center; justify-content: center;
+      gap: 0; cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s;
+    }
+    .left-panel button:hover:not(:disabled) { background: #f4f7f5 !important; border-color: var(--ag-green) !important; }
+    .left-panel button:disabled { opacity: .45 !important; cursor: default; }
+
+    /* 緑の塗りボタン（ランキング画像を生成・AI文章生成） */
+    .left-panel .img-gen-btn[onclick="generateRankingImage()"],
+    .left-panel .ag-ai-block #ai-gen-btn {
+      background: var(--ag-green) !important; color: #fff !important; border-color: var(--ag-green) !important;
+      min-height: 48px; font-size: 15px !important;
+    }
+    .left-panel .img-gen-btn[onclick="generateRankingImage()"]:hover,
+    .left-panel .ag-ai-block #ai-gen-btn:hover { background: var(--ag-green-dark) !important; }
+
+    /* ファイル / P-PRO の切り替え：選択中は薄い緑 */
+    #mode-file-btn[style*="58, 138, 32"], #mode-file-btn[style*="#3a8a20"],
+    #mode-pision-btn[style*="58, 138, 32"], #mode-pision-btn[style*="#3a8a20"] {
+      background: var(--ag-green-soft) !important; color: var(--ag-green) !important; border: 2px solid var(--ag-green) !important;
+    }
+    /* 初開催ボタン（ON の状態はJSが inline で色を付ける） */
+    #btn-first-time { min-height: 36px; margin-left: 0 !important; margin-top: 6px; }
+
+    /* ── カード（見出し＋中身を1枚のカードに見せる） ── */
+    .store-bar { background: transparent; padding: 12px 12px 0; gap: 8px !important; }
+    #store-search {
+      min-height: 44px; font-size: 15px !important; font-weight: normal !important; border: 1px solid var(--ag-line-strong) !important;
+      border-radius: 8px !important; padding: 8px 12px !important;
+    }
+    .store-bar > button { padding: 8px 12px !important; }
+    .store-bar > button .ic { margin-right: 4px; }
+
+    .data-header, .basic-header {
+      background: var(--ag-panel) !important; color: var(--ag-text) !important;
+      margin: 14px 12px 0; padding: 14px 16px; font-size: 16px; font-weight: bold;
+      border: 1px solid var(--ag-line); border-bottom: 1px solid var(--ag-line); border-radius: 12px 12px 0 0;
+      background: var(--ag-head) !important; box-shadow: var(--ag-shadow);
+      justify-content: flex-start; gap: 10px;
+    }
+    .data-header .toggle, .basic-header .toggle { margin-left: auto; color: var(--ag-muted); font-size: 13px; font-weight: normal; }
+    .ag-sub { font-size: 13px; font-weight: normal; color: var(--ag-muted); margin-left: 10px; }
+    /* 見出しの番号の丸 */
+    .data-header::before, .basic-header::before, .ag-num {
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 26px; height: 26px; border-radius: 50%; background: var(--ag-green); color: #fff;
+      font-size: 14px; font-weight: bold;
+    }
+    .data-header::before { content: "1"; }
+    .basic-header[onclick="toggleBasic()"]::before { content: "2"; }
+    #cap-section-header::before, #lineup-section-header::before { content: "3"; }
+    .data-panel, .basic-settings, #machine-rows-section, #pachinko-total-section, #lineup-section {
+      background: var(--ag-panel); margin: 0 12px; padding: 14px 16px 16px !important;
+      border: 1px solid var(--ag-line) !important; border-top: none !important; border-radius: 0 0 12px 12px; gap: 12px;
+      box-shadow: var(--ag-shadow);
+    }
+    /* 閉じているときは見出しだけで角丸にする */
+    .data-header:has(+ .data-panel[style*="none"]),
+    .basic-header:has(+ .basic-settings[style*="none"]) { border-radius: 12px; }
+    /* 一球入魂：設置台数の機種行が隠れてパチンコ設置台数だけが出る場合 */
+    #machine-rows-section[style*="none"] + #pachinko-total-section { border-top: none !important; }
+
+    .data-upload-area { border: 2px dashed var(--ag-line-strong); background: #fafcfb; border-radius: 8px; padding: 18px 12px; }
+    .data-upload-area:hover { border-color: var(--ag-green); background: var(--ag-green-soft); }
+    .data-upload-area.loaded { border: 2px solid var(--ag-green); background: var(--ag-green-soft); }
+    .data-upload-label, .data-upload-label b { font-size: 14px; color: var(--ag-label); }
+    .data-upload-label .ic { width: 22px; height: 22px; margin: 0 0 4px; color: var(--ag-green); }
+    #reload-data-btn { flex-direction: column; min-width: 92px; opacity: 1 !important; }
+    #reload-data-btn .ic { margin: 0 0 4px; }
+    .left-panel summary { font-size: 14px !important; color: var(--ag-green) !important; }
+    .data-count-row { font-size: 14px; gap: 8px; }
+    #rank-count { width: 76px !important; }
+    #data-total-label { font-size: 13px !important; }
+    .data-table-wrap { border-color: var(--ag-line); border-radius: 8px; }
+    .data-table th { background: var(--ag-green-soft); color: var(--ag-label); font-size: 13px; padding: 6px 8px; }
+    .data-table td { font-size: 13px; padding: 5px 8px; }
+    .data-table td:nth-child(2) { max-width: 170px; }
+    .col-config-item select { width: 72px !important; }
+    #pision-status, #tenkamusou-batch-status, #tenkamusou-other-status { font-size: 13px !important; }
+    #tenkamusou-batch-row { background: #fafcfb !important; border: 1px solid var(--ag-line) !important; border-radius: 10px !important; padding: 14px !important; }
+    #tenkamusou-batch-row > div:first-child { color: var(--ag-text) !important; font-size: 15px !important; }
+    #tenkamusou-batch-row div[style*="font-size:11px"] { font-size: 13px !important; }
+    .img-gen-row input { min-height: 44px; }
+
+    /* 機種行：↑↓×は44px四方 */
+    .machine-table-header { grid-template-columns: 1fr 72px 148px; font-size: 13px; color: var(--ag-label); margin: 6px 0 4px; }
+    .machine-row { grid-template-columns: 1fr 72px 44px 44px 44px; gap: 6px; margin-bottom: 8px; }
+    .left-panel .sort-btn, .left-panel .del-btn { width: 44px; height: 44px; min-height: 44px; padding: 0 !important; font-size: 16px !important; }
+    .left-panel .del-btn { background: var(--ag-red-soft) !important; color: var(--ag-red) !important; border-color: #f3c9c3 !important; }
+    .left-panel .del-btn:hover { background: #fadbd6 !important; border-color: var(--ag-red) !important; }
+    .left-panel .ag-dmm-btn { width: 100%; margin-bottom: 4px; }
+    .left-panel .add-row-btn { width: 100%; border: 1px dashed var(--ag-line-strong) !important; color: var(--ag-label) !important; font-weight: normal !important; }
+
+    /* 基本設定の中のボタン（テンプレート反映・AI文章生成）は補助扱い */
+    .basic-settings .apply-btn { flex: 1; }
+
+    /* ── ④ AI文章生成（③の下に並べる。画面下への固定はしない） ── */
+    .ag-ai-block {
+      order: 1;
+      background: var(--ag-panel); margin: 14px 12px 0; padding: 0 16px 12px !important;
+      border: 1px solid var(--ag-line); border-radius: 12px; box-shadow: var(--ag-shadow);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .ag-step-title {
+      display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: bold; color: var(--ag-text);
+      margin: 0 -16px 4px; padding: 14px 16px; background: var(--ag-head); border-bottom: 1px solid var(--ag-line); border-radius: 12px 12px 0 0;
+    }
+    .ag-ai-block button { width: 100%; margin: 0 !important; }
+    .ag-ai-block button[onclick="firstTimeAIGenerate()"] { border: 1px solid var(--ag-green) !important; color: var(--ag-green) !important; }
+    .ag-next-hint { font-size: 13px; color: var(--ag-muted); text-align: center; }
+    .action-bar { order: 2; border-top: none; padding: 0; }
+    .img-preview-area { margin: 14px 12px 0; border: 1px solid var(--ag-line); border-radius: 12px; background: var(--ag-panel); padding: 12px; box-shadow: var(--ag-shadow); }
+
+    /* ── 右パネル（プレビューの中身はそのまま） ── */
+    .right-panel { background: var(--ag-bg); }
+    .right-toolbar { background: var(--ag-panel); border-bottom: 1px solid var(--ag-line); box-shadow: 0 1px 3px rgba(29,42,36,0.06); padding: 10px 16px; gap: 10px; }
+    .tab-btn { color: var(--ag-label); font-size: 14px; min-height: 44px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; display: inline-flex; align-items: center; }
+    .tab-btn:hover { color: var(--ag-green); }
+    .tab-btn.active { color: var(--ag-green); background: var(--ag-green-soft); border-color: var(--ag-green); font-weight: bold; }
+    .toolbar-copy-btn {
+      min-height: 44px; padding: 0 18px; background: #fff !important; color: var(--ag-text) !important;
+      border: 1px solid var(--ag-line-strong) !important; border-radius: 8px; font-size: 14px; display: inline-flex; align-items: center;
+    }
+    .toolbar-copy-btn:hover { border-color: var(--ag-green) !important; }
+    .toolbar-copy-btn.copied { background: var(--ag-green-soft) !important; color: var(--ag-green) !important; border-color: var(--ag-green) !important; }
+    .toolbar-copy-btn[onclick="openWpPostModal()"] { background: var(--ag-green) !important; color: #fff !important; border-color: var(--ag-green) !important; }
+    .toolbar-copy-btn[onclick="openWpPostModal()"]:hover { background: var(--ag-green-dark) !important; }
+    /* 左パネルの①〜④に続く「⑤」の番号（白い丸に緑の数字） */
+    .toolbar-copy-btn[onclick="openWpPostModal()"]::before {
+      content: "5"; display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--ag-green);
+      font-size: 13px; font-weight: bold; margin-right: 8px;
+    }
+    #tab-preview { background: var(--ag-bg); }
+
+    /* ── トースト・モーダル ── */
+    .toast { background: var(--ag-green); }
+    .modal-header, .store-modal-header { background: var(--ag-panel); color: var(--ag-text); border-bottom: 1px solid var(--ag-line); }
+    .modal-close, .store-modal-close { color: var(--ag-muted); }
+    .modal-close:hover { color: var(--ag-text); }
+
+    /* ── 店舗管理 ── */
+    .store-page { background: var(--ag-bg); }
+    .store-page-topbar, .store-grid-wrap { max-width: 1180px; }
+    .store-page-topbar > div > button { padding: 8px 14px; }
+    .store-page-topbar h2 { font-size: 18px; color: var(--ag-text); white-space: nowrap; }
+    .store-page-topbar > div { flex-wrap: wrap; justify-content: flex-end; }
+    .btn-add-store {
+      min-height: 44px; background: #fff !important; color: var(--ag-text) !important;
+      border: 1px solid var(--ag-line-strong) !important; border-radius: 8px; font-size: 14px; white-space: nowrap;
+    }
+    .btn-add-store:hover { border-color: var(--ag-green) !important; }
+    #store-mgr-search { min-height: 44px; border-radius: 8px !important; font-size: 14px !important; }
+    .pref-hdr { background: var(--ag-panel) !important; border: 1px solid var(--ag-line); border-radius: 10px !important; padding: 12px 16px !important; box-shadow: var(--ag-shadow); }
+    .pref-hdr span { color: var(--ag-text) !important; font-size: 15px !important; }
+    .pref-hdr .pref-arrow { color: var(--ag-green) !important; }
+    .pref-hdr > div { background: var(--ag-line) !important; }
+    .store-card { border: 1px solid var(--ag-line); box-shadow: none; border-radius: 12px; }
+    .store-btn-edit { min-height: 40px; background: #fff; border: 1px solid var(--ag-line-strong); border-radius: 8px; font-size: 14px; }
+    .store-btn-del { min-height: 40px; background: var(--ag-red-soft); border-radius: 8px; font-size: 14px; color: var(--ag-red); }
+    .btn-save-store { background: var(--ag-green); color: #fff; border-radius: 8px; min-height: 44px; }
+    .btn-save-store:hover { background: var(--ag-green-dark); }
   </style>
   <script src="/node_modules/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body>
+<!-- 線アイコン（Lucide v0.460.0 / ISC License）。<svg class="ic"><use href="#i-名前"/></svg> で使う -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></symbol>
+  <symbol id="i-arrow-up-down" viewBox="0 0 24 24"><path d="m21 16-4 4-4-4" /> <path d="M17 20V4" /> <path d="m3 8 4-4 4 4" /> <path d="M7 4v16" /></symbol>
+  <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></symbol>
+  <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+  <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /> <polyline points="8 6 2 12 8 18" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" /> <path d="M5 21h14" /></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" /> <path d="M3 5V19A9 3 0 0 0 21 19V5" /> <path d="M3 12A9 3 0 0 0 21 12" /></symbol>
+  <symbol id="i-dices" viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" /> <path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" /> <path d="M6 18h.01" /> <path d="M10 14h.01" /> <path d="M15 6h.01" /> <path d="M18 9h.01" /></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /> <path d="M14 2v4a2 2 0 0 0 2 2h4" /> <path d="M10 9H8" /> <path d="M16 13H8" /> <path d="M16 17H8" /></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /> <path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /> <circle cx="9" cy="9" r="2" /> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /> <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /> <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 12h.01" /> <path d="M3 18h.01" /> <path d="M3 6h.01" /> <path d="M8 12h13" /> <path d="M8 18h13" /> <path d="M8 6h13" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="M12 5v14" /></symbol>
+  <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" /></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /> <path d="m21 21-4.3-4.3" /></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /> <path d="m21.854 2.147-10.94 10.939" /></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" /> <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /> <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" /> <path d="M2 7h20" /> <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" /></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /> <path d="M13 5v2" /> <path d="M13 17v2" /> <path d="M13 11v2" /></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <polyline points="17 8 12 3 7 8" /> <line x1="12" x2="12" y1="3" y2="15" /></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /> <circle cx="9" cy="7" r="4" /> <path d="M22 21v-2a4 4 0 0 0-3-3.87" /> <path d="M16 3.13a4 4 0 0 1 0 7.75" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></symbol>
+</svg>
 
 <header>
   記事ジェネレーター
@@ -735,13 +987,13 @@
     <option value="D">リバイバルD</option>
   </select>
   <div class="page-nav">
-    <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')">📝 記事生成</button>
-    <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')">🏪 店舗管理</button>
-    <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')">🎰 機種管理</button>
-    <button class="page-nav-btn" id="nav-canonical" onclick="openCanonical('slot')">🏷 スロット代表機種</button>
-    <button class="page-nav-btn" id="nav-canonical-pachinko" onclick="openCanonical('pachinko')">🏷 パチンコ代表機種</button>
-    <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()">🎫 パチンコ機種管理</button>
-    <button class="page-nav-btn" id="nav-help" onclick="switchPage('help')">📖 使い方</button>
+    <button class="page-nav-btn active" id="nav-article" onclick="switchPage('article')"><svg class="ic"><use href="#i-file-text"/></svg>記事生成</button>
+    <button class="page-nav-btn" id="nav-stores" onclick="switchPage('stores')"><svg class="ic"><use href="#i-store"/></svg>店舗管理</button>
+    <button class="page-nav-btn" id="nav-machines" onclick="switchPage('machines')"><svg class="ic"><use href="#i-dices"/></svg>機種管理</button>
+    <button class="page-nav-btn" id="nav-canonical" onclick="openCanonical('slot')"><svg class="ic"><use href="#i-tag"/></svg>スロット代表機種</button>
+    <button class="page-nav-btn" id="nav-canonical-pachinko" onclick="openCanonical('pachinko')"><svg class="ic"><use href="#i-tag"/></svg>パチンコ代表機種</button>
+    <button class="page-nav-btn" id="nav-pachinko-machines" onclick="openPachinkoMachines()"><svg class="ic"><use href="#i-ticket"/></svg>パチンコ機種管理</button>
+    <button class="page-nav-btn" id="nav-help" onclick="switchPage('help')"><svg class="ic"><use href="#i-book-open"/></svg>使い方</button>
   </div>
 </header>
 
@@ -757,22 +1009,20 @@
     <!-- 店舗選択バー -->
     <div class="store-bar" style="flex-wrap:wrap;gap:6px;">
       <div style="flex:1;min-width:0;position:relative;">
-        <input id="store-search" placeholder="🏪 店舗を検索..." autocomplete="off"
+        <input id="store-search" placeholder="店舗を検索..." autocomplete="off"
           style="width:100%;padding:10px 12px;border:none;border-radius:5px;font-size:16px;font-family:inherit;background:#fff;cursor:text;color:#000;font-weight:bold;letter-spacing:0.03em;"
           oninput="filterStoreList(this.value)" onfocus="showStoreDropdown()" onblur="hideStoreDropdown()">
         <div id="store-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #ccc;border-radius:0 0 6px 6px;max-height:80vh;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
         </div>
       </div>
       <select id="store-select" onchange="selectStore(this.value)" style="display:none;"></select>
-      <button class="store-save-btn" onclick="openMachineImgModal()" title="機種画像を登録" style="background:#2a5f2a;color:white;">🎰</button>
-      <button onclick="openPworld()" title="p-worldを開く" style="background:#1a5a1a;color:white;white-space:nowrap;padding:6px 14px;border:none;border-radius:5px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit;">🌐 p-world</button>
-      <button onclick="fetchPtown()" title="p-town(DMM)から台数取得" style="background:#00b4d8;color:white;font-weight:bold;white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;">DMM</button>
+      <button onclick="openPworld()" title="p-worldを開く" style="background:#1a5a1a;color:white;white-space:nowrap;padding:6px 14px;border:none;border-radius:5px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit;"><svg class="ic"><use href="#i-globe"/></svg>p-world</button>
       <button onclick="openHbHall()" title="hisshobon店舗ページを開く" style="background:#c0392b;color:white;white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;">公式</button>
     </div>
 
     <!-- データ読み込みパネル -->
     <div class="data-header" onclick="toggleData()">
-      📊 Excelデータ読み込み＆ランキング画像生成
+      データ読み込み・ランキング画像
       <span class="toggle" id="data-toggle">▲ 閉じる</span>
     </div>
     <div class="data-panel" id="data-panel">
@@ -780,7 +1030,7 @@
       <details style="margin-bottom:6px;">
         <summary style="font-size:11px;color:#3a8a20;font-weight:bold;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
           <span id="col-summary-arrow" style="font-size:10px;transition:transform .2s;">▶</span>
-          📋 列の設定（通常は自動検出・手動指定が必要な場合のみ）
+          列の設定（通常は自動検出・手動指定が必要な場合のみ）
         </summary>
         <div style="padding:8px 0 2px;">
           <div class="col-sep-row" style="margin-bottom:5px;">
@@ -830,8 +1080,8 @@
       </script>
       <!-- データ取得モード切替 -->
       <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button id="mode-file-btn" onclick="switchDataMode('file')" style="flex:1;padding:5px;border:1px solid #3a8a20;border-radius:5px;background:#3a8a20;color:white;cursor:pointer;font-size:12px;font-family:inherit;">📂 ファイル</button>
-        <button id="mode-pision-btn" onclick="switchDataMode('pision')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit;">🔍 P-PRO</button>
+        <button id="mode-file-btn" onclick="switchDataMode('file')" style="flex:1;padding:5px;border:1px solid #3a8a20;border-radius:5px;background:#3a8a20;color:white;cursor:pointer;font-size:12px;font-family:inherit;"><svg class="ic"><use href="#i-file"/></svg>ファイル</button>
+        <button id="mode-pision-btn" onclick="switchDataMode('pision')" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;background:white;color:#555;cursor:pointer;font-size:12px;font-family:inherit;"><svg class="ic"><use href="#i-database"/></svg>P-PRO</button>
       </div>
       <!-- ファイル選択 -->
       <div id="file-upload-section">
@@ -839,25 +1089,25 @@
           <div class="data-upload-area" style="flex:1;">
             <input type="file" id="data-file-input" accept=".xlsx,.xls,.txt,.csv" onchange="loadDataFile(event)">
             <div class="data-upload-label" id="data-upload-label">
-              📂 クリックしてファイルを選択<br>
+              <svg class="ic"><use href="#i-upload"/></svg><br>クリックしてファイルを選択<br>
               <b>Excel（.xlsx）またはテキスト（.txt）</b>
             </div>
           </div>
           <button id="reload-data-btn" onclick="reloadDataFile()" disabled
             style="padding:8px 12px;background:#3a8a20;color:white;border:none;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;opacity:0.4;">
-            🔄 再読み込み
+            <svg class="ic"><use href="#i-refresh-cw"/></svg><br>再読み込み
           </button>
         </div>
       </div>
       <!-- P-PRO取得 -->
       <div id="pision-upload-section" style="display:none;">
-        <input type="text" id="pision-hall-input" placeholder="🏪 店舗名で検索" autocomplete="off"
+        <input type="text" id="pision-hall-input" placeholder="店舗名で検索" autocomplete="off"
           oninput="pisionSearchHall()"
           style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;">
         <div id="pision-hall-candidates" style="display:none;max-height:160px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;margin-top:4px;"></div>
         <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
           <input type="date" id="pision-date-input" style="flex:1;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;">
-          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#3a8a20;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap;">🔍 P-PROから取得</button>
+          <button onclick="pisionFetchResults()" style="padding:6px 12px;background:#3a8a20;color:white;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;white-space:nowrap;"><svg class="ic"><use href="#i-search"/></svg>P-PROから取得</button>
         </div>
         <label style="font-size:12px;color:#444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:6px;">
           <input type="checkbox" id="pision-hide-bigreg" onchange="if (pisionLoaded) pisionFetchResults()">
@@ -909,7 +1159,7 @@
             <label style="font-size:11px;color:#777">バナー画像（任意）</label>
             <div class="data-upload-area" style="padding:10px;" id="banner-upload-area">
               <input type="file" id="banner-file-input" accept="image/*" onchange="loadBannerFile(event)">
-              <div class="data-upload-label" id="banner-label">🖼 バナー画像をクリックして選択</div>
+              <div class="data-upload-label" id="banner-label"><svg class="ic"><use href="#i-image"/></svg>バナー画像をクリックして選択</div>
             </div>
             <label style="font-size:11px;color:#777">RANKセル画像（rank1〜順に登録・なければ自動描画）</label>
             <div id="rank-img-slots" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
@@ -918,12 +1168,12 @@
         </details>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="img-gen-btn" onclick="generateRankingImage()" style="flex:2;padding:14px 8px;font-size:14px;">🖼 ランキング画像を生成</button>
-        <button class="img-gen-btn" onclick="invertDiff()" style="flex:1;background:#3a4f2a;padding:14px 8px;font-size:13px;" id="invert-btn">± 符号反転</button>
+        <button class="img-gen-btn" onclick="generateRankingImage()" style="flex:2;padding:14px 8px;font-size:14px;"><svg class="ic"><use href="#i-image"/></svg>ランキング画像を生成</button>
+        <button class="img-gen-btn" onclick="invertDiff()" style="flex:1;background:#3a4f2a;padding:14px 8px;font-size:13px;" id="invert-btn">差枚反転</button>
       </div>
       <div id="img-upload-wp-btn" style="display:none;"></div>
       <div id="tenkamusou-batch-row" style="display:none;margin-top:10px;padding:10px;background:#fffaf0;border:1px solid #b8860b;border-radius:8px;">
-        <div style="font-size:12px;color:#b8860b;font-weight:bold;margin-bottom:6px;">👑 機種別平均差枚ランキング画像（一括生成）</div>
+        <div style="font-size:12px;color:#b8860b;font-weight:bold;margin-bottom:6px;"><svg class="ic"><use href="#i-crown"/></svg>機種別平均差枚ランキング画像（一括生成）</div>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
           <label style="font-size:12px;color:#444;">上位</label>
           <input type="number" id="tenkamusou-top-count" value="5" min="1" max="20" style="width:52px">
@@ -948,13 +1198,13 @@
         </label>
         <div id="tenkamusou-manual-list" style="display:none;max-height:320px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
         <div id="tenkamusou-manual-list-2" style="display:none;max-height:320px;overflow-y:auto;border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;margin-bottom:8px;background:#fff;"></div>
-        <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;">🖼 機種別ランキング一括生成（WPへ自動アップロード）</button>
+        <button class="img-gen-btn" onclick="generateTenkamusouMachineRankings()" style="width:100%;background:#b8860b;padding:12px 8px;font-size:13px;"><svg class="ic"><use href="#i-layers"/></svg>機種別ランキング一括生成（WPへ自動アップロード）</button>
         <div id="tenkamusou-batch-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
         <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
 
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #b8860b;">
           <div style="font-size:11px;color:#666;margin-bottom:6px;">メイン（上記）に使わなかった残り全機種を1枚にまとめます</div>
-          <button class="img-gen-btn" onclick="generateTenkamusouOtherMachines()" style="width:100%;background:#6f3fc4;padding:10px 8px;font-size:12px;">🖼 その他の機種ランキング画像を生成</button>
+          <button class="img-gen-btn" onclick="generateTenkamusouOtherMachines()" style="width:100%;background:#6f3fc4;padding:10px 8px;font-size:12px;"><svg class="ic"><use href="#i-image"/></svg>その他の機種ランキング画像を生成</button>
           <div id="tenkamusou-other-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
           <div id="tenkamusou-other-preview" style="margin-top:8px;"></div>
         </div>
@@ -962,7 +1212,7 @@
     </div>
 
     <div class="basic-header" onclick="toggleBasic()">
-      ⚙ 基本設定（店舗・担当者・ランキング結果）
+      <span>基本設定<span class="ag-sub">店舗・担当者・ランキング結果</span></span>
       <span class="toggle" id="basic-toggle">▼ 開く</span>
     </div>
     <div class="basic-settings" id="basic-settings" style="display:none;">
@@ -1003,16 +1253,19 @@
       </div>
     </div>
 
-    <div style="padding:8px 10px 4px; flex-shrink:0;">
-      <button class="apply-btn" onclick="firstTimeAIGenerate()" style="width:100%;padding:10px 8px;background:#e67e22;color:white;border-color:#e67e22;font-size:12px;margin-bottom:6px;">🆕 初開催 AI文章生成</button>
-      <button class="apply-btn" id="ai-gen-btn" onclick="generateWithAI()" style="width:100%;padding:14px 8px;background:#6a3fa0;color:white;border-color:#6a3fa0;font-size:13px;">🤖 AI文章生成</button>
+    <div class="ag-ai-block" style="padding:8px 10px 4px; flex-shrink:0;">
+      <div class="ag-step-title"><span class="ag-num">4</span>記事の文章を生成</div>
+      <button class="apply-btn" onclick="firstTimeAIGenerate()" style="width:100%;padding:10px 8px;background:#e67e22;color:white;border-color:#e67e22;font-size:12px;margin-bottom:6px;"><svg class="ic"><use href="#i-sparkles"/></svg>初開催 AI文章生成</button>
+      <button class="apply-btn" id="ai-gen-btn" onclick="generateWithAI()" style="width:100%;padding:14px 8px;background:#6a3fa0;color:white;border-color:#6a3fa0;font-size:13px;"><svg class="ic"><use href="#i-sparkles"/></svg>AI文章生成</button>
+      <div class="ag-next-hint">⑤ プレビューを確認して、右上の「WPに投稿」へ</div>
     </div>
 
     <!-- ジャグ系設置台数 -->
     <div id="cap-section-header" class="basic-header" style="cursor:default;background:#c0527a;">
-      🎰 <span id="cap-label-header">ジャグ系設置台数</span>
+      <span id="cap-label-header">ジャグ系設置台数</span>
     </div>
     <div id="machine-rows-section" style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;">
+      <button onclick="fetchPtown()" title="p-town(DMM)から台数取得" class="ag-dmm-btn">DMMから台数を取得</button>
       <div class="machine-table-header">
         <span>機種名</span><span style="text-align:center">台数</span><span></span>
       </div>
@@ -1024,14 +1277,14 @@
         <label>パチンコ設置台数</label>
         <div style="display:flex; gap:6px;">
           <input id="f-pachinko-total" placeholder="例：パチンコ／403台（4円・1円）" style="flex:1;">
-          <button type="button" id="pworld-total-btn" onclick="fetchPworldTotal()" style="white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;background:#1a5a1a;color:white;">🌐 p-worldから取得</button>
+          <button type="button" id="pworld-total-btn" onclick="fetchPworldTotal()" style="white-space:nowrap;padding:6px 10px;border:none;border-radius:5px;font-size:12px;font-weight:bold;cursor:pointer;font-family:inherit;background:#1a5a1a;color:white;"><svg class="ic"><use href="#i-globe"/></svg>p-worldから取得</button>
         </div>
       </div>
     </div>
 
     <!-- 並び人数（天下無双など showLineupBox シリーズのみ表示） -->
     <div id="lineup-section-header" class="basic-header" style="cursor:default;background:#3a6ea5;display:none;">
-      🚶 並び人数
+      並び人数
     </div>
     <div id="lineup-section" style="padding:8px 10px; border-bottom:2px solid #e0e0e0; flex-shrink:0;display:none;">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;">
@@ -1050,7 +1303,7 @@
     <!-- ランキング画像プレビュー -->
     <div class="img-preview-area" id="img-preview-area" style="flex-shrink:0;">
       <canvas id="rank-canvas"></canvas>
-      <button class="img-gen-btn" id="rank-copy-btn" onclick="copyRankingImage()" style="width:100%;margin-top:8px;padding:10px 8px;font-size:13px;">📋 この画像だけコピー</button>
+      <button class="img-gen-btn" id="rank-copy-btn" onclick="copyRankingImage()" style="width:100%;margin-top:8px;padding:10px 8px;font-size:13px;"><svg class="ic"><use href="#i-copy"/></svg>この画像だけコピー</button>
     </div>
 
   </div>
@@ -1061,11 +1314,11 @@
   <!-- 右：タブパネル -->
   <div class="right-panel">
     <div class="right-toolbar">
-      <button class="tab-btn active" id="tab-preview-btn" onclick="switchTab('preview')">👁 プレビュー</button>
-      <button class="tab-btn" id="tab-code-btn" onclick="switchTab('code')">📄 コード</button>
+      <button class="tab-btn active" id="tab-preview-btn" onclick="switchTab('preview')"><svg class="ic"><use href="#i-eye"/></svg>プレビュー</button>
+      <button class="tab-btn" id="tab-code-btn" onclick="switchTab('code')"><svg class="ic"><use href="#i-code"/></svg>コード</button>
       <div style="flex:1"></div>
       <button class="toolbar-copy-btn" id="toolbar-copy-btn" onclick="copyCode()">コードをコピー</button>
-      <button class="toolbar-copy-btn" onclick="openWpPostModal()" style="background:#0073aa;color:white;border-color:#0073aa;">🚀 WPに投稿</button>
+      <button class="toolbar-copy-btn" onclick="openWpPostModal()" style="background:#0073aa;color:white;border-color:#0073aa;"><svg class="ic"><use href="#i-send"/></svg>WPに投稿</button>
     </div>
     <div id="tab-preview" class="tab-content active">
       <div id="preview-output">
@@ -1157,20 +1410,20 @@
         <h3>② 記事を1本作る</h3>
         <ol>
           <li><b>シリーズを選ぶ</b>：画面左上のプルダウンで企画（戦極～電光石火～ など）を選びます。リバイバルの場合は、横に出る種類（リバイバルBZD など）も選びます。</li>
-          <li><b>店舗を選ぶ</b>：<span class="help-btn">🏪 店舗を検索...</span> に店舗名を入れて候補から選びます。都道府県・担当者・p-world URL・カテゴリーなどが自動で入ります。<br>
+          <li><b>店舗を選ぶ</b>：<span class="help-btn">店舗を検索...</span> に店舗名を入れて候補から選びます。都道府県・担当者・p-world URL・カテゴリーなどが自動で入ります。<br>
             見つからない店舗は、先に <a href="#help-store">⑤ 店舗の登録</a> をしてください。</li>
           <li><b>データを読み込む</b>：Excelファイル、または P-PRO から読み込みます（<a href="#help-data">③ データの読み込み</a>）。</li>
-          <li><b>ランキング画像を作る</b>：<span class="help-btn">🖼 ランキング画像を生成</span> を押します。TOP1〜3の機種名・台番・差枚数が自動で入ります（<a href="#help-image">④ ランキング画像</a>）。</li>
+          <li><b>ランキング画像を作る</b>：<span class="help-btn">ランキング画像を生成</span> を押します。TOP1〜3の機種名・台番・差枚数が自動で入ります（<a href="#help-image">④ ランキング画像</a>）。</li>
           <li><b>人数・台数を入れる（シリーズによる）</b>
             <ul>
-              <li>天下無双・リバイバル・女神の加護：<b>🚶 並び人数</b>（抽選人数・一般人数・総台数）を入れます。</li>
-              <li>それ以外のシリーズ：<b>設置台数</b>の機種行を確認します。データを読み込むと自動で入りますが、足りなければ <span class="help-btn">＋ 機種を追加</span> で足します。</li>
-              <li>一球入魂（パチンコ）：<b>パチンコ設置台数</b>を入れるか、<span class="help-btn">🌐 p-worldから取得</span> を押します。</li>
+              <li>天下無双・リバイバル・女神の加護：<b>並び人数</b>（抽選人数・一般人数・総台数）を入れます。</li>
+              <li>それ以外のシリーズ：<b>設置台数</b>の機種行を確認します。データを読み込むと自動で入りますが、足りなければ <span class="help-btn">＋ 機種を追加</span> で足します。<span class="help-btn">DMMから台数を取得</span> を押すと、p-town(DMM)の設置台数でまとめて入れ直せます（店舗にp-town URLの登録が必要）。</li>
+              <li>一球入魂（パチンコ）：<b>パチンコ設置台数</b>を入れるか、<span class="help-btn">p-worldから取得</span> を押します。</li>
             </ul>
           </li>
-          <li><b>AI文章を作る</b>：<span class="help-btn">🤖 AI文章生成</span> を押します。その店舗で初めての開催なら <span class="help-btn">🆕 初開催 AI文章生成</span> を押してください。</li>
-          <li><b>確認する</b>：右側の <span class="help-btn">👁 プレビュー</span> で内容を確認します。吹き出しの文章は左側で直接直せます。</li>
-          <li><b>投稿する</b>：<span class="help-btn">🚀 WPに投稿</span> を押し、次を確認して <span class="help-btn">投稿する</span> を押します。
+          <li><b>AI文章を作る</b>：<span class="help-btn">AI文章生成</span> を押します。その店舗で初めての開催なら <span class="help-btn">初開催 AI文章生成</span> を押してください。</li>
+          <li><b>確認する</b>：右側の <span class="help-btn">プレビュー</span> で内容を確認します。吹き出しの文章は左側で直接直せます。</li>
+          <li><b>投稿する</b>：<span class="help-btn">WPに投稿</span> を押し、次を確認して <span class="help-btn">投稿する</span> を押します。
             <ul>
               <li>記事タイトル（「日付｜シリーズ名｜店舗名｜県」が自動で入ります）</li>
               <li>投稿ステータス（ふだんは<b>下書き</b>）</li>
@@ -1180,22 +1433,22 @@
             「✅ 投稿しました！」と出れば完了です。リンクからWPで最終確認してください。
           </li>
         </ol>
-        <div class="help-note">店舗名・担当者・TOP1〜3などを手で直したいときは、<b>⚙ 基本設定</b> を開くと入力欄があります。</div>
+        <div class="help-note">店舗名・担当者・TOP1〜3などを手で直したいときは、<b>② 基本設定</b> を開くと入力欄があります。</div>
       </div>
 
       <div class="help-sec" id="help-data">
         <h3>③ データの読み込み</h3>
         <h4>Excel・テキストファイルから</h4>
         <ol>
-          <li><span class="help-btn">📂 ファイル</span> を選び、ファイル（.xlsx / .txt / .csv）を選択します。</li>
+          <li><span class="help-btn">ファイル</span> を選び、ファイル（.xlsx / .txt / .csv）を選択します。</li>
           <li>台番・機種名・差枚数などの列は自動で見つけます。ファイル名に日付があれば、日付も自動で入ります。</li>
-          <li>ファイルを直したときは <span class="help-btn">🔄 再読み込み</span> を押します。</li>
+          <li>ファイルを直したときは <span class="help-btn">再読み込み</span> を押します。</li>
         </ol>
         <h4>P-PRO から</h4>
         <ol>
-          <li><span class="help-btn">🔍 P-PRO</span> に切り替えます。</li>
+          <li><span class="help-btn">P-PRO</span> に切り替えます。</li>
           <li>店舗名を入れて、出てきた候補から店舗を<b>クリックして選びます</b>（選ばないと取得できません）。</li>
-          <li>日付を指定して <span class="help-btn">🔍 P-PROから取得</span> を押します。</li>
+          <li>日付を指定して <span class="help-btn">P-PROから取得</span> を押します。</li>
         </ol>
         <div class="help-note"><b>BIG・REG・合算を画像に出したくないとき</b>：P-PROの下にある「BIG・REG・合算を表示しない」にチェックを入れます。取得した後にチェックしても、自動で取り直して反映されます。</div>
         <h4>読み込む台を絞る</h4>
@@ -1211,16 +1464,16 @@
         <h4>メインのランキング画像（全シリーズ）</h4>
         <ol>
           <li>必要なら <b>詳細設定</b> でタイトル文字・サブタイトル（店舗名・日付など）・バナー画像を変えます。バナー画像を選ばなければ、1位の機種の画像が自動で使われます。</li>
-          <li><span class="help-btn">🖼 ランキング画像を生成</span> を押します。</li>
-          <li>差枚のプラス・マイナスが逆になっているときは <span class="help-btn">± 符号反転</span> を押します。</li>
+          <li><span class="help-btn">ランキング画像を生成</span> を押します。</li>
+          <li>差枚のプラス・マイナスが逆になっているときは <span class="help-btn">差枚反転</span> を押します。</li>
         </ol>
         <h4>機種別ランキング（天下無双・リバイバル・女神の加護のみ）</h4>
         <ol>
-          <li><b>👑 機種別平均差枚ランキング画像</b> で、何機種ぶん作るか（上位○機種）を決めます。</li>
-          <li><span class="help-btn">🖼 機種別ランキング一括生成（WPへ自動アップロード）</span> を押します。この画像はその場でWPにアップロードされます。</li>
-          <li>続けて <span class="help-btn">🖼 その他の機種ランキング画像を生成</span> を押すと、残りの機種が1枚にまとまります（一括生成の後でないと押せません）。</li>
+          <li><b>機種別平均差枚ランキング画像</b> で、何機種ぶん作るか（上位○機種）を決めます。</li>
+          <li><span class="help-btn">機種別ランキング一括生成（WPへ自動アップロード）</span> を押します。この画像はその場でWPにアップロードされます。</li>
+          <li>続けて <span class="help-btn">その他の機種ランキング画像を生成</span> を押すと、残りの機種が1枚にまとまります（一括生成の後でないと押せません）。</li>
         </ol>
-        <div class="help-note">画像を記事以外で使いたいときは <span class="help-btn">📋 この画像だけコピー</span> でコピーできます。</div>
+        <div class="help-note">画像を記事以外で使いたいときは <span class="help-btn">この画像だけコピー</span> でコピーできます。</div>
       </div>
 
       <div class="help-sec" id="help-store">
@@ -1268,7 +1521,7 @@
           <tr><td>「先にデータファイルを読み込んでください」</td><td>データを読み込む前に画像生成を押しています。③の手順で先にデータを読み込んでください。</td></tr>
           <tr><td>「先にデータを読み込んでください」（投稿時）</td><td>記事の中身がまだできていません。データ読み込みと画像生成をしてから投稿してください。</td></tr>
           <tr><td>「先にメインの『機種別ランキング一括生成』を実行してください」</td><td>その他の機種の画像は、機種別ランキングの一括生成の後に作ります。</td></tr>
-          <tr><td>「⚠️ 店内差枚数ランキング画像が未生成です」</td><td>天下無双系で、メインのランキング画像を作っていません。<span class="help-btn">🖼 ランキング画像を生成</span> を押してください。</td></tr>
+          <tr><td>「⚠️ 店内差枚数ランキング画像が未生成です」</td><td>天下無双系で、メインのランキング画像を作っていません。<span class="help-btn">ランキング画像を生成</span> を押してください。</td></tr>
           <tr><td>P-PROで「候補一覧から店舗を選択してください」</td><td>店舗名を入れた後、出てきた候補をクリックして選んでください。</td></tr>
           <tr><td>「p-world URLが設定されていません」「p-town URLが設定されていません」</td><td>その店舗にURLが入っていません。⑤の手順で店舗に登録してください。</td></tr>
           <tr><td>「⚠️ 画像アップロード失敗」「❌ 投稿に失敗しました」「❌ 通信エラー」</td><td>通信が一時的に切れた可能性があります。少し待ってからもう一度押してください。何度やっても出る場合は、表示された文をそのまま管理者に伝えてください。</td></tr>
@@ -2512,7 +2765,7 @@ async function fetchPtown() {
   } catch(e) {
     showToast('❌ 通信エラー: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'DMM';
+    btn.disabled = false; btn.textContent = 'DMMから台数を取得';
   }
 }
 
@@ -2566,7 +2819,7 @@ async function fetchPworldTotal() {
   } catch(e) {
     showToast('❌ 通信エラー: ' + e.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🌐 p-worldから取得'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'p-worldから取得'; }
   }
 }
 
@@ -4979,8 +5232,8 @@ function invertDiff() {
   allMachineData.forEach(m => { m.差 = -m.差; });
   allMachineData.sort((a, b) => b.差 - a.差);
   renderDataTable(allMachineData);
-  document.getElementById('invert-btn').textContent = diffInverted ? '± 符号を元に戻す' : '± 差枚数の符号を反転';
-  showToast(diffInverted ? '差枚数の符号を反転しました' : '符号を元に戻しました');
+  document.getElementById('invert-btn').textContent = diffInverted ? '差枚反転を元に戻す' : '差枚反転';
+  showToast(diffInverted ? '差枚を反転しました' : '差枚を元に戻しました');
 }
 
 function toggleData() {
