@@ -407,9 +407,14 @@ function ygRequest(method, endpoint, body, extraHeaders) {
 }
 
 // PISION（P-PRO）API リクエスト
-function pisionRequest(pathAndQuery) {
+// 西日本版は別アカウント（APIキー違い）。キーはRailwayの環境変数 PISION_WEST_API_KEY（ローカルは wp-config.json の pision_west）。
+// 西日本のホールIDは負の数にして返し、関東版のIDと区別する
+const PISION_WEST = config.pision_west || (process.env.PISION_WEST_API_KEY
+  ? { base_url: config.pision?.base_url || 'https://www.pision.io', api_key: process.env.PISION_WEST_API_KEY, api_key_header: config.pision?.api_key_header || 'X-Api-Key' }
+  : null);
+function pisionRequest(pathAndQuery, west = false) {
   return new Promise((resolve, reject) => {
-    const pision = config.pision || {};
+    const pision = (west ? PISION_WEST : config.pision) || {};
     const urlObj = new URL(pision.base_url + pathAndQuery);
     const headers = { [pision.api_key_header || 'X-Api-Key']: pision.api_key };
     const req = https.request(
@@ -2041,8 +2046,14 @@ JSONのみを返してください（説明文・コードブロック不要）:
     if (req.method === 'GET' && parsed.pathname === '/api/pision-halls') {
       const q = (parsed.searchParams.get('q') || '').trim();
       if (!q) return sendJson(400, { error: 'q（店舗名）が必要です' });
-      const halls = await pisionRequest(`/api/v2/halls`);
-      const matches = (halls.halls || []).filter(h => h.name.includes(q));
+      const [east, west] = await Promise.all([
+        pisionRequest(`/api/v2/halls`),
+        PISION_WEST
+          ? pisionRequest(`/api/v2/halls`, true).catch(e => { console.error('PISION西日本 ホール取得失敗:', e.message); return { halls: [] }; })
+          : { halls: [] },
+      ]);
+      const all = [...(east.halls || []), ...(west.halls || []).map(h => ({ ...h, id: -h.id }))];
+      const matches = all.filter(h => h.name.includes(q));
       return sendJson(200, { halls: matches.slice(0, 20) });
     }
 
@@ -2051,7 +2062,8 @@ JSONのみを返してください（説明文・コードブロック不要）:
       const hallId = parsed.searchParams.get('hallId');
       const date = parsed.searchParams.get('date');
       if (!hallId || !date) return sendJson(400, { error: 'hallId・dateが必要です' });
-      const result = await pisionRequest(`/api/v2/halls/${encodeURIComponent(hallId)}/results/${encodeURIComponent(date)}`);
+      const west = Number(hallId) < 0;
+      const result = await pisionRequest(`/api/v2/halls/${encodeURIComponent(west ? String(-Number(hallId)) : hallId)}/results/${encodeURIComponent(date)}`, west);
       const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,
@@ -2072,7 +2084,9 @@ JSONのみを返してください（説明文・コードブロック不要）:
     if (req.method === 'GET' && parsed.pathname === '/api/pision-result-by-id') {
       const id = parsed.searchParams.get('id');
       if (!id) return sendJson(400, { error: 'idが必要です' });
-      const result = await pisionRequest(`/api/v2/results/${encodeURIComponent(id)}`);
+      // 結果IDだけでは関東版か西日本版か分からないので、関東版で見つからなければ西日本版を試す
+      const result = await pisionRequest(`/api/v2/results/${encodeURIComponent(id)}`)
+        .catch(e => PISION_WEST ? pisionRequest(`/api/v2/results/${encodeURIComponent(id)}`, true) : Promise.reject(e));
       const roundUp50 = v => v >= 0 ? Math.ceil(v / 50) * 50 : Math.floor(v / 50) * 50;
       const machines = (result.details || []).map(d => ({
         台番: d.unitId,
