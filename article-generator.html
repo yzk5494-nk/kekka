@@ -1422,7 +1422,7 @@
               <li>一球入魂（パチンコ）：<b>パチンコ設置台数</b>を入れるか、<span class="help-btn">p-worldから取得</span> を押します。</li>
             </ul>
           </li>
-          <li><b>ピックアップ画像を作る（リサーチ9のみ）</b>：左側の「任意画像①」ブロックにある <span class="help-btn">ピックアップ画像を作成</span> を押します。
+          <li><b>ピックアップ画像を作る（リサーチ9のみ）</b>：右側のプレビューで、店舗紹介の吹き出しのすぐ下（任意画像①の枠の下）にある <span class="help-btn">ピックアップ画像を作成</span> を押します。
             <ul>
               <li><span class="help-btn">9マス画像を選択</span> で対象機種の9マス画像を読み込みます（ドラッグ＆ドロップや Ctrl+V の貼り付けでもOK）。</li>
               <li>画像をクリックすると、その場所に「ピックアップ」メダルが付きます。メダルはドラッグで動かせます。大きさは「メダルの大きさ」のスライダーで全部まとめて変わります。</li>
@@ -3186,6 +3186,10 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
       ? bl(bHtmlPrev('b2'), 'b2')
       : bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
     ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
+    ${currentSeries === 'research9' ? `<div style="text-align:center;margin:6px 0 16px;">
+      <button type="button" onclick="openPickupMaker()" style="padding:9px 20px;font-size:14px;font-weight:bold;color:#fff;background:#c0392b;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">ピックアップ画像を作成</button>
+      <div style="font-size:11px;color:#888;margin-top:4px;">9マス画像にピックアップのメダルを貼って、↑の任意画像①に入れます</div>
+    </div>` : ''}
     ${bl(bHtmlPrev('b3'), 'b3')}
     ${bl(bHtmlPrev('b4'), 'b4')}
     ${isLineupTextHidden() ? '' : bl(bHtmlPrev('b5'), 'b5')}
