@@ -975,6 +975,7 @@
     <option value="tenkamusou">天下無双</option>
     <option value="revival">リバイバル</option>
     <option value="megaminokago">女神の加護</option>
+    <option value="research9">リサーチ9</option>
   </select>
   <select id="revival-variant-select" onchange="onRevivalVariantChange(this.value)"
     style="display:none;margin-left:6px;font-size:13px;padding:3px 8px;border:1px solid #ccc;border-radius:5px;font-family:inherit;cursor:pointer;">
@@ -1416,9 +1417,17 @@
           <li><b>ランキング画像を作る</b>：<span class="help-btn">ランキング画像を生成</span> を押します。TOP1〜3の機種名・台番・差枚数が自動で入ります（<a href="#help-image">④ ランキング画像</a>）。</li>
           <li><b>人数・台数を入れる（シリーズによる）</b>
             <ul>
-              <li>天下無双・リバイバル・女神の加護：<b>並び人数</b>（抽選人数・一般人数・総台数）を入れます。</li>
+              <li>天下無双・リバイバル・女神の加護・リサーチ9：<b>並び人数</b>（抽選人数・一般人数・総台数）を入れます。</li>
               <li>それ以外のシリーズ：<b>設置台数</b>の機種行を確認します。データを読み込むと自動で入りますが、足りなければ <span class="help-btn">＋ 機種を追加</span> で足します。<span class="help-btn">DMMから台数を取得</span> を押すと、p-town(DMM)の設置台数でまとめて入れ直せます（店舗にp-town URLの登録が必要）。</li>
               <li>一球入魂（パチンコ）：<b>パチンコ設置台数</b>を入れるか、<span class="help-btn">p-worldから取得</span> を押します。</li>
+            </ul>
+          </li>
+          <li><b>ピックアップ画像を作る（リサーチ9のみ）</b>：左側の「任意画像①」ブロックにある <span class="help-btn">ピックアップ画像を作成</span> を押します。
+            <ul>
+              <li><span class="help-btn">9マス画像を選択</span> で対象機種の9マス画像を読み込みます（ドラッグ＆ドロップや Ctrl+V の貼り付けでもOK）。</li>
+              <li>画像をクリックすると、その場所に「ピックアップ」メダルが付きます。メダルはドラッグで動かせます。大きさは「メダルの大きさ」のスライダーで全部まとめて変わります。</li>
+              <li>間違えたメダルはクリックして選び、Deleteキー（または <span class="help-btn">選択中のメダルを削除</span>）で消せます。</li>
+              <li><span class="help-btn">この画像を使う（任意画像①）</span> を押すと、WPにアップロードされて任意画像①に自動で入ります。手元に保存したいときは <span class="help-btn">ダウンロード</span>。</li>
             </ul>
           </li>
           <li><b>AI文章を作る</b>：<span class="help-btn">AI文章生成</span> を押します。その店舗で初めての開催なら <span class="help-btn">初開催 AI文章生成</span> を押してください。</li>
@@ -1781,6 +1790,37 @@
     <div style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
       <button onclick="saveCatTagToStore()" style="padding:8px 16px;background:#2a5f2a;color:white;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">💾 この店舗設定として保存</button>
       <button onclick="closeCatTagModal()" style="padding:10px 30px;background:#0073aa;color:white;border:none;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;">✔ 決定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ピックアップ画像作成モーダル（リサーチ9：9マス画像に「ピックアップ」メダルを貼って任意画像①に入れる） -->
+<div class="modal-overlay" id="pickup-maker-modal">
+  <div class="modal" style="width:1000px;">
+    <div class="modal-header">
+      <h3>ピックアップ画像を作成</h3>
+      <button class="modal-close" onclick="closePickupMaker()">✕</button>
+    </div>
+    <div class="modal-toolbar" style="flex-wrap:wrap;">
+      <button class="modal-search-btn" onclick="document.getElementById('pickup-maker-file').click()">📁 9マス画像を選択</button>
+      <input type="file" id="pickup-maker-file" accept="image/*" style="display:none" onchange="onPickupMakerFile(event)">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#444;">
+        メダルの大きさ
+        <input type="range" id="pickup-maker-size" min="4" max="30" step="0.5" value="11" oninput="drawPickupMaker()">
+      </label>
+      <button class="modal-search-btn" style="background:#888;" onclick="deleteSelectedPickupBadge()">選択中のメダルを削除</button>
+      <button class="modal-search-btn" style="background:#888;" onclick="clearPickupBadges()">メダルを全部削除</button>
+    </div>
+    <div class="modal-body" id="pickup-maker-body" style="display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:300px;">
+      <div id="pickup-maker-empty" style="color:#888;font-size:14px;text-align:center;line-height:1.8;">
+        「9マス画像を選択」を押すか、ここに画像をドラッグ＆ドロップ／Ctrl+V で貼り付けてください
+      </div>
+      <canvas id="pickup-maker-canvas" style="display:none;max-width:100%;max-height:62vh;cursor:crosshair;touch-action:none;box-shadow:0 2px 10px rgba(0,0,0,.2);"></canvas>
+    </div>
+    <div class="modal-footer" style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;font-size:12px;color:#666;">画像をクリック → メダルを貼る ／ メダルをドラッグ → 移動 ／ メダルを選んで Delete → 削除</div>
+      <button class="modal-search-btn" style="background:#888;" onclick="downloadPickupImage()">ダウンロード</button>
+      <button class="modal-search-btn" id="pickup-maker-use-btn" onclick="usePickupImage()">この画像を使う（任意画像①）</button>
     </div>
   </div>
 </div>
@@ -2210,6 +2250,48 @@ const SERIES_CONFIG = {
       };
     },
   },
+  // リバイバルを複製した新企画（バリエーション切り替えなし）。挙動・文言はリバイバル（＝天下無双系）と同一。
+  // ヘッダー画像は天下無双のものを流用
+  research9: {
+    name: 'リサーチ9',
+    eventImgId:  614215,
+    eventImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/research9-eyecatch.jpg',
+    tagKeywords: ['リサーチ9'],
+    jugglerOnly: false,
+    allowedMachines: [],
+    showLineupBox: true,
+    hideBigReg: true,
+    sheetKeyword: 'リサーチ9',
+    machineEmoji: '🔍',
+    rankingTitle: '店内差枚数ランキング',
+    headerImgUrl: 'https://hisshobon-hall.info/wp-content/uploads/tenkamusou-header.jpg',
+    capLabel: '取材対象機種設置台数',
+    capColor: '#2f855a', capBg: '#f0fff4', capHeaderColor: '#2f855a',
+    defaultMachines: [],
+    getSeriesTexts({ cnt, total, t1n, t1d, adj1, t2n, t2d, adj2, isFirstTime, pref, city, hall }) {
+      const nm = SERIES_CONFIG.research9.name;
+      const greetings = [
+        { b1: '皆さん、こんにちわっ‼️', b2: `今回は【${nm}】の取材で${pref}${city}にある${hall}にやって参りました～💨` },
+        { b1: '皆さん、こんにちはっ🌟', b2: `今回、私は【${nm}】の取材で${pref}${city}にある${hall}へとやって参りました💨💨💨` },
+      ];
+      const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+      return {
+        b1:  greeting.b1,
+        b2:  greeting.b2,
+        b3:  '',
+        b4:  'この取材は【全機種の稼働を分け隔てなく調査する編集部員】たちによる総力調査となります📸',
+        b5:  `今回も全国各地で${nm}参戦ホールが集結‼️各地で熱戦を繰り広げていますっ🏆`,
+        b8:  ['その他の機種の差枚はコチラ❗️', 'その他の機種の差枚はコチラ🌟'][Math.floor(Math.random() * 2)],
+        b9:  ['また、この日の店内差枚数ランキングがこちら❗️', 'そして、全体の差枚ランキングです🌟'][Math.floor(Math.random() * 2)],
+        // b7で既に「機種別差枚ランキングをチェック」と案内済みのため、同じ意味のb10は出力しない
+        b10: '',
+        b13: `1位の${t1n}は${adj1}${t1d.replace(/\+/,'')}という結果に😲\nまた2位の${t2n}も${adj2}${t2d.replace(/\+/,'')}とこちらも好調な結果でした‼️\nまさに${nm}の名にふさわしい結果ではないでしょうか🔥`,
+        b14: isFirstTime
+          ? `初回から大いに盛り上がりを見せてくれましたね〜👍\n同店での${nm}次回開催もかなり期待できそうです！`
+          : `今回もガッツリと盛り上がっていましたね〜👍\n同店での${nm}開催時はかなり期待できそうです！`,
+      };
+    },
+  },
 };
 
 // リバイバルシリーズの内訳（対象機種・記事内容は共通、サムネ画像と表示名のみ切り替え）
@@ -2267,6 +2349,9 @@ function onSeriesChange(val) {
   }
   const revivalVariantEl = document.getElementById('revival-variant-select');
   if (revivalVariantEl) revivalVariantEl.style.display = (val === 'revival') ? '' : 'none';
+  // リサーチ9専用：任意画像①の「ピックアップ画像を作成」ボタン
+  const pickupMakerBtn = document.getElementById('pickup-maker-btn');
+  if (pickupMakerBtn) pickupMakerBtn.style.display = (val === 'research9') ? '' : 'none';
 
   const cfg = SERIES_CONFIG[val];
   FIXED.eventImgId  = cfg.eventImgId;
@@ -2295,10 +2380,10 @@ function onSeriesChange(val) {
   const capSectionHeader = document.getElementById('cap-section-header');
   const rowsSection  = document.getElementById('machine-rows-section');
   const totalSection = document.getElementById('pachinko-total-section');
-  if (capSectionHeader) capSectionHeader.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago')) ? 'none' : '';
+  if (capSectionHeader) capSectionHeader.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago' || val === 'research9')) ? 'none' : '';
   if (rowsSection && totalSection) {
-    rowsSection.style.display  = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago') || cfg.freeformCap) ? 'none' : '';
-    totalSection.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago')) ? 'none' : (cfg.freeformCap ? '' : 'none');
+    rowsSection.style.display  = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago' || val === 'research9') || cfg.freeformCap) ? 'none' : '';
+    totalSection.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago' || val === 'research9')) ? 'none' : (cfg.freeformCap ? '' : 'none');
   }
 
   // 並び人数セクションの表示切り替え（showLineupBox が true のシリーズのみ）
@@ -2309,7 +2394,7 @@ function onSeriesChange(val) {
 
   // 天下無双専用：機種別平均差枚ランキング一括生成ボタンの表示切り替え
   const tenkamusouBatchRow = document.getElementById('tenkamusou-batch-row');
-  if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago')) ? '' : 'none';
+  if (tenkamusouBatchRow) tenkamusouBatchRow.style.display = ((val === 'tenkamusou' || val === 'revival' || val === 'megaminokago' || val === 'research9')) ? '' : 'none';
   const artToggleRow = document.getElementById('tenkamusou-art-toggle-row');
   if (artToggleRow) artToggleRow.style.display = (val === 'megaminokago') ? 'flex' : 'none';
   renderCardFrameSelect();
@@ -2446,7 +2531,7 @@ function getTemplateTexts() {
       : currentSeries === 'shishifunjin' ? ['ということで、まずは取材対象機種の確認から🔎', 'それでは、取材対象機種の確認からしてみましょう‼️'][Math.floor(Math.random() * 2)]
       : currentSeries === 'hyakkaryoran' ? ['まずは設置機種を確認していきましょう🔍', 'まずは取材対象となるハナ系機種の設置台数をごらんください✋'][Math.floor(Math.random() * 2)]
       : currentSeries === 'ikkyunyukon' ? `それではまず、パチンコ設置台数の確認から📷`
-      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? `それでは早速【機種別差枚ランキング】をチェックしていきましょう🙆‍♀️`
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? `それでは早速【機種別差枚ランキング】をチェックしていきましょう🙆‍♀️`
       : `それではまず、設置機種を確認していきましょう📷`,
     b8:  seriesTexts.b8,
     b9:  seriesTexts.b9 !== undefined ? seriesTexts.b9 : `${main}が最多設置、続いて${second}といった機種構成になっています📝`,
@@ -2559,7 +2644,7 @@ async function generateWithAI() {
       ? ['b3','b5','b9','b13','b14','b15']
       : currentSeries === 'hyakkaryoran'
       ? ['b3','b6','b8','b9','b13','b14','b15']
-      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')
       ? ['b2','b5','b6','b13','b14','b15']
       : ['b3','b5','b6','b9','b13','b14','b15'];
     keys.forEach(key => {
@@ -2571,7 +2656,7 @@ async function generateWithAI() {
       const b6El = document.querySelector('[data-key="b6"]');
       if (b6El) b6El.innerHTML = '';
     }
-    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')) {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')) {
       // b2に統合したのでb3は使わない（固定プレースホルダーが残らないようクリア）
       const b3El = document.querySelector('[data-key="b3"]');
       if (b3El) b3El.innerHTML = '';
@@ -2660,7 +2745,7 @@ function buildBlockList() {
   const container = document.getElementById('block-list');
   const texts = getTemplateTexts();
   const showLineup = !!SERIES_CONFIG[currentSeries].showLineupBox;
-  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago';
+  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9';
 
   BLOCK_DEFS.filter(def => (def.type !== 'lineup' || showLineup) && (def.id !== 'b-end-img' || !isTenkamusouLike)).forEach((def, idx) => {
     const item = document.createElement('div');
@@ -2685,6 +2770,7 @@ function buildBlockList() {
           <label>画像URL</label>
           <input id="input-${def.urlKey}" placeholder="https://hisshobon-hall.info/wp-content/uploads/...">
           <button class="pick-media-btn" onclick="openMediaModal('${def.idKey}','${def.urlKey}')">📷 メディアライブラリから選択</button>
+          ${def.id === 'b-free-img-1' ? `<button class="pick-media-btn" id="pickup-maker-btn" style="display:${currentSeries === 'research9' ? '' : 'none'};" onclick="openPickupMaker()">ピックアップ画像を作成</button>` : ''}
           <img class="img-preview-small" id="preview-small-${def.idKey}">
         </div>
       </div>`;
@@ -2926,7 +3012,7 @@ function generate() {
   // 天下無双：機種別ランキング画像をWPアップロード済みなら、その全枚数を画像ブロックとして並べる。
   // 未生成・未アップロードならこれまで通り単一のランキング画像ブロック。
   function rankImageBlocks() {
-    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') && tenkamusouRankImages.length) {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') && tenkamusouRankImages.length) {
       const uploaded = tenkamusouRankImages.filter(item => item.wpId && item.wpUrl);
       if (uploaded.length) {
         const blocks = uploaded.map(item => wpImage(item.wpId, item.wpUrl));
@@ -2961,18 +3047,18 @@ function generate() {
     lineupBoxMaybe(),
     isLineupTextHidden() ? '' : balloonMaybe(bHtml('b6')),
     balloonMaybe(bHtml('b7')),
-    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
-    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : balloonMaybe(bHtml('b8')),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : capBlock(SERIES_CONFIG[currentSeries].capLabel, `<strong>${machineListWP}</strong>`),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : balloonMaybe(bHtml('b8')),
     ...((currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks(), balloonMaybe(bHtml('b9'))]
-      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')
       ? [balloonMaybe(bHtml('b10')), ...rankImageBlocks()]
       : [balloonMaybe(bHtml('b9')), balloonMaybe(bHtml('b10')), ...rankImageBlocks()]),
     balloonMaybe(bHtml('b11')),
     balloonMaybe(bHtml('b12')),
     balloonMaybe(bHtml('b13')),
     balloonMaybe(bHtml('b14')),
-    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : wpImage(endImgId, endImgUrl),
+    (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : wpImage(endImgId, endImgUrl),
     balloonMaybe(bHtml('b15')),
     wpParagraph(paraWP),
     `<!-- wp:paragraph -->\n<p></p>\n<!-- /wp:paragraph -->`,
@@ -3035,7 +3121,7 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
   // 天下無双：機種別ランキング画像を一括生成済みなら、その全枚数を並べて表示。
   // 未生成ならこれまで通り単一のランキング画像スロットを表示する。
   function rankImagesPrevHtml(singleUrl) {
-    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') && tenkamusouRankImages.length) {
+    if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') && tenkamusouRankImages.length) {
       const mainImgsHtml = tenkamusouRankImages.map(item => `<img src="${item.wpUrl || item.dataUrl}" class="prev-img">`).join('\n    ');
       let otherHtml = '';
       if (tenkamusouOtherImages.length) {
@@ -3093,10 +3179,10 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
 
   const html = `<div class="prev-body">
     ${imgPrev(storeImgUrl, '店舗外観画像', 'store-img-id', 'store-img-url')}
-    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')
       ? bl(bHtmlPrev('b1'), 'b1')
       : bl(`皆さんこんにちわっ😊<strong>必勝本編集部・${bHtmlPrev('b1').replace(/.*・/,'').replace(/です[❗️!。]*$/, '')}</strong>です❗️`, 'b1')}
-    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')
       ? bl(bHtmlPrev('b2'), 'b2')
       : bl(`今回は<strong>${pref}・${city}</strong>にある<span class="has-swl-deep-02-color"><b>【${hall}】</b></span>へとやってきましたーっ💨`, 'b2')}
     ${imgPrev(freeImg1Url, '任意画像①', 'free-img-1-id', 'free-img-1-url')}
@@ -3106,21 +3192,21 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
     ${lineupPrevHtml()}
     ${isLineupTextHidden() ? '' : bl(bHtmlPrev('b6'), 'b6')}
     ${bl(bHtmlPrev('b7'), 'b7')}
-    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : `<div class="prev-cap-box" style="border-color:${SERIES_CONFIG[currentSeries].capColor};">
       <div class="prev-cap-title" style="background:${SERIES_CONFIG[currentSeries].capColor};">${SERIES_CONFIG[currentSeries].capLabel}</div>
       <div class="prev-cap-content" style="background:${SERIES_CONFIG[currentSeries].capBg};"><strong>${machListPrev}</strong></div>
     </div>`}
-    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : bl(bHtmlPrev('b8'), 'b8')}
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : bl(bHtmlPrev('b8'), 'b8')}
     ${(currentSeries === 'tokyoghoul' || currentSeries === 'tenchishinmei')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}\n    ${bl(bHtmlPrev('b9'), 'b9')}`
-      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')
+      : (currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')
       ? `${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`
       : `${bl(bHtmlPrev('b9'), 'b9')}\n    ${bl(bHtmlPrev('b10'), 'b10')}\n    ${rankImagesPrevHtml(rankImgUrl)}`}
     ${bl(bHtmlPrev('b11'), 'b11')}
     ${bl(bHtmlPrev('b12'), 'b12')}
     ${bl(bHtmlPrev('b13'), 'b13')}
     ${bl(bHtmlPrev('b14'), 'b14')}
-    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago') ? '' : imgPrev(endImgUrl, '締め用機種画像', 'end-img-id', 'end-img-url')}
+    ${(currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9') ? '' : imgPrev(endImgUrl, '締め用機種画像', 'end-img-id', 'end-img-url')}
     ${bl(bHtmlPrev('b15'), 'b15')}
     <div class="prev-paragraph prev-editable" contenteditable="true" data-key="para"
          onfocus="showEditToolbar()" onblur="hideEditToolbar()">
@@ -3526,7 +3612,7 @@ async function submitWpPost() {
 // ============================================================
 function copyCode() {
   generate(); // コピー直前に必ず最新の内容で作り直す（天下無双の一括生成画像など、反映漏れを防ぐ）
-  if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago')) {
+  if ((currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9')) {
     const rid = document.getElementById('input-rank-img-id')?.value;
     if (!rid || rid === 'RANKING_IMG_ID') {
       showToast('⚠️ 店内差枚数ランキング画像が未生成です（先に「ランキング画像を生成」を押してください）');
@@ -4480,7 +4566,7 @@ async function generateRankingImage() {
 
   // 締め用機種画像をRANK1機種の登録画像で自動設定（締め用複数あればランダム、なければバナー用を使用）
   // 天下無双・リバイバルは〆画像ブロック自体を出力しないため設定不要
-  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago';
+  const isTenkamusouLike = currentSeries === 'tenkamusou' || currentSeries === 'revival' || currentSeries === 'megaminokago' || currentSeries === 'research9';
   const rank1Info = !isTenkamusouLike && rank1Name && resolveLibraryEntry(rank1Name);
   const endImgs = rank1Info?.endImages?.length ? rank1Info.endImages : (rank1Info?.url ? [rank1Info.url] : []);
   const rank1Img = endImgs.length ? endImgs[Math.floor(Math.random() * endImgs.length)] : null;
@@ -5441,6 +5527,250 @@ function confirmMediaSelect() {
 }
 
 // ============================================================
+// ピックアップ画像作成（リサーチ9）
+// 9マス画像の上に「ピックアップ」メダル（assets/pickup-badge.png）を貼り、
+// WPメディアにアップロードして任意画像①に入れる
+// ============================================================
+const pickupMaker = {
+  img: null,          // 読み込んだ9マス画像
+  badges: [],         // 貼ったメダル [{x, y}]（画像上の中心座標・原寸px）
+  selected: -1,       // 選択中のメダル
+  drag: null,         // ドラッグ中 {idx, dx, dy}
+  badgeImg: null,     // メダル画像
+};
+
+function loadPickupBadgeImg() {
+  if (pickupMaker.badgeImg) return Promise.resolve(pickupMaker.badgeImg);
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => { pickupMaker.badgeImg = im; resolve(im); };
+    im.onerror = () => reject(new Error('メダル画像を読み込めませんでした'));
+    im.src = '/assets/pickup-badge.png';
+  });
+}
+
+function openPickupMaker() {
+  document.getElementById('pickup-maker-modal').classList.add('show');
+  loadPickupBadgeImg().then(drawPickupMaker).catch(e => showToast('❌ ' + e.message));
+}
+
+function closePickupMaker() {
+  document.getElementById('pickup-maker-modal').classList.remove('show');
+  pickupMaker.drag = null;
+}
+
+function pickupMakerIsOpen() {
+  return document.getElementById('pickup-maker-modal')?.classList.contains('show');
+}
+
+function loadPickupMakerImage(file) {
+  if (!file || !file.type.startsWith('image/')) { showToast('画像ファイルを選んでください'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const im = new Image();
+    im.onload = () => {
+      pickupMaker.img = im;
+      pickupMaker.badges = [];
+      pickupMaker.selected = -1;
+      const canvas = document.getElementById('pickup-maker-canvas');
+      canvas.width = im.naturalWidth;
+      canvas.height = im.naturalHeight;
+      canvas.style.display = '';
+      document.getElementById('pickup-maker-empty').style.display = 'none';
+      loadPickupBadgeImg().then(drawPickupMaker).catch(err => showToast('❌ ' + err.message));
+    };
+    im.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function onPickupMakerFile(event) {
+  loadPickupMakerImage(event.target.files[0]);
+  event.target.value = '';
+}
+
+// メダルの表示サイズ（原寸px）。スライダーは画像幅に対する%
+function pickupBadgeSize() {
+  const pct = parseFloat(document.getElementById('pickup-maker-size').value) || 11;
+  const w = pickupMaker.img.naturalWidth * pct / 100;
+  const b = pickupMaker.badgeImg;
+  return { w, h: b ? w * b.naturalHeight / b.naturalWidth : w };
+}
+
+// withSelection=false のときは選択枠を描かない（書き出し用）
+function renderPickupCanvas(canvas, withSelection) {
+  const ctx = canvas.getContext('2d');
+  const { img, badges, badgeImg } = pickupMaker;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+  if (!badgeImg) return;
+  const { w, h } = pickupBadgeSize();
+  badges.forEach((b, i) => {
+    ctx.drawImage(badgeImg, b.x - w / 2, b.y - h / 2, w, h);
+    if (withSelection && i === pickupMaker.selected) {
+      ctx.save();
+      ctx.strokeStyle = '#1e90ff';
+      ctx.lineWidth = Math.max(2, canvas.width / 400);
+      ctx.setLineDash([8, 5]);
+      ctx.strokeRect(b.x - w / 2, b.y - h / 2, w, h);
+      ctx.restore();
+    }
+  });
+}
+
+function drawPickupMaker() {
+  if (!pickupMaker.img) return;
+  renderPickupCanvas(document.getElementById('pickup-maker-canvas'), true);
+}
+
+function pickupCanvasPoint(e) {
+  const canvas = document.getElementById('pickup-maker-canvas');
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * canvas.width / r.width,
+    y: (e.clientY - r.top) * canvas.height / r.height,
+  };
+}
+
+function pickupBadgeAt(p) {
+  const { w, h } = pickupBadgeSize();
+  for (let i = pickupMaker.badges.length - 1; i >= 0; i--) {
+    const b = pickupMaker.badges[i];
+    if (Math.abs(p.x - b.x) <= w / 2 && Math.abs(p.y - b.y) <= h / 2) return i;
+  }
+  return -1;
+}
+
+function deleteSelectedPickupBadge() {
+  if (pickupMaker.selected < 0) { showToast('削除するメダルをクリックして選んでください'); return; }
+  pickupMaker.badges.splice(pickupMaker.selected, 1);
+  pickupMaker.selected = -1;
+  drawPickupMaker();
+}
+
+function clearPickupBadges() {
+  pickupMaker.badges = [];
+  pickupMaker.selected = -1;
+  drawPickupMaker();
+}
+
+function exportPickupImage() {
+  const out = document.createElement('canvas');
+  out.width = pickupMaker.img.naturalWidth;
+  out.height = pickupMaker.img.naturalHeight;
+  renderPickupCanvas(out, false);
+  return out.toDataURL('image/png');
+}
+
+function downloadPickupImage() {
+  if (!pickupMaker.img) { showToast('先に9マス画像を読み込んでください'); return; }
+  const a = document.createElement('a');
+  a.href = exportPickupImage();
+  a.download = `pickup_${Date.now()}.png`;
+  a.click();
+}
+
+async function usePickupImage() {
+  if (!pickupMaker.img) { showToast('先に9マス画像を読み込んでください'); return; }
+  if (!pickupMaker.badges.length && !confirm('メダルが1つも貼られていません。このままアップロードしますか？')) return;
+  const btn = document.getElementById('pickup-maker-use-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ アップロード中…';
+  try {
+    const base64 = exportPickupImage().split(',')[1];
+    const res = await fetch('/api/upload-hb-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: `research9_pickup_${Date.now()}.png`, data: base64 }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.id || !data.source_url) throw new Error(data.message || 'アップロードに失敗しました');
+
+    const idEl  = document.getElementById('input-free-img-1-id');
+    const urlEl = document.getElementById('input-free-img-1-url');
+    const prev  = document.getElementById('preview-small-free-img-1-id');
+    if (idEl)  idEl.value  = data.id;
+    if (urlEl) urlEl.value = data.source_url;
+    if (prev) { prev.src = data.source_url; prev.style.display = 'block'; }
+    initPreview();
+    closePickupMaker();
+    showToast('ピックアップ画像を任意画像①に入れました');
+  } catch (e) {
+    showToast('❌ アップロード失敗: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+(function setupPickupMaker() {
+  const canvas = document.getElementById('pickup-maker-canvas');
+  const body = document.getElementById('pickup-maker-body');
+  if (!canvas || !body) return;
+
+  canvas.addEventListener('pointerdown', e => {
+    if (!pickupMaker.img || !pickupMaker.badgeImg) return;
+    const p = pickupCanvasPoint(e);
+    let idx = pickupBadgeAt(p);
+    if (idx < 0) {
+      // 何もない所をクリック → そこにメダルを貼る
+      pickupMaker.badges.push({ x: p.x, y: p.y });
+      idx = pickupMaker.badges.length - 1;
+    }
+    pickupMaker.selected = idx;
+    const b = pickupMaker.badges[idx];
+    pickupMaker.drag = { idx, dx: p.x - b.x, dy: p.y - b.y };
+    canvas.setPointerCapture(e.pointerId);
+    drawPickupMaker();
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!pickupMaker.img) return;
+    const p = pickupCanvasPoint(e);
+    if (pickupMaker.drag) {
+      const b = pickupMaker.badges[pickupMaker.drag.idx];
+      b.x = Math.min(Math.max(p.x - pickupMaker.drag.dx, 0), canvas.width);
+      b.y = Math.min(Math.max(p.y - pickupMaker.drag.dy, 0), canvas.height);
+      drawPickupMaker();
+    } else {
+      canvas.style.cursor = pickupBadgeAt(p) >= 0 ? 'move' : 'crosshair';
+    }
+  });
+  const endDrag = () => { pickupMaker.drag = null; };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  // ドラッグ＆ドロップで画像読み込み
+  body.addEventListener('dragover', e => { e.preventDefault(); });
+  body.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) loadPickupMakerImage(file);
+  });
+
+  // Ctrl+V で画像貼り付け（モーダルが開いているときだけ）
+  document.addEventListener('paste', e => {
+    if (!pickupMakerIsOpen()) return;
+    const item = [...(e.clipboardData?.items || [])].find(it => it.type.startsWith('image/'));
+    if (!item) return;
+    e.preventDefault();
+    loadPickupMakerImage(item.getAsFile());
+  });
+
+  // Delete / Backspace で選択中のメダルを削除、Esc で閉じる
+  document.addEventListener('keydown', e => {
+    if (!pickupMakerIsOpen()) return;
+    if (e.target.matches?.('input, textarea, select')) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && pickupMaker.selected >= 0) {
+      e.preventDefault();
+      deleteSelectedPickupBadge();
+    } else if (e.key === 'Escape') {
+      closePickupMaker();
+    }
+  });
+})();
+
+// ============================================================
 // 機種画像管理
 // ============================================================
 let libraryImages = {}; // 代表機種の登録簿（全シリーズ共通。どのシリーズで登録しても全シリーズで使える）
@@ -5450,7 +5780,7 @@ let libraryReviewPending = null; // 統合時に表示名の確認が必要な�
 const LIBRARY_SERIES_LABEL = {
   denkoisseki: '電光石火', ifudodo: '威風堂々', shishifunjin: '獅子奮迅', tokyoghoul: '東京喰種',
   tenchishinmei: '天地神明', hyakkaryoran: '百花繚乱', ikkyunyukon: '一球入魂',
-  tenkamusou: '天下無双', revival: 'リバイバル', megaminokago: '女神の加護',
+  tenkamusou: '天下無双', revival: 'リバイバル', megaminokago: '女神の加護', research9: 'リサーチ9',
 };
 
 // 旧フォーマット（シリーズ別の登録簿）を1つの共通登録簿にまとめる。
