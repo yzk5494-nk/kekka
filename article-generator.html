@@ -1424,8 +1424,9 @@
           </li>
           <li><b>ピックアップ画像を作る（リサーチ9のみ）</b>：右側のプレビューで、店舗紹介の吹き出しのすぐ下（任意画像①の枠の下）にある <span class="help-btn">ピックアップ画像を作成</span> を押します。
             <ul>
-              <li><span class="help-btn">9マス画像を選択</span> で対象機種の9マス画像を読み込みます（ドラッグ＆ドロップや Ctrl+V の貼り付けでもOK）。</li>
-              <li>画像をクリックすると、その場所に「ピックアップ」メダルが付きます。メダルはドラッグで動かせます。大きさは「メダルの大きさ」のスライダーで全部まとめて変わります。</li>
+              <li><span class="help-btn">チラシ画像を選択</span> でチラシ（取材対象機種9）の画像を読み込みます（ドラッグ＆ドロップや Ctrl+V の貼り付けでもOK）。チラシ全体を入れると、9マスの部分だけが自動で切り抜かれます。</li>
+              <li>「ピックアップするマス」の 1〜9 にチェックを入れると、そのマスの左上にメダルが付きます（左上が1、1→2→3、4→5→6、7→8→9）。チェックを外すと消えます。</li>
+              <li>位置を直したいときはメダルをドラッグで動かせます。画像をクリックすると好きな位置にメダルを追加することもできます。大きさは「メダルの大きさ」のスライダーで全部まとめて変わります。</li>
               <li>間違えたメダルはクリックして選び、Deleteキー（または <span class="help-btn">選択中のメダルを削除</span>）で消せます。</li>
               <li><span class="help-btn">この画像を使う（任意画像①）</span> を押すと、WPにアップロードされて任意画像①に自動で入ります。手元に保存したいときは <span class="help-btn">ダウンロード</span>。</li>
             </ul>
@@ -1802,23 +1803,37 @@
       <button class="modal-close" onclick="closePickupMaker()">✕</button>
     </div>
     <div class="modal-toolbar" style="flex-wrap:wrap;">
-      <button class="modal-search-btn" onclick="document.getElementById('pickup-maker-file').click()">📁 9マス画像を選択</button>
+      <button class="modal-search-btn" onclick="document.getElementById('pickup-maker-file').click()">📁 チラシ画像を選択</button>
       <input type="file" id="pickup-maker-file" accept="image/*" style="display:none" onchange="onPickupMakerFile(event)">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#444;">
+        ピックアップするマス
+        <div style="display:grid;grid-template-columns:repeat(3,auto);gap:2px 8px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+          <label><input type="checkbox" id="pickup-cell-1" onchange="togglePickupCell(1,this.checked)">1</label>
+          <label><input type="checkbox" id="pickup-cell-2" onchange="togglePickupCell(2,this.checked)">2</label>
+          <label><input type="checkbox" id="pickup-cell-3" onchange="togglePickupCell(3,this.checked)">3</label>
+          <label><input type="checkbox" id="pickup-cell-4" onchange="togglePickupCell(4,this.checked)">4</label>
+          <label><input type="checkbox" id="pickup-cell-5" onchange="togglePickupCell(5,this.checked)">5</label>
+          <label><input type="checkbox" id="pickup-cell-6" onchange="togglePickupCell(6,this.checked)">6</label>
+          <label><input type="checkbox" id="pickup-cell-7" onchange="togglePickupCell(7,this.checked)">7</label>
+          <label><input type="checkbox" id="pickup-cell-8" onchange="togglePickupCell(8,this.checked)">8</label>
+          <label><input type="checkbox" id="pickup-cell-9" onchange="togglePickupCell(9,this.checked)">9</label>
+        </div>
+      </div>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#444;">
         メダルの大きさ
-        <input type="range" id="pickup-maker-size" min="4" max="30" step="0.5" value="11" oninput="drawPickupMaker()">
+        <input type="range" id="pickup-maker-size" min="4" max="30" step="0.2" value="9.4" oninput="drawPickupMaker()">
       </label>
       <button class="modal-search-btn" style="background:#888;" onclick="deleteSelectedPickupBadge()">選択中のメダルを削除</button>
       <button class="modal-search-btn" style="background:#888;" onclick="clearPickupBadges()">メダルを全部削除</button>
     </div>
     <div class="modal-body" id="pickup-maker-body" style="display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:300px;">
       <div id="pickup-maker-empty" style="color:#888;font-size:14px;text-align:center;line-height:1.8;">
-        「9マス画像を選択」を押すか、ここに画像をドラッグ＆ドロップ／Ctrl+V で貼り付けてください
+        「チラシ画像を選択」を押すか、ここに画像をドラッグ＆ドロップ／Ctrl+V で貼り付けてください<br><span style="font-size:12px;">チラシ全体を入れると9マス部分を自動で切り抜きます（切り抜き済みの9マス画像でもOK）</span>
       </div>
       <canvas id="pickup-maker-canvas" style="display:none;max-width:100%;max-height:62vh;cursor:crosshair;touch-action:none;box-shadow:0 2px 10px rgba(0,0,0,.2);"></canvas>
     </div>
     <div class="modal-footer" style="display:flex;align-items:center;gap:10px;">
-      <div style="flex:1;font-size:12px;color:#666;">画像をクリック → メダルを貼る ／ メダルをドラッグ → 移動 ／ メダルを選んで Delete → 削除</div>
+      <div style="flex:1;font-size:12px;color:#666;">1〜9にチェック → そのマスにメダル ／ 画像をクリック → 好きな位置に追加 ／ ドラッグ → 移動 ／ 選んで Delete → 削除</div>
       <button class="modal-search-btn" style="background:#888;" onclick="downloadPickupImage()">ダウンロード</button>
       <button class="modal-search-btn" id="pickup-maker-use-btn" onclick="usePickupImage()">この画像を使う（任意画像①）</button>
     </div>
@@ -5567,21 +5582,85 @@ function pickupMakerIsOpen() {
   return document.getElementById('pickup-maker-modal')?.classList.contains('show');
 }
 
+// リサーチ9のチラシ（テンプレート固定・1024×1536）の寸法。実測値（2026-11-13、完成例の切り抜きから測定）
+// ・CROP：チラシ全体から9マス部分を切り抜く範囲
+// ・CELL_X / CELL_Y：切り抜き後（989×837）での各マスのメダル中心（左上が1、1→2→3、4→5→6、7→8→9）
+// ・BADGE_PCT：メダルの幅（切り抜き画像の幅に対する%）
+const RESEARCH9_FLYER = {
+  W: 1024, H: 1536,
+  CROP: { x: 17, y: 568, w: 989, h: 837 },
+  CELL_X: [88, 402, 715],
+  CELL_Y: [68, 336, 611],
+  BADGE_PCT: 9.4,
+};
+
+// 読み込んだ画像から9マス部分を取り出す。チラシ全体（縦横比 2:3）なら自動で切り抜き、
+// それ以外は切り抜き済みの9マス画像とみなしてそのまま使う
+function cropPickupSource(im) {
+  const F = RESEARCH9_FLYER;
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  const isFlyer = Math.abs(iw / ih - F.W / F.H) < 0.03;
+  const sx = iw / F.W, sy = ih / F.H;
+  const src = isFlyer
+    ? { x: F.CROP.x * sx, y: F.CROP.y * sy, w: F.CROP.w * sx, h: F.CROP.h * sy }
+    : { x: 0, y: 0, w: iw, h: ih };
+  const c = document.createElement('canvas');
+  c.width = Math.round(src.w);
+  c.height = Math.round(src.h);
+  c.getContext('2d').drawImage(im, src.x, src.y, src.w, src.h, 0, 0, c.width, c.height);
+  return { canvas: c, isFlyer };
+}
+
+// マス番号（1〜9）→ メダルの中心座標（切り抜き後の画像上）
+function pickupCellCenter(cell) {
+  const F = RESEARCH9_FLYER;
+  const img = pickupMaker.img;
+  const col = (cell - 1) % 3, row = Math.floor((cell - 1) / 3);
+  return { x: F.CELL_X[col] * img.width / F.CROP.w, y: F.CELL_Y[row] * img.height / F.CROP.h };
+}
+
+// チェック欄の状態に合わせてメダルを付け外しする
+function togglePickupCell(cell, checked) {
+  if (!pickupMaker.img) {
+    showToast('先に9マス画像を読み込んでください');
+    document.getElementById('pickup-cell-' + cell).checked = false;
+    return;
+  }
+  const idx = pickupMaker.badges.findIndex(b => b.cell === cell);
+  if (checked && idx < 0) {
+    pickupMaker.badges.push({ ...pickupCellCenter(cell), cell });
+  } else if (!checked && idx >= 0) {
+    pickupMaker.badges.splice(idx, 1);
+  }
+  pickupMaker.selected = -1;
+  drawPickupMaker();
+}
+
+function syncPickupCellChecks() {
+  for (let n = 1; n <= 9; n++) {
+    const el = document.getElementById('pickup-cell-' + n);
+    if (el) el.checked = pickupMaker.badges.some(b => b.cell === n);
+  }
+}
+
 function loadPickupMakerImage(file) {
   if (!file || !file.type.startsWith('image/')) { showToast('画像ファイルを選んでください'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     const im = new Image();
     im.onload = () => {
-      pickupMaker.img = im;
+      const { canvas: cropped, isFlyer } = cropPickupSource(im);
+      pickupMaker.img = cropped;
       pickupMaker.badges = [];
       pickupMaker.selected = -1;
+      syncPickupCellChecks();
       const canvas = document.getElementById('pickup-maker-canvas');
-      canvas.width = im.naturalWidth;
-      canvas.height = im.naturalHeight;
+      canvas.width = cropped.width;
+      canvas.height = cropped.height;
       canvas.style.display = '';
       document.getElementById('pickup-maker-empty').style.display = 'none';
       loadPickupBadgeImg().then(drawPickupMaker).catch(err => showToast('❌ ' + err.message));
+      showToast(isFlyer ? 'チラシから9マス部分を切り抜きました' : '9マス画像として読み込みました');
     };
     im.src = e.target.result;
   };
@@ -5595,8 +5674,8 @@ function onPickupMakerFile(event) {
 
 // メダルの表示サイズ（原寸px）。スライダーは画像幅に対する%
 function pickupBadgeSize() {
-  const pct = parseFloat(document.getElementById('pickup-maker-size').value) || 11;
-  const w = pickupMaker.img.naturalWidth * pct / 100;
+  const pct = parseFloat(document.getElementById('pickup-maker-size').value) || RESEARCH9_FLYER.BADGE_PCT;
+  const w = pickupMaker.img.width * pct / 100;
   const b = pickupMaker.badgeImg;
   return { w, h: b ? w * b.naturalHeight / b.naturalWidth : w };
 }
@@ -5649,19 +5728,21 @@ function deleteSelectedPickupBadge() {
   if (pickupMaker.selected < 0) { showToast('削除するメダルをクリックして選んでください'); return; }
   pickupMaker.badges.splice(pickupMaker.selected, 1);
   pickupMaker.selected = -1;
+  syncPickupCellChecks();
   drawPickupMaker();
 }
 
 function clearPickupBadges() {
   pickupMaker.badges = [];
   pickupMaker.selected = -1;
+  syncPickupCellChecks();
   drawPickupMaker();
 }
 
 function exportPickupImage() {
   const out = document.createElement('canvas');
-  out.width = pickupMaker.img.naturalWidth;
-  out.height = pickupMaker.img.naturalHeight;
+  out.width = pickupMaker.img.width;
+  out.height = pickupMaker.img.height;
   renderPickupCanvas(out, false);
   return out.toDataURL('image/png');
 }
