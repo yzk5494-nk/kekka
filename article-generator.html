@@ -1175,6 +1175,7 @@
       <div id="img-upload-wp-btn" style="display:none;"></div>
       <div id="tenkamusou-batch-row" style="display:none;margin-top:10px;padding:10px;background:#fffaf0;border:1px solid #b8860b;border-radius:8px;">
         <div style="font-size:12px;color:#b8860b;font-weight:bold;margin-bottom:6px;"><svg class="ic"><use href="#i-crown"/></svg>機種別平均差枚ランキング画像（一括生成）</div>
+        <div id="tk-standard-select">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
           <label style="font-size:12px;color:#444;">上位</label>
           <input type="number" id="tenkamusou-top-count" value="5" min="1" max="20" style="width:52px">
@@ -1188,6 +1189,16 @@
           <input type="checkbox" id="tenkamusou-manual-mode-2" onchange="toggleTenkamusouManualMode(2)">
           手動で機種を選択する（設置2台以上の機種のみ表示）
         </label>
+        </div>
+        <!-- リサーチ9専用：チラシの9機種（ピックアップ→機種別ランキング、それ以外→その他の機種） -->
+        <div id="research9-panel" style="display:none;margin-bottom:8px;">
+          <div style="font-size:12px;color:#444;margin-bottom:4px;line-height:1.6;">
+            チラシの9機種（「ピックアップ画像を作成」でチラシを入れると自動で読み取ります）<br>
+            <span style="color:#888;font-size:11px;">ピックアップ ✓ → 機種別ランキング画像 ／ それ以外 → その他の機種。右のプルダウンでデータ側の機種を選び直せます</span>
+          </div>
+          <div id="research9-status" style="font-size:11px;color:#888;margin-bottom:4px;"></div>
+          <div id="research9-list" style="border:1px solid #e0d0a0;border-radius:6px;padding:6px 8px;background:#fff;"></div>
+        </div>
         <div id="card-frame-row" style="display:none;align-items:center;gap:8px;font-size:12px;color:#444;margin-bottom:8px;flex-wrap:wrap;">
           <span>タイトル枠</span>
           <select id="card-frame-select" onchange="onCardFrameChange()" style="font-size:12px;padding:3px 6px;border:1px solid #ccc;border-radius:5px;font-family:inherit;"></select>
@@ -1204,7 +1215,7 @@
         <div id="tenkamusou-batch-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
 
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #b8860b;">
-          <div style="font-size:11px;color:#666;margin-bottom:6px;">メイン（上記）に使わなかった残り全機種を1枚にまとめます</div>
+          <div style="font-size:11px;color:#666;margin-bottom:6px;" id="tenkamusou-other-note">メイン（上記）に使わなかった残り全機種を1枚にまとめます</div>
           <button class="img-gen-btn" onclick="generateTenkamusouOtherMachines()" style="width:100%;background:#6f3fc4;padding:10px 8px;font-size:12px;"><svg class="ic"><use href="#i-image"/></svg>その他の機種ランキング画像を生成</button>
           <div id="tenkamusou-other-status" style="font-size:11px;color:#888;margin-top:6px;"></div>
           <div id="tenkamusou-other-preview" style="margin-top:8px;"></div>
@@ -1429,6 +1440,13 @@
               <li>位置を直したいときはメダルをドラッグで動かせます。画像をクリックすると好きな位置にメダルを追加することもできます。大きさは「メダルの大きさ」のスライダーで全部まとめて変わります。</li>
               <li>間違えたメダルはクリックして選び、Deleteキー（または <span class="help-btn">選択中のメダルを削除</span>）で消せます。</li>
               <li><span class="help-btn">この画像を使う（任意画像①）</span> を押すと、WPにアップロードされて任意画像①に自動で入ります。手元に保存したいときは <span class="help-btn">ダウンロード</span>。</li>
+            </ul>
+          </li>
+          <li><b>機種別ランキング画像を作る（リサーチ9）</b>：チラシを入れると、9マスの機種名が自動で読み取られ、左の「機種別平均差枚ランキング画像」の欄に9機種の一覧が出ます。
+            <ul>
+              <li>各行の下のプルダウンは「データのどの機種にあたるか」です。データを読み込むと自動で選ばれます。違っていたり「（データなし）」で赤枠になっていたら、正しい機種を選び直してください。チラシの機種名が読み間違っていたら、名前の欄も直せます。</li>
+              <li>「ピックアップ」にチェックがある機種（＝メダルを貼った機種）が機種別ランキング画像になります。平均差枚数の高い順に1機種1枚です（台数が少なくても対象）。</li>
+              <li><span class="help-btn">その他の機種ランキング画像を生成</span> を押すと、9機種のうちピックアップしなかった機種が1枚にまとまります。9機種以外の機種と、店内差枚ランキングは記事に出ません。</li>
             </ul>
           </li>
           <li><b>AI文章を作る</b>：<span class="help-btn">AI文章生成</span> を押します。その店舗で初めての開催なら <span class="help-btn">初開催 AI文章生成</span> を押してください。</li>
@@ -1825,6 +1843,7 @@
       </label>
       <button class="modal-search-btn" style="background:#888;" onclick="deleteSelectedPickupBadge()">選択中のメダルを削除</button>
       <button class="modal-search-btn" style="background:#888;" onclick="clearPickupBadges()">メダルを全部削除</button>
+      <div id="pickup-maker-read-status" style="width:100%;font-size:12px;color:#666;"></div>
     </div>
     <div class="modal-body" id="pickup-maker-body" style="display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:300px;">
       <div id="pickup-maker-empty" style="color:#888;font-size:14px;text-align:center;line-height:1.8;">
@@ -2367,6 +2386,16 @@ function onSeriesChange(val) {
   // リサーチ9専用：任意画像①の「ピックアップ画像を作成」ボタン
   const pickupMakerBtn = document.getElementById('pickup-maker-btn');
   if (pickupMakerBtn) pickupMakerBtn.style.display = (val === 'research9') ? '' : 'none';
+  // リサーチ9：機種別ランキングの対象はチラシの9機種で決めるので、上位N・手動選択は隠して9機種パネルを出す
+  const tkStandardSelect = document.getElementById('tk-standard-select');
+  if (tkStandardSelect) tkStandardSelect.style.display = (val === 'research9') ? 'none' : '';
+  const research9Panel = document.getElementById('research9-panel');
+  if (research9Panel) research9Panel.style.display = (val === 'research9') ? '' : 'none';
+  const otherNote = document.getElementById('tenkamusou-other-note');
+  if (otherNote) otherNote.textContent = (val === 'research9')
+    ? 'チラシの9機種のうち、ピックアップしなかった機種を1枚にまとめます'
+    : 'メイン（上記）に使わなかった残り全機種を1枚にまとめます';
+  if (val === 'research9') renderResearch9Panel();
 
   const cfg = SERIES_CONFIG[val];
   FIXED.eventImgId  = cfg.eventImgId;
@@ -3039,11 +3068,15 @@ function generate() {
           blocks.push(accordionBlock('その他の機種は下記よりご覧いただけます', otherHtml));
         }
         // 最後に店内全体の差枚数ランキング画像（機種を問わない全体ランキング）を、b9（案内文）を挟んで追加
-        blocks.push(balloonMaybe(bHtml('b9')));
-        blocks.push(wpImage(rankImgId, rankImgUrl));
+        // （リサーチ9は差枚ランキングを載せない）
+        if (currentSeries !== 'research9') {
+          blocks.push(balloonMaybe(bHtml('b9')));
+          blocks.push(wpImage(rankImgId, rankImgUrl));
+        }
         return blocks;
       }
     }
+    if (currentSeries === 'research9') return [];
     return [wpImage(rankImgId, rankImgUrl)];
   }
 
@@ -3145,8 +3178,11 @@ function renderPreview({ pref, city, hall, machines, total, storeImgUrl, rankImg
         otherHtml = `\n    ${bl(bHtmlPrev('b8'), 'b8')}\n    ${otherImgsHtml}`;
       }
       // 最後に店内全体の差枚数ランキング画像を、b9（案内文）を挟んで追加（rankImageBlocks()と揃える）
-      const finalImgHtml = singleUrl ? `\n    ${bl(bHtmlPrev('b9'), 'b9')}\n    <img src="${singleUrl}" class="prev-img">` : '';
+      const finalImgHtml = (singleUrl && currentSeries !== 'research9') ? `\n    ${bl(bHtmlPrev('b9'), 'b9')}\n    <img src="${singleUrl}" class="prev-img">` : '';
       return `${mainImgsHtml}${otherHtml}${finalImgHtml}`;
+    }
+    if (currentSeries === 'research9') {
+      return `<div style="padding:18px;border:2px dashed #ccc;border-radius:8px;text-align:center;color:#999;font-size:13px;margin:10px 0;">ここにピックアップ機種の機種別ランキング画像が入ります（左の「機種別ランキング一括生成」）</div>`;
     }
     return imgPrev(singleUrl, 'ランキング画像', 'rank-img-id', 'rank-img-url');
   }
@@ -3942,6 +3978,7 @@ function finishMachinesLoad(machines, sourceLabel) {
 
   machines.sort((a, b) => b.差 - a.差);
   allMachineData = machines;
+  if (currentSeries === 'research9') renderResearch9Panel();
   if (document.getElementById('tenkamusou-manual-mode')?.checked) refreshTenkamusouManualList('tenkamusou-manual-list', 3);
   if (document.getElementById('tenkamusou-manual-mode-2')?.checked) refreshTenkamusouManualList('tenkamusou-manual-list-2', 2);
   renderDataTable(machines);
@@ -5040,6 +5077,13 @@ async function generateTenkamusouMachineRankings() {
     .sort((a, b) => b.avg - a.avg);
   ranked = isManual ? ranked.filter(g => manualNames.has(g.name)) : ranked.slice(0, topN);
 
+  // リサーチ9：チラシでピックアップした機種だけ（台数による足切りなし・平均差枚数の高い順）
+  if (currentSeries === 'research9') {
+    if (!research9Machines.some(r => r.pickup)) { showToast('ピックアップする機種を選んでください（ピックアップ画像を作成 → 1〜9にチェック）'); return; }
+    ranked = research9Groups(groups, true);
+    if (!ranked.length) { showToast('ピックアップ機種に対応するデータの機種を選んでください'); return; }
+  }
+
   if (!ranked.length) { showToast(isManual ? '機種にチェックを入れてください' : '対象データがありません'); return; }
 
   tenkamusouRankImages = [];
@@ -5054,7 +5098,8 @@ async function generateTenkamusouMachineRankings() {
   for (let i = 0; i < ranked.length; i++) {
     const group = ranked[i];
     // カード内は差枚数が0以下の台を除外し、差枚数の高い順に並べる（TOP20まで）
-    const cardMachines = group.units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差).slice(0, 20);
+    // （リサーチ9はマイナスの台も載せる）
+    const cardMachines = group.units.filter(u => currentSeries === 'research9' || u.差 > 0).sort((a, b) => b.差 - a.差).slice(0, 20);
     if (!cardMachines.length) continue;
     if (statusEl) statusEl.textContent = `生成中… (${i + 1}/${ranked.length}) ${group.name}`;
     // 女神の加護限定：表示する機種の方が少ないため、デフォルト非表示。手動で「BIG・REG・合算あり」がチェックされた機種だけ、
@@ -5197,7 +5242,7 @@ async function renderOtherMachinesImage(groups, unit) {
         ctx.fillText(String(m.台番), cx('台番'), ry + ROW_H / 2);
         ctx.fillText(fitText(ctx, displayName(m.機種名), COLS['名'].w - 12), cx('名'), ry + ROW_H / 2);
         ctx.fillText(Math.round(m.G || 0).toLocaleString() + 'G', cx('G'), ry + ROW_H / 2);
-        ctx.fillText(`+${m.差.toLocaleString()}${unit}`, cx('差'), ry + ROW_H / 2);
+        ctx.fillText(`${m.差 >= 0 ? '+' : ''}${m.差.toLocaleString()}${unit}`, cx('差'), ry + ROW_H / 2);
       });
       y += g.units.length * ROW_H + GROUP_GAP;
     });
@@ -5222,9 +5267,12 @@ async function generateTenkamusouOtherMachines() {
     if (!groups.has(name)) groups.set(name, []);
     groups.get(name).push(m);
   });
-  const otherGroups = [...groups.entries()]
-    .filter(([, units]) => units.length >= 3)
-    .map(([name, units]) => ({ name, units: units.filter(u => u.差 > 0).sort((a, b) => b.差 - a.差) }))
+  // リサーチ9：チラシの9機種のうちピックアップしなかった機種だけ（台数による足切りなし）。それ以外のシリーズは残り全機種（3台以上）
+  const otherSource = currentSeries === 'research9'
+    ? research9Groups(groups, false).map(g => [g.name, g.units])
+    : [...groups.entries()].filter(([, units]) => units.length >= 3);
+  const otherGroups = otherSource
+    .map(([name, units]) => ({ name, units: units.filter(u => currentSeries === 'research9' || u.差 > 0).sort((a, b) => b.差 - a.差) })) // リサーチ9はマイナスの台も載せる
     .filter(g => g.units.length);
 
   if (!otherGroups.length) { showToast('その他の対象機種がありません'); return; }
@@ -5634,12 +5682,180 @@ function togglePickupCell(cell, checked) {
   }
   pickupMaker.selected = -1;
   drawPickupMaker();
+  research9Machines[cell - 1].pickup = checked;
+  renderResearch9Panel();
 }
 
+// メダルの状態 → 1〜9のチェック欄・リサーチ9の9機種パネルのピックアップ
 function syncPickupCellChecks() {
   for (let n = 1; n <= 9; n++) {
+    const on = pickupMaker.badges.some(b => b.cell === n);
     const el = document.getElementById('pickup-cell-' + n);
-    if (el) el.checked = pickupMaker.badges.some(b => b.cell === n);
+    if (el) el.checked = on;
+    research9Machines[n - 1].pickup = on;
+  }
+  renderResearch9Panel();
+}
+
+// ============================================================
+// リサーチ9：チラシの9機種
+// ・チラシを読み込むと機種名をClaudeで読み取り（/api/research9-read-flyer）
+// ・データ（allMachineData）の機種と自動で対応づけ（プルダウンで手直し可）
+// ・ピックアップ機種 → 機種別ランキング画像、それ以外 → その他の機種
+// ============================================================
+let research9Machines = Array.from({ length: 9 }, () => ({ flyerName: '', pickup: false, dataName: '', manualData: false }));
+let research9ReadSeq = 0;
+
+async function readResearch9Flyer(canvas) {
+  const seq = ++research9ReadSeq;
+  research9Machines = Array.from({ length: 9 }, () => ({ flyerName: '', pickup: false, dataName: '', manualData: false }));
+  setResearch9Status('チラシから機種名を読み取り中…');
+  renderResearch9Panel();
+  try {
+    const image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+    const res = await fetch('/api/research9-read-flyer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image, mediaType: 'image/jpeg' }),
+    });
+    const data = await res.json();
+    if (seq !== research9ReadSeq) return; // 読み取り中に別の画像が読み込まれた
+    if (!res.ok || !Array.isArray(data.names)) throw new Error(data.error || '読み取りに失敗しました');
+    data.names.slice(0, 9).forEach((n, i) => { research9Machines[i].flyerName = n; });
+    setResearch9Status('✓ チラシの機種名を読み取りました（違っていたら直してください）');
+  } catch (e) {
+    if (seq !== research9ReadSeq) return;
+    setResearch9Status('❌ 機種名を読み取れませんでした（' + e.message + '）。機種名を手で入力してください');
+  }
+  // 読み取り中に付けたピックアップを反映し直す
+  for (let n = 1; n <= 9; n++) research9Machines[n - 1].pickup = pickupMaker.badges.some(b => b.cell === n);
+  renderResearch9Panel();
+}
+
+function setResearch9Status(msg) {
+  const el = document.getElementById('research9-status');
+  if (el) el.textContent = msg;
+  const el2 = document.getElementById('pickup-maker-read-status');
+  if (el2) el2.textContent = msg;
+}
+
+// 表記ゆれを吸収するための正規化（接頭語「スマスロ」「L」「スロット」等、記号・空白を除く）
+function research9Norm(s) {
+  let t = String(s || '').normalize('NFKC').toLowerCase()
+    .replace(/[\s・･\-‐－―ー〜～~!！?？'’"“”.。、,，:：()（）\[\]【】「」『』]/g, '');
+  for (let i = 0; i < 3; i++) t = t.replace(/^(スマスロ|パチスロ|ぱちすろ|スロット|パチンコ|ぱちんこ|lパチスロ|l|s|p|e)/, '');
+  return t;
+}
+
+// 2つの機種名の近さ（0〜1）。完全一致1、包含は短い方/長い方の長さ比、それ以外は最長共通部分の割合
+function research9Similarity(a, b) {
+  const x = research9Norm(a), y = research9Norm(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  if (x.includes(y) || y.includes(x)) return 0.6 + 0.4 * Math.min(x.length, y.length) / Math.max(x.length, y.length);
+  let best = 0;
+  for (let i = 0; i < x.length; i++) {
+    for (let j = 0; j < y.length; j++) {
+      let k = 0;
+      while (i + k < x.length && j + k < y.length && x[i + k] === y[j + k]) k++;
+      if (k > best) best = k;
+    }
+  }
+  return best / Math.max(x.length, y.length);
+}
+
+// データの機種一覧（ニックネーム反映後の名前でまとめる）
+function research9DataGroups() {
+  const groups = new Map();
+  (allMachineData || []).forEach(m => {
+    const name = displayName(m.機種名);
+    if (!groups.has(name)) groups.set(name, { units: [], rawNames: new Set() });
+    groups.get(name).units.push(m);
+    groups.get(name).rawNames.add(m.機種名);
+  });
+  return groups;
+}
+
+// 手で選び直していない行について、チラシの機種名に一番近いデータの機種を自動で選ぶ
+function autoMatchResearch9(groups) {
+  research9Machines.forEach(r => {
+    if (r.manualData) return;
+    r.dataName = '';
+    if (!r.flyerName) return;
+    let best = { score: 0, name: '' };
+    groups.forEach((g, name) => {
+      const score = Math.max(research9Similarity(r.flyerName, name), ...[...g.rawNames].map(n => research9Similarity(r.flyerName, n)));
+      if (score > best.score) best = { score, name };
+    });
+    if (best.score >= 0.5) r.dataName = best.name;
+  });
+}
+
+// pickup=true：ピックアップ機種、false：それ以外の9マス機種 → [{name, units, avg}]（平均差枚数の高い順）
+function research9Groups(groups, pickup) {
+  const names = [...new Set(research9Machines.filter(r => r.pickup === pickup && r.dataName).map(r => r.dataName))];
+  return names
+    .filter(name => groups.has(name))
+    .map(name => {
+      const g = groups.get(name);
+      const units = Array.isArray(g) ? g : g.units;
+      return { name, units, avg: units.reduce((s, u) => s + u.差, 0) / units.length };
+    })
+    .sort((a, b) => b.avg - a.avg);
+}
+
+function renderResearch9Panel() {
+  const listEl = document.getElementById('research9-list');
+  if (!listEl || currentSeries !== 'research9') return;
+  const groups = research9DataGroups();
+  autoMatchResearch9(groups);
+  const hasData = groups.size > 0;
+  const options = [...groups.entries()]
+    .map(([name, g]) => ({ name, count: g.units.length, avg: Math.round(g.units.reduce((s, u) => s + u.差, 0) / g.units.length) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  listEl.innerHTML = research9Machines.map((r, i) => {
+    const sel = !hasData
+      ? '<span style="color:#aaa;font-size:11px;">データ未読み込み</span>'
+      : `<select onchange="onResearch9DataChange(${i}, this.value)" style="font-size:11px;max-width:100%;padding:2px;border:1px solid ${r.flyerName && !r.dataName ? '#d32f2f' : '#ccc'};border-radius:4px;">
+          <option value="">（データなし）</option>
+          ${options.map(o => `<option value="${esc(o.name)}" ${o.name === r.dataName ? 'selected' : ''}>${esc(o.name)}（${o.count}台・平均${o.avg >= 0 ? '+' : ''}${o.avg}枚）</option>`).join('')}
+        </select>`;
+    return `
+      <div style="display:grid;grid-template-columns:18px 1fr auto;gap:2px 6px;align-items:center;padding:4px 0;border-bottom:1px dotted #eee;">
+        <span style="font-size:12px;font-weight:bold;color:#b8860b;">${i + 1}</span>
+        <input value="${esc(r.flyerName)}" placeholder="チラシの機種名" onchange="onResearch9NameChange(${i}, this.value)" style="font-size:12px;padding:3px 5px;border:1px solid #ddd;border-radius:4px;min-width:0;">
+        <label style="font-size:11px;white-space:nowrap;color:${r.pickup ? '#c0392b' : '#666'};font-weight:${r.pickup ? 'bold' : 'normal'};">
+          <input type="checkbox" ${r.pickup ? 'checked' : ''} onchange="onResearch9PickupChange(${i}, this.checked)">ピックアップ
+        </label>
+        <span></span>
+        <div style="grid-column:2 / 4;">${sel}</div>
+      </div>`;
+  }).join('');
+}
+
+function onResearch9NameChange(i, value) {
+  research9Machines[i].flyerName = value.trim();
+  research9Machines[i].manualData = false; // 名前を直したら対応づけもやり直す
+  renderResearch9Panel();
+}
+
+function onResearch9DataChange(i, value) {
+  research9Machines[i].dataName = value;
+  research9Machines[i].manualData = true;
+  renderResearch9Panel();
+}
+
+// パネル側でピックアップを切り替えたら、画像のメダルも合わせる（画像を読み込んでいる場合）
+function onResearch9PickupChange(i, checked) {
+  if (pickupMaker.img) {
+    const el = document.getElementById('pickup-cell-' + (i + 1));
+    if (el) el.checked = checked;
+    togglePickupCell(i + 1, checked);
+    showToast('ピックアップ画像のメダルも変わりました。画像を作り直す場合は「この画像を使う」を押し直してください');
+  } else {
+    research9Machines[i].pickup = checked;
+    renderResearch9Panel();
   }
 }
 
@@ -5661,6 +5877,7 @@ function loadPickupMakerImage(file) {
       document.getElementById('pickup-maker-empty').style.display = 'none';
       loadPickupBadgeImg().then(drawPickupMaker).catch(err => showToast('❌ ' + err.message));
       showToast(isFlyer ? 'チラシから9マス部分を切り抜きました' : '9マス画像として読み込みました');
+      readResearch9Flyer(cropped);
     };
     im.src = e.target.result;
   };

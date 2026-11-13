@@ -628,6 +628,86 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── hisshobon 画像アップロード ────────────────────────────────────
+    // ── リサーチ9：チラシの9マスから機種名を読み取る（Claudeの画像読み取り）──
+    // 受け取り: { image: base64(JPEG), mediaType } → 返却: { names: [9件・左上から1→9の順] }
+    if (req.method === 'POST' && parsed.pathname === '/api/research9-read-flyer') {
+      const apiKey = process.env.CLAUDE_API_KEY || config.claude_api_key;
+      if (!apiKey) return sendJson(400, { error: 'Claude APIキーが設定されていません' });
+      const buf = await collectBody(req);
+      const { image, mediaType } = JSON.parse(buf.toString('utf8'));
+      if (!image) return sendJson(400, { error: 'image が必要です' });
+
+      const reqBody = JSON.stringify({
+        model: 'claude-opus-5-5',
+        max_tokens: 4000,
+        output_config: {
+          effort: 'low',
+          format: {
+            type: 'json_schema',
+            schema: {
+              type: 'object',
+              properties: { names: { type: 'array', items: { type: 'string' } } },
+              required: ['names'],
+              additionalProperties: false,
+            },
+          },
+        },
+        fallbacks: 'default',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'この画像はパチンコ・パチスロ取材のチラシにある「対象機種」の9マス（3×3）です。\n'
+              + '各マスの中央に書かれた機種名を、左上から右へ（1段目：1→2→3、2段目：4→5→6、3段目：7→8→9）の順に9件読み取ってください。\n'
+              + '・マスの上部の「対象機種」という見出しや、「ピックアップ」のメダルの文字は機種名ではないので含めない\n'
+              + '・「スマスロ」「L」「スロット」などの接頭語も含め、書かれているとおりに読み取る（勝手に補ったり言い換えたりしない）\n'
+              + '・マスの中で改行されている箇所は半角スペース1つに置き換える\n'
+              + '・読めないマスや空のマスは空文字にする' },
+          ],
+        }],
+      });
+
+      const claudeRes = await new Promise((resolve, reject) => {
+        const r = https.request({
+          hostname: 'api.anthropic.com',
+          path: '/v1/messages',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'server-side-fallback-2026-07-01',
+            'Content-Length': Buffer.byteLength(reqBody),
+          },
+        }, (res) => {
+          const chunks = [];
+          res.on('data', c => chunks.push(c));
+          res.on('end', () => {
+            try { resolve({ status: res.statusCode, data: JSON.parse(Buffer.concat(chunks).toString()) }); }
+            catch (e) { reject(e); }
+          });
+        });
+        r.on('error', reject);
+        r.write(reqBody);
+        r.end();
+      });
+
+      if (claudeRes.status !== 200) {
+        console.error('[research9-read-flyer] error:', JSON.stringify(claudeRes.data).slice(0, 500));
+        return sendJson(500, { error: claudeRes.data?.error?.message || 'Claude API エラー' });
+      }
+      if (claudeRes.data.stop_reason === 'refusal') return sendJson(500, { error: '読み取りが拒否されました' });
+      const text = (claudeRes.data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      try {
+        const names = (JSON.parse(text).names || []).map(s => String(s).trim());
+        while (names.length < 9) names.push('');
+        return sendJson(200, { names: names.slice(0, 9) });
+      } catch (e) {
+        return sendJson(500, { error: '読み取り結果のパースに失敗しました', raw: text.slice(0, 300) });
+      }
+    }
+
     if (req.method === 'POST' && parsed.pathname === '/api/upload-hb-media') {
       const buf = await collectBody(req);
       const { filename, data: base64 } = JSON.parse(buf.toString('utf8'));
