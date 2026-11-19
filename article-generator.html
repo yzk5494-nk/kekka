@@ -6431,8 +6431,8 @@ function autoSuggestAliases() {
     const best = autoAliasBest(name);
     if (!best) {
       none++;
-      row.style.border = '1px solid #eee'; row.style.background = '#fafafa';
-      if (note) note.innerHTML = '<span style="color:#999;">候補なし（手で振り分けるか、代表機種タブで登録してください）</span>';
+      row.style.border = '2px solid #e05555'; row.style.background = '#fff0f0';
+      if (note) note.innerHTML = '<span style="color:#c62828;font-weight:bold;">🔴 候補なし（手で振り分けるか、代表機種タブで登録してください）</span>';
       return;
     }
     input.value = best.target;
