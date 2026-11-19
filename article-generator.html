@@ -1537,7 +1537,8 @@
         <div>データの機種名（「スマスロ北斗の拳」「L北斗の拳」など、店舗によって違う名前）を、決まった機種（代表機種）にまとめる画面です。まとめておくと、ランキング画像の機種名や機種画像が正しく出ます。</div>
         <ol>
           <li>上のメニューの <span class="help-btn">🎰 機種管理</span> を開きます。パチンコの機種は <span class="help-btn">🎫 パチンコ機種管理</span> を使います。</li>
-          <li>まだまとめていない機種の欄に、まとめ先の代表機種名を入れて <span class="help-btn">振り分ける</span> を押します。</li>
+          <li><span class="help-btn">🤖 自動で振り分け</span> を押すと、まだまとめていない機種に、名前の近い代表機種が自動で入ります。<b>緑</b>はほぼ確実、<b>黄色</b>は念のため確認が必要な候補です。違うものだけ直して <span class="help-btn">✅ まとめて確定</span> を押すと保存されます（この時点まではまだ保存されていません）。</li>
+          <li>「候補なし」の機種や1つずつ振り分けたいときは、欄に代表機種名を入れて <span class="help-btn">振り分ける</span> を押します。</li>
           <li>間違えたときは <span class="help-btn">解除</span> で戻せます。</li>
         </ol>
         <div class="help-note">まとめ先の代表機種がまだ登録されていないとエラーになります。新しい機種を代表機種に追加したいときは、管理者に連絡してください。</div>
@@ -1576,6 +1577,8 @@
       </div>
       <div style="padding:8px 14px 4px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; flex-shrink:0;">
         <span style="font-size:11px; color:#555; font-weight:bold; flex:1;">機種一覧</span>
+        <button id="auto-alias-btn" onclick="autoSuggestAliases()" style="font-size:13px;padding:6px 14px;border:none;border-radius:6px;background:#2f7de1;color:#fff;font-weight:bold;cursor:pointer;font-family:inherit;">🤖 自動で振り分け</button>
+        <button id="auto-alias-confirm-btn" onclick="confirmAllAliases()" style="display:none;font-size:13px;padding:6px 14px;border:none;border-radius:6px;background:#4a9a30;color:#fff;font-weight:bold;cursor:pointer;font-family:inherit;">✅ まとめて確定</button>
         <span id="machine-list-legend" style="font-size:10px; color:#aaa;">
           <span style="color:#4a9a30;">■</span> 振り分け済み　<span style="color:#bbb;">■</span> 未振り分け
         </span>
@@ -6249,6 +6252,8 @@ function renderMachineImgList() {
 
   const allNames = [...excelNames, ...otherRegNames];
   _machineListNames = allNames;
+  const autoConfirmBtn = document.getElementById('auto-alias-confirm-btn');
+  if (autoConfirmBtn) autoConfirmBtn.style.display = 'none';
 
   // 別名(alias) → 代表名 の逆引きマップ
   const aliasTargetOf = {};
@@ -6307,13 +6312,14 @@ function renderMachineImgList() {
     }
 
     return `
-    <div class="machine-img-item" id="mitem-${idx}" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
+    <div class="machine-img-item" id="mitem-${idx}" data-unassigned="1" style="border:1px solid #eee;border-radius:7px;background:#fafafa;overflow:hidden;margin-bottom:4px;">
       <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;flex-wrap:wrap;">
         <div style="width:56px;height:42px;background:#e8e8e8;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;">📷</div>
         <div style="flex:1;min-width:140px;">
           <div style="font-size:13px;font-weight:bold;color:#333;">${ea(name)}
             <span style="font-size:10px;background:#f0f0f0;color:#aaa;border-radius:3px;padding:1px 5px;margin-left:5px;">未振り分け</span>
           </div>
+          <div id="auto-alias-note-${idx}" style="font-size:11px;margin-top:2px;"></div>
         </div>
         <input class="mitem-nn-input" id="alias-target-${idx}" placeholder="代表機種名を入力" data-alias-idx="${idx}" autocomplete="off" style="flex:2;min-width:280px;font-size:14px;padding:8px 10px;">
         <button class="mitem-save-btn" onclick="makeAliasOfExisting(${idx})" style="font-size:14px;padding:8px 16px;">振り分ける</button>
@@ -6352,6 +6358,118 @@ async function makeAliasOfExisting(idx) {
   await saveMachineImages();
   refreshMachineViews();
   showToast(`「${name}」を「${target}」に振り分けました`);
+}
+
+// ===== 自動で振り分け（候補を入れるだけ。保存は「まとめて確定」） =====
+// 店舗ごとの書き方の違い（⑳L/…/RN、半角カナ、末尾の記号、(21円74銭)など）をならして比べる
+const AUTO_ALIAS_ROMAN = { 'Ⅰ':1,'Ⅱ':2,'Ⅲ':3,'Ⅳ':4,'Ⅴ':5,'Ⅵ':6,'Ⅶ':7,'Ⅷ':8,'Ⅸ':9,'Ⅹ':10 };
+const AUTO_ALIAS_ROMAN_ASCII = { VIII:8, VII:7, VI:6, IV:4, IX:9, V:5, III:3, II:2 };
+function autoAliasCore(s) {
+  let t = String(s || '')
+    .replace(/^[①-⓿㉑-㊿❶-➓]+/, '')   // 先頭の①⑳など
+    .replace(/[Ⅰ-Ⅹ]/g, c => ' ' + AUTO_ALIAS_ROMAN[c] + ' ')      // ローマ数字（Ⅴ・Ⅵ）は数字に
+    .normalize('NFKC')
+    .replace(/(?<![A-Za-z])(VIII|VII|VI|IV|IX|V|III|II)(?![A-Za-z])/g, m => ' ' + AUTO_ALIAS_ROMAN_ASCII[m] + ' ')
+    .replace(/[（(][^)）]*[)）]/g, '')                            // (21円74銭) など
+    .trim();
+  t = t.replace(/^(LB|L|S)(?=[\s\/]|[^\x00-\x7f]|[A-Z])/, '').trim(); // 先頭の L/ S/ LB
+  if (t.startsWith('/')) t = t.slice(1);
+  return t.split('/')[0];                                       // 「名前/記号」の記号部分を外す
+}
+function autoAliasNorm(s) {
+  let t = autoAliasCore(s).toLowerCase()
+    .replace(/[\s・･\-‐－―ー〜～~!！?？'’"“”.。、,，:：()（）\[\]【】「」『』☆★]/g, '');
+  for (let i = 0; i < 3; i++) t = t.replace(/^(スマスロ|スマート沖スロ|パチスロ|ぱちすろ|スロット|パチンコ|ぱちんこ|lパチスロ|l|s|p|e)/, '');
+  return t;
+}
+function autoAliasSim(a, b) {
+  const x = autoAliasNorm(a), y = autoAliasNorm(b);
+  if (!x || !y) return 0;
+  // パチンコ（e・P・CR始まり）とスロットは別機種
+  const isPachi = s => /^(e|P|CR)(?![a-z])/.test(autoAliasCore(s));
+  if (isPachi(a) !== isPachi(b)) return 0;
+  // 数字の代違い（銭形4と5、炎炎と炎炎2、マイジャグVとVI、-30の有無など）は別機種
+  const nums = s => autoAliasCore(s).match(/\d+/g) || [];
+  const soloNums = s => autoAliasCore(s).match(/(?<![A-Za-z\d])\d+(?![A-Za-z\d])/g) || []; // 記号（ND05H等）に付いていない数字
+  const an = nums(a), bn = nums(b);
+  if (bn.some(n => !an.includes(n))) return 0;
+  if (soloNums(a).some(n => !bn.includes(n))) return 0;
+  if (x === y) return 1;
+  if (x.includes(y) || y.includes(x)) return 0.6 + 0.4 * Math.min(x.length, y.length) / Math.max(x.length, y.length);
+  let best = 0;
+  for (let i = 0; i < x.length; i++) {
+    for (let j = 0; j < y.length; j++) {
+      let k = 0;
+      while (i + k < x.length && j + k < y.length && x[i + k] === y[j + k]) k++;
+      if (k > best) best = k;
+    }
+  }
+  return best / Math.max(x.length, y.length);
+}
+// 一番近い代表機種と確からしさ（'high'＝緑 / 'mid'＝黄 / null＝候補なし）
+function autoAliasBest(name) {
+  const scores = Object.keys(libraryImages)
+    .filter(k => isCurrentKindEntry(k))
+    .map(k => {
+      const e = libraryImages[k];
+      const cands = [k, e.nickname, ...(e.aliases || [])].filter(Boolean);
+      return [k, Math.max(...cands.map(c => autoAliasSim(name, c)))];
+    })
+    .sort((a, b) => b[1] - a[1]);
+  if (!scores.length || scores[0][1] < 0.7) return null;
+  const [target, score] = scores[0];
+  const second = scores[1]?.[1] || 0;
+  return { target, score, level: (score >= 0.9 && score - second >= 0.08) ? 'high' : 'mid' };
+}
+function autoSuggestAliases() {
+  let high = 0, mid = 0, none = 0;
+  (_machineListNames || []).forEach((name, idx) => {
+    const row = document.getElementById('mitem-' + idx);
+    const input = document.getElementById('alias-target-' + idx);
+    const note = document.getElementById('auto-alias-note-' + idx);
+    if (!row || !input || row.dataset.unassigned !== '1') return;
+    const best = autoAliasBest(name);
+    if (!best) {
+      none++;
+      row.style.border = '1px solid #eee'; row.style.background = '#fafafa';
+      if (note) note.innerHTML = '<span style="color:#999;">候補なし（手で振り分けるか、代表機種タブで登録してください）</span>';
+      return;
+    }
+    input.value = best.target;
+    if (best.level === 'high') {
+      high++;
+      row.style.border = '2px solid #4a9a30'; row.style.background = '#effbe9';
+      if (note) note.innerHTML = '<span style="color:#3d8a26;">🟢 自動の候補（ほぼ確実）</span>';
+    } else {
+      mid++;
+      row.style.border = '2px solid #e0b000'; row.style.background = '#fffbe0';
+      if (note) note.innerHTML = '<span style="color:#9a7a00;">🟡 自動の候補（念のため確認してください）</span>';
+    }
+  });
+  const btn = document.getElementById('auto-alias-confirm-btn');
+  if (btn) btn.style.display = (high + mid) ? '' : 'none';
+  showToast(high + mid
+    ? `候補を入れました：🟢${high}件 🟡${mid}件${none ? `・候補なし${none}件` : ''}。確認して「まとめて確定」を押してください`
+    : '自動で振り分けられる機種はありませんでした');
+}
+// 未振り分けの行で、振り分け先が入っているものをまとめて保存
+async function confirmAllAliases() {
+  const done = [], bad = [];
+  (_machineListNames || []).forEach((name, idx) => {
+    const row = document.getElementById('mitem-' + idx);
+    const input = document.getElementById('alias-target-' + idx);
+    if (!row || !input || row.dataset.unassigned !== '1') return;
+    const target = input.value.trim();
+    if (!target || target === name) return;
+    if (!libraryImages[target]) { bad.push(target); return; }
+    if (!libraryImages[target].aliases) libraryImages[target].aliases = [];
+    if (!libraryImages[target].aliases.includes(name)) libraryImages[target].aliases.push(name);
+    done.push(name);
+  });
+  if (!done.length) { showToast(bad.length ? `「${bad[0]}」はまだ代表機種として登録されていません` : '確定する振り分けがありません'); return; }
+  await saveMachineImages();
+  refreshMachineViews();
+  showToast(`✅ ${done.length}件を振り分けました` + (bad.length ? `（代表機種が見つからず${bad.length}件は保存していません）` : ''));
 }
 
 // ===== 振り分け先の代表機種候補リスト（ブラウザ標準のdatalistは小さく大きさを変えられないため自前で表示） =====
